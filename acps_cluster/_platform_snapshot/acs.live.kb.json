@@ -1,0 +1,126 @@
+{
+  "aic": "1.2.156.3088.1.BUPT.VTF97R.D86STV.UBL99U.0BOQ",
+  "name": "研枢-KB-Partner",
+  "active": true,
+  "skills": [
+    {
+      "id": "kb.schema",
+      "name": "kb_schema",
+      "tags": [
+        "知识库",
+        "结构卡",
+        "kb-schema"
+      ],
+      "version": "1.0.1",
+      "examples": [
+        "知识库里有哪些字段和查询规则"
+      ],
+      "description": "知识库结构卡：字段、档位（open 目录 / members 摘要 / curator 全文）、查询规则与限额；只有结构没有内容。",
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "kb.query",
+      "name": "kb_query",
+      "tags": [
+        "知识库",
+        "文献库",
+        "查文献",
+        "找论文",
+        "查资料",
+        "查数据",
+        "检索资料",
+        "受限查询",
+        "聚合统计",
+        "统计查询",
+        "knowledge-base",
+        "data-query",
+        "literature-search",
+        "paper-lookup"
+      ],
+      "version": "1.0.1",
+      "examples": [
+        "帮我按条件检索知识库里的文献",
+        "查一下库里有哪些相关论文",
+        "统计库里某个字段的分布",
+        "帮我统计一下各机构的论文数量并排名",
+        "query the knowledge base with filters",
+        "look up papers in the literature library"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "description": "知识库与文献库查询：查文献、找论文、查资料、查数据；受限查询下推 + 字段级脱敏（open 目录 / members 摘要 / curator 全文），支持条件过滤、字段投影与聚合统计（统计、求和、计数、分组、分布、排名），可防整库导出。",
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "kb.ingest",
+      "name": "kb_ingest",
+      "tags": [
+        "知识库",
+        "受控写入",
+        "策展",
+        "kb-ingest"
+      ],
+      "version": "1.0.1",
+      "examples": [
+        "帮我把这批记录写入知识库"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "description": "知识库受控写入（策展）：按 schema 校验后入库并附溯源（提交者与时间），每次写入都是审计事件。",
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "version": "1.0.1",
+  "provider": {
+    "name": "yanshu-lab",
+    "email": "huaibin2025@outlook.com",
+    "countryCode": "CN",
+    "organization": "北京邮电大学"
+  },
+  "endPoints": [
+    {
+      "url": "https://192.0.2.10:8599/rpc",
+      "security": [
+        {
+          "mtls": []
+        }
+      ],
+      "transport": "JSONRPC"
+    }
+  ],
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "192.0.2.10"
+      ]
+    }
+  },
+  "description": "知识库与文献库查询（KB）：数据不动、计算动——受限查询下推 + 字段级脱敏（open 目录 / members 摘要 / curator 全文），支持聚合统计与受控写入。适合：查机构文献库 / 结构化知识检索 / 统计与聚合查询 / 需要按权限分级看数据。典型问法：帮我查库里的文献和统计数字、按条件检索知识库、做一次聚合统计、knowledge base query、restricted data access。也用于：查文献、找文献、查论文、找论文、查资料、找资料、查数据、找数据、查一下库里有什么、文献库里有啥、检索资料、按条件查、字段查询、条件筛选、批量查、数据统计、统计一下、分组统计、求和、计数、分布统计、排名、对比不同机构、按角色看数据、权限分级、脱敏、哪些字段被隐藏、受控写入、把资料入库、录入数据、登记数据。",
+  "capabilities": {
+    "streaming": false,
+    "messageQueue": [],
+    "notification": false
+  },
+  "protocolVersion": "02.02",
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "lastModifiedTime": "2026-10-11T21:15:35.305479+08:00",
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ]
+}

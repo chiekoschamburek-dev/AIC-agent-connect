@@ -1,0 +1,10 @@
+[Unit]
+Description=每周日 04:00 执行台账事件裁剪（Persistent：错过补跑）
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

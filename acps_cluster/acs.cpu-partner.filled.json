@@ -1,0 +1,112 @@
+{
+  "aic": "",
+  "active": false,
+  "lastModifiedTime": "2026-10-05T18:00:00+08:00",
+  "protocolVersion": "02.02",
+  "name": "研枢-CPU-Partner",
+  "description": "CPU 计算节点：以断网加固沙盒容器形式向集群提供纯 CPU 任务执行能力（与 GPU 节点异构成对，共用同一套沙盒边界，仅不透传 GPU 设备）。执行环境为预拉到本地的 pytorch:cu128 镜像白名单（不允许现场拉取），容器侧硬边界：断网（--network none）、内存 7G、CPU 4 核、根文件系统只读且仅 output/ 可写、--cap-drop ALL + no-new-privileges + 非 root(1000:1000)、--pids-limit 256、默认 600 秒超时（上限 1800 秒）。输入限额：单文件 ≤10MB、任务总输入 ≤50MB、产物 ≤50MB，stdout/stderr 超长时保留头尾截断。任务工作区、准入策略与配额账本与 GPU 节点相互独立。不做：不提供 GPU 加速、不联网下载依赖、不做长驻服务托管、不承诺产物持久保存。cpu.run 为非公开能力，需授权后方可调用。",
+  "version": "1.0.0",
+  "provider": {
+    "countryCode": "CN",
+    "organization": "北京邮电大学",
+    "name": "wit-research-lab",
+    "email": "huaibin2025@outlook.com"
+  },
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "endPoints": [
+    {
+      "url": "https://192.0.2.10:8462/rpc",
+      "transport": "JSONRPC",
+      "security": [
+        {
+          "mtls": []
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "notification": false,
+    "messageQueue": []
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "skills": [
+    {
+      "id": "cpu.env",
+      "name": "CPU 节点环境查询（核数/内存/沙盒限额）",
+      "description": "查询 CPU 计算节点环境：核数/内存/Python 版本、镜像白名单、沙盒资源限制。公开只读。",
+      "version": "1.0.0",
+      "tags": [
+        "cpu",
+        "compute",
+        "status"
+      ],
+      "examples": [
+        "这台 CPU 节点有几个核、多少内存？",
+        "查节点的沙盒限制，估算任务能不能跑下",
+        "纯数据处理任务应该派给 CPU 还是 GPU 节点？"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "cpu.status",
+      "name": "CPU 任务状态查询",
+      "description": "查询最近的 CPU 节点任务（状态/时长/退出码/产物清单，不含任务内容）。公开只读。",
+      "version": "1.0.0",
+      "tags": [
+        "cpu",
+        "compute",
+        "status"
+      ],
+      "examples": [
+        "最近在这个节点上跑过哪些任务？",
+        "上一个数据处理任务成功了吗？",
+        "列出最近十次运行的产物清单与耗时"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "cpu.run",
+      "name": "CPU 沙盒任务执行",
+      "description": "在 CPU 沙盒容器（pytorch:cu128 镜像但不透传 GPU，断网，内存 7G/CPU 4 核）中运行任务：files 提供 {文件名: 内容}（至少含 main.py），产物写入 output 目录会随结果回传。适合纯计算/数据处理/脚本类任务；高成本资源：仅限被授权的伙伴调用。",
+      "version": "1.0.0",
+      "tags": [
+        "cpu",
+        "compute",
+        "task"
+      ],
+      "examples": [
+        "跑一段数据清洗脚本并把结果文件带回来",
+        "在 CPU 上做一轮小规模词频统计与聚合",
+        "执行这个不需要 GPU 的验证脚本，回传 stdout"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "192.0.2.10"
+      ]
+    }
+  }
+}

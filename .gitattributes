@@ -1,0 +1,44 @@
+# 默认文本文件统一使用 LF，避免 Windows/Linux 往返产生整文件 diff
+* text=auto eol=lf
+
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.toml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.pem text eol=lf
+
+# Windows 原生脚本保留 CRLF
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# 二进制与归档文件
+*.whl binary
+*.pdf binary
+*.doc binary
+*.docx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.sqlite3 binary
+*.sqlite3-shm binary
+*.sqlite3-wal binary
+*.p12 binary
+*.pfx binary
+*.pyc binary

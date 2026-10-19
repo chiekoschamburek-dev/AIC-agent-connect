@@ -1,0 +1,96 @@
+{
+ "aic": "",
+ "active": false,
+ "lastModifiedTime": "2026-10-04T12:00:00.000000+08:00",
+ "protocolVersion": "02.02",
+ "name": "研枢-Citation-Integrity-Partner",
+ "description": "引用完整性核验：把草稿的每一条引用变成结构化裁决与证据摘录。机械流水线四步——①正则解析 [n] 引用标记，抽取（论断句，被引来源）对；②按参考文献条目取源（arXiv ID 优先，持委托令牌经桥直连 scout 深取；无令牌自动降级）；③每条引用一次独立小上下文 LLM 比对（论断 vs 原文摘录）；④汇成 verdict 表并按来源分级。四档裁决：supported（一致）/ misrepresented（曲解）/ fabricated（无中生有或来源不存在）/ unverifiable（未能取到原文，降级模式）。硬约束由代码保证：单次上限 30 条引用；单条摘录上限 1200 字符；核验 LLM 与审稿 LLM 分离（自我复核悖论）；无令牌时诚实标记 source=unverified 而非编造比对结论。不做：不出具正式审稿意见（critic 职责）、不代写修改段落、不评价论断的学术价值、不接收无 [n] 标记的全文比对任务。",
+ "version": "1.0.0",
+ "provider": {
+  "countryCode": "CN",
+  "organization": "北京邮电大学",
+  "name": "wit-research-lab",
+  "email": "huaibin2025@outlook.com"
+ },
+ "securitySchemes": {
+  "mtls": {
+   "type": "mutualTLS",
+   "description": "ACPs mutual TLS identity"
+  }
+ },
+ "certificate": {
+  "altNames": {
+   "ip": [
+    "192.0.2.10"
+   ]
+  }
+ },
+ "endPoints": [
+  {
+   "url": "https://192.0.2.10:8468/rpc",
+   "transport": "JSONRPC",
+   "security": [
+    {
+     "mtls": []
+    }
+   ]
+  }
+ ],
+ "capabilities": {
+  "streaming": false,
+  "notification": false,
+  "messageQueue": []
+ },
+ "defaultInputModes": [
+  "application/json"
+ ],
+ "defaultOutputModes": [
+  "application/json"
+ ],
+ "skills": [
+  {
+   "id": "citation.verify",
+   "name": "草稿逐条引用核验",
+   "description": "提交含 [n] 引用标记的草稿与编号参考文献条目，返回逐条 verdict 表：四档裁决（supported/misrepresented/fabricated/unverifiable）、支撑裁决的原文证据摘录、来源分级（arxiv=真实取源比对 / unverified=条目自洽性降级）与汇总统计。单次上限 30 条引用。核验 LLM 与审稿 LLM 分离；无委托令牌时对非本地来源自动降级并如实标记。",
+   "version": "1.0.0",
+   "tags": [
+    "research",
+    "citation",
+    "verification"
+   ],
+   "examples": [
+    "核验这份 mini survey 草稿的 12 条引用是否站得住",
+    "检查摘要里 [2] 号引用是否真的支持'线性复杂度'这个论断",
+    "对复现报告的参考文献做逐条 fabricated 排查"
+   ],
+   "inputModes": [
+    "application/json"
+   ],
+   "outputModes": [
+    "application/json"
+   ]
+  },
+  {
+   "id": "citation.rules",
+   "name": "核验方法论说明",
+   "description": "返回引用核验的方法论说明：四档裁决定义、来源分级（arxiv/unverified）、审稿与核验 LLM 分离原则、提交格式要求（[n] 标记与 arXiv ID 规范）与能力上限（30 条/次、1200 字符摘录）。公开只读，供调用方在提交前了解口径与格式。",
+   "version": "1.0.0",
+   "tags": [
+    "research",
+    "citation",
+    "verification"
+   ],
+   "examples": [
+    "引用核验的四档裁决分别是什么标准",
+    "提交核验前草稿和参考文献要什么格式",
+    "没有委托令牌时核验结果可信度如何标注"
+   ],
+   "inputModes": [
+    "application/json"
+   ],
+   "outputModes": [
+    "application/json"
+   ]
+  }
+ ]
+}

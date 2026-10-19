@@ -1,0 +1,153 @@
+{
+  "aic": "",
+  "active": false,
+  "lastModifiedTime": "2026-10-05T18:00:00+08:00",
+  "protocolVersion": "02.02",
+  "name": "研枢-GPU-Partner",
+  "description": "GPU 计算节点：把本机 RTX 5060（8GB 显存）以加固沙盒容器形式向集群提供 PyTorch 实验执行能力。执行环境为预拉到本地的 pytorch:cu128 镜像白名单（不允许现场拉取任意镜像），容器侧硬边界八条：断网（--network none）、内存 7G、CPU 4 核、只透传 device=0 一张卡、根文件系统只读且仅 output/ 可写、--cap-drop ALL + no-new-privileges + 非 root(1000:1000)、--pids-limit 256、默认 600 秒超时（上限 1800 秒）。输入限额：单文件 ≤10MB、任务总输入 ≤50MB、产物 ≤50MB，stdout/stderr 超长时保留头尾截断。数据集由本节点宿主侧代下并只读挂载到 /data/<name>（仅 https，回环放行 http；可选 sha256 强校验；单数据集上限 2GB；zip/tar 解压做路径穿越与符号链接防护；下载动作记录审计）。不做：不装依赖、不联网取数据、不提供长期占卡、不做分布式多机训练、不承诺产物持久保存。gpu.run 与 gpu.data.fetch 为非公开能力，需授权后方可调用。",
+  "version": "1.0.0",
+  "provider": {
+    "countryCode": "CN",
+    "organization": "北京邮电大学",
+    "name": "wit-research-lab",
+    "email": "huaibin2025@outlook.com"
+  },
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "endPoints": [
+    {
+      "url": "https://192.0.2.10:8460/rpc",
+      "transport": "JSONRPC",
+      "security": [
+        {
+          "mtls": []
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "notification": false,
+    "messageQueue": []
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "skills": [
+    {
+      "id": "gpu.env",
+      "name": "GPU 节点环境查询（显卡/镜像白名单/沙盒限额）",
+      "description": "查询 GPU 计算节点环境：显卡型号/显存/驱动、可用镜像白名单、沙盒资源限制。公开只读。",
+      "version": "1.0.0",
+      "tags": [
+        "gpu",
+        "compute",
+        "status"
+      ],
+      "examples": [
+        "这台 GPU 节点有多少显存、能跑哪些镜像？",
+        "查一下算力节点的沙盒限额，好决定实验规模",
+        "节点上已经托管了哪些数据集？"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "gpu.status",
+      "name": "GPU 实验任务状态查询",
+      "description": "查询最近的 GPU 实验任务（状态/时长/退出码/产物清单，不含任务内容）。",
+      "version": "1.0.0",
+      "tags": [
+        "gpu",
+        "compute",
+        "status"
+      ],
+      "examples": [
+        "最近跑过哪些实验，有没有失败的？",
+        "刚才那个任务结束了吗，退出码是多少？",
+        "列出最近十次运行的产物清单"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "gpu.data.list",
+      "name": "已托管数据集清单",
+      "description": "列出本 GPU 节点已托管的数据集（名称/文件数/大小/容器内挂载路径）。公开只读。",
+      "version": "1.0.0",
+      "tags": [
+        "gpu",
+        "compute",
+        "dataset"
+      ],
+      "examples": [
+        "节点上有哪些现成数据集可用？",
+        "查 dataset-xyz 在容器里的挂载路径",
+        "已托管数据集总共占了多少空间"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "gpu.data.fetch",
+      "name": "数据集代下与托管",
+      "description": "把一个数据集从 URL 代下到本节点（宿主侧下载，沙盒外执行），之后实验代码可用 /data/<name> 只读访问。仅 https（回环地址可 http）；可选 sha256 强校验；上限 2GB；zip/tar 自动安全解压。数据集托管属高成本操作，仅限被授权的伙伴调用。",
+      "version": "1.0.0",
+      "tags": [
+        "gpu",
+        "compute",
+        "dataset"
+      ],
+      "examples": [
+        "把这个公开基准下载到节点上备用",
+        "代下数据集并做 sha256 校验，防止内容漂移",
+        "节点缺训练数据，先取回再跑实验"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "gpu.run",
+      "name": "GPU 沙盒实验执行",
+      "description": "在 GPU 沙盒容器（pytorch:cu128，断网，内存 7G/CPU 4 核/GPU device=0）中运行实验：files 提供 {文件名: 内容}（至少含 main.py，输入数据可用相对 input 目录读取），entrypoint 缺省 ['python','/workspace/input/main.py']，产物写入 output 目录会随结果回传。高成本资源：仅限被授权的伙伴调用。",
+      "version": "1.0.0",
+      "tags": [
+        "gpu",
+        "compute",
+        "experiment"
+      ],
+      "examples": [
+        "在这张卡上跑一轮小规模图分类训练并回传指标",
+        "执行这个 PyTorch 脚本，把 stdout 与产物带回来",
+        "对比两组超参数在 8GB 显存下的收敛情况"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "192.0.2.10"
+      ]
+    }
+  }
+}

@@ -1,0 +1,84 @@
+复现一篇适合当前显卡训练的论文，并给出实验报告与审稿结论。按以下链路执行：
+
+① 调 gpu.env 拿本 GPU 节点的真实算力约束（显存/镜像白名单/沙盒限额）；
+② scholar.deep_fetch 检索 5-8 篇候选论文（主题：卷积网络小模型从零训练、单卡短时可训）；
+③ paper.extract 逐篇萃取四要素；
+④ 你按算力约束选出唯一最适合的一篇，在计划里写明选型理由；
+⑤ 委派 exp.run 训练验证——机制类复现用合成数据：dataset 参数写明「代码内用 torch 固定种子合成、不读任何 CSV、不下载任何数据」，并把下面的参考实现原样放进 question（实验员会转写提交，timeout_seconds=900；exp.run 返回 awaiting 缺令牌时按 remedy-3 授权隧道处理）；
+⑥ paper.write 根据实验过程与结果写实验报告（materials=实验报告原文+算力约束+选型理由，mode=full）；
+⑦ paper.review 审查实验报告的可行性与严谨性（materials 带上算力约束与实验原始指标），REVISE 就让 writer 带 feedback 返工一轮，然后把最终报告与审稿结论一起汇总。
+
+注意：本任务不需要 dataset.fetch（数据全部代码内合成）。参考实现：
+
+```python
+import json, os, time
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+torch.manual_seed(0)
+device = 'cuda'
+os.makedirs('output', exist_ok=True)
+
+def make_data(n=512, size=32):
+    xs, ys = [], []
+    for i in range(n):
+        cls = i % 2
+        base = torch.zeros(1, size, size)
+        if cls == 0:
+            base[:, ::4, :] = 1.0
+        else:
+            base[:, :, ::4] = 1.0
+        xs.append(base + 0.3 * torch.randn(1, size, size))
+        ys.append(cls)
+    X = torch.stack(xs)
+    Y = torch.tensor(ys)
+    perm = torch.randperm(n)
+    return X[perm[:410]], Y[perm[:410]], X[perm[410:]], Y[perm[410:]]
+
+class SmallCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 8, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(8, 16, 3, padding=1), nn.ReLU(), nn.MaxPool2d(2),
+            nn.AdaptiveAvgPool2d((4, 4)))
+        self.head = nn.Linear(16 * 4 * 4, 2)
+
+    def forward(self, x):
+        return self.head(self.features(x).flatten(1))
+
+def run_arm(name, schedule, Xtr, Ytr, Xva, Yva, epochs=12):
+    model = SmallCNN().to(device)
+    opt = torch.optim.Adam(model.parameters(), lr=1e-3)
+    torch.cuda.reset_peak_memory_stats()
+    t0 = time.time()
+    for ep in range(epochs):
+        size = schedule(ep)
+        x = Xtr if size == 32 else F.interpolate(Xtr, size=size, mode='nearest')
+        model.train()
+        opt.zero_grad()
+        loss = F.cross_entropy(model(x.to(device)), Ytr.to(device))
+        loss.backward()
+        opt.step()
+    model.eval()
+    with torch.no_grad():
+        acc = (model(Xva.to(device)).argmax(1).cpu() == Yva).float().mean().item()
+    return {'arm': name, 'final_val_acc': round(acc, 4),
+            'total_train_s': round(time.time() - t0, 2),
+            'per_epoch_s': round((time.time() - t0) / epochs, 3),
+            'peak_mem_mb': round(torch.cuda.max_memory_allocated() / 1e6, 1)}
+
+def main():
+    DATA = make_data()
+    results = [
+        run_arm('progressive', lambda ep: 8 if ep < 6 else 32, *DATA),
+        run_arm('fixed32', lambda ep: 32, *DATA),
+    ]
+    summary = {'hypothesis': 'ENTR: 初期低分辨率训练更高效', 'results': results}
+    print(json.dumps(summary, ensure_ascii=False))
+    with open('output/summary.json', 'w', encoding='utf-8') as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
+
+main()
+```

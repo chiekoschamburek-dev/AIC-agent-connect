@@ -1,0 +1,74 @@
+{
+  "aic": "",
+  "active": false,
+  "lastModifiedTime": "2026-09-23T22:08:52.750685+08:00",
+  "protocolVersion": "02.02",
+  "name": "研枢-Synthesis-Partner",
+  "description": "文献精读员：对传入的论文文本（标题+摘要或正文片段）按固定学术 Schema 抽取核心创新点、研究缺口、方法论、实验配置四要素，并给出 3-6 个中文关键词。输入超过 12000 字符时按前 12000 字符截断；单字段不超过 80 字，文本未提及的字段一律返回\"文中未说明\"，不编造。不做：不联网获取原文或 PDF、不做多篇交叉综合、不核查论断真伪、不改写或续写论文。",
+  "version": "1.0.0",
+  "provider": {
+    "countryCode": "CN",
+    "organization": "北京邮电大学",
+    "name": "wit-research-lab",
+    "email": "huaibin2025@outlook.com"
+  },
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "endPoints": [
+    {
+      "url": "https://192.0.2.10:8446/rpc",
+      "transport": "JSONRPC",
+      "security": [
+        {
+          "mtls": []
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "notification": false,
+    "messageQueue": []
+  },
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "skills": [
+    {
+      "id": "paper.extract",
+      "name": "论文四要素萃取",
+      "description": "输入论文文本（标题+摘要或正文片段），按学术 Schema 抽取核心创新点、研究缺口、方法论与实验配置，输出结构化要素。输入上限 12000 字符，输出固定 5 个键：core_innovation / research_gap / methodology / experiment_setup / keywords。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "synthesis",
+        "schema"
+      ],
+      "examples": [
+        "把这篇论文的摘要拆成创新点、缺口、方法、实验四栏",
+        "从这段正文里抽出实验配置、数据集和基线模型",
+        "给这篇论文提 5 个中文关键词并归纳其方法论"
+      ],
+      "inputModes": [
+        "text/plain"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "192.0.2.10"
+      ]
+    }
+  }
+}

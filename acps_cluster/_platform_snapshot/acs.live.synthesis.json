@@ -1,0 +1,82 @@
+{
+  "aic": "1.2.156.3088.1.BUPT.VTF97R.9HADYH.RLVWEP.07Y5",
+  "name": "研枢-Synthesis-Partner",
+  "active": true,
+  "skills": [
+    {
+      "id": "paper.extract",
+      "name": "extract_digest",
+      "tags": [
+        "research",
+        "synthesis",
+        "schema",
+        "文献精读",
+        "信息抽取",
+        "论文要点",
+        "结构化",
+        "paper-reading",
+        "extraction",
+        "summarization"
+      ],
+      "version": "1.0.0",
+      "examples": [
+        "帮我读这几篇论文并提炼创新点和研究方法",
+        "把文献整理成结构化的四要素表格",
+        "提取这篇论文的实验配置",
+        "extract the key contributions and methods from these papers"
+      ],
+      "inputModes": [
+        "text/plain"
+      ],
+      "description": "输入论文文本（标题+摘要或正文片段），按学术 Schema 抽取核心创新点、研究缺口、方法论与实验配置，输出结构化要素。输入上限 12000 字符，输出固定 5 个键：core_innovation / research_gap / methodology / experiment_setup / keywords。",
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "version": "1.1.0",
+  "provider": {
+    "name": "wit-research-lab",
+    "email": "huaibin2025@outlook.com",
+    "countryCode": "CN",
+    "organization": "北京邮电大学"
+  },
+  "endPoints": [
+    {
+      "url": "https://192.0.2.10:8446/rpc",
+      "security": [
+        {
+          "mtls": []
+        }
+      ],
+      "transport": "JSONRPC"
+    }
+  ],
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "192.0.2.10"
+      ]
+    }
+  },
+  "description": "文献精读员：对传入的论文文本（标题+摘要或正文片段）按固定学术 Schema 抽取核心创新点、研究缺口、方法论、实验配置四要素，并给出 3-6 个中文关键词。输入超过 12000 字符时按前 12000 字符截断；单字段不超过 80 字，文本未提及的字段一律返回\"文中未说明\"，不编造。不做：不联网获取原文或 PDF、不做多篇交叉综合、不核查论断真伪、不改写或续写论文。\n论文精读与结构化萃取（Synthesis）：把论文拆成创新点、研究缺口、方法论、实验配置四要素，并给出关键词，供后续综述、矛盾侦测与引用核验使用。适合：论文精读 / 文献结构化整理 / 批量抽取论文要点 / 综述素材整理 / 读文献并做笔记。典型问法：帮我读这几篇论文并提炼要点、把文献整理成结构化表格、提取论文的创新点和研究方法、帮我做文献笔记、paper reading、literature extraction。",
+  "capabilities": {
+    "streaming": false,
+    "messageQueue": [],
+    "notification": false
+  },
+  "protocolVersion": "02.02",
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "lastModifiedTime": "2026-10-09T16:21:51.230309+08:00",
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ]
+}

@@ -1,0 +1,31 @@
+[Unit]
+Description=Wit ACPs Yanshu AMP Access Sender (local amp_access_*.jsonl -> Kafka amp.access)
+Documentation=file:///opt/wit/my-project/docs/incident-2026-10-19-ranking-zero.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wit
+Group=wit
+WorkingDirectory=/opt/wit/my-project/acps_cluster
+
+# 只转 access，topic 固定 amp.access；与心跳转发器 wit-amp-sender 完全独立。
+# 心跳是生产命脉（停了 1–2 分钟全集群被判离线），绝不能为了 access 去改它。
+# --send 才真投；不带 --send 是 dry-run，本单元显式带 --send。
+ExecStart=/opt/wit/venv/bin/python /opt/wit/my-project/acps_cluster/deploy/amp_access_sender.py \
+    --source-dir /opt/wit/my-project/acps_cluster \
+    --topic amp.access \
+    --send --watch --interval 15
+
+Restart=always
+RestartSec=30
+TimeoutStopSec=20
+
+# 只允许写自己的位点目录（同 wit-yanshu@.service 的最小权限思路）
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/wit/my-project/acps_cluster
+
+[Install]
+WantedBy=multi-user.target

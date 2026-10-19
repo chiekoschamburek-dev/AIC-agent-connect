@@ -1,0 +1,1019 @@
+{
+  "_comment": "注册文本覆盖表：由 build_registered_overlay.py 从平台现网 ACS 生成。discovery_metadata 在生成声明时会优先采用本表的文本，以保证「代码投影 ≡ 平台注册版」，避免触发 wit 的 ACS 指纹保护。重新注册（换 AIC/版本）后需重新生成本文件。",
+  "generated_at": "2026-10-16T08:26:29.356605+00:00",
+  "source": "my-project/acps_cluster/_platform_snapshot/acs.live.*.json",
+  "agents": {
+    "yanshu.scout-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.GMT5S6.4SZM68.0LC5",
+      "version": "1.11.0",
+      "description": "文献检索与资料收集（Scout）：跨 arXiv、OpenAlex、Semantic Scholar 三个学术源检索中英文论文，返回标题、作者、年份、摘要、DOI 与链接的去重清单，并跟踪高引与新兴工作。适合：文献检索 / 找论文 / 查资料 / 文献综述的资料收集 / 领域调研 / 前沿追踪 / 高引论文与引文数据获取。典型问法：帮我检索某个主题的文献、找近五年的相关论文、收集一个方向的代表性工作、查某篇论文的引用情况、做一次文献调研、literature search、paper search、survey materials。"
+    },
+    "yanshu.supervisor": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.JXN8O8.98DOO8.0EB6",
+      "version": "1.2.0",
+      "description": "研枢平台总控（Leader）：解析科研任务意图后，先用代码侧闸门 plan_gate 校验调度计划（伙伴身份取自集群名册、能力必须匹配，杜绝编造伙伴与漏步骤），再按需把检索、精读、矛盾侦测、前沿探测、写作、审稿委派给社区 partner——按任务裁剪链路，不照搬固定顺序；对 Critic 裁决做代码侧一致性校验（review_gate）：存在 blocker 或 major 即按 REVISE 处理，把问题清单整理成 feedback 交回 Writer，最多返工 2 轮。终稿附引用资料清单、矛盾对与可检验假说、前沿方向与入场时机，并给出各 partner 的 AIC 溯源。单次任务上限 200 步、单次工具调用超时 420 秒（wait_partner 会阻塞到伙伴终态再返回）。对外公开一项能力 research.orchestrate：只读地返回本集群的调度计划与伙伴在线状态；把任务文本直接作为 AIP 载荷发过来，即按名册编排执行完整链路。所有检索/精读/矛盾侦测/前沿探测/写作/审稿内容必须由对应伙伴产出，leader 只做调度、代码侧校验与汇总，不代写。\n【找智能体时看这里】我是这个科研智能体集群的总入口：一句话交给我一个研究任务，我会自动拆解并调度文献检索、论文精读、矛盾侦测、前沿探测、论文写作、审稿与引用核验、实验执行等专职智能体协作完成。适合：做文献综述 / 写论文 / 写综述 / 审稿改稿 / 选题与前沿调研 / 研究方案设计与实验验证 / 需要「一个帮我做完整科研流程」的助手。典型问法：帮我做一份文献综述、帮我写一篇论文、帮我审稿并给修改意见、帮我做选题调研、帮我验证一个研究假设、帮我安排一次完整的科研任务、research assistant / literature review / paper writing / peer review / research orchestration。"
+    },
+    "yanshu.critic-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.M2NJ2G.A1BIB2.195J",
+      "version": "1.11.0",
+      "description": "模拟审稿人：科学性/逻辑性/合规性审查 + 引用核验（独立于审稿判断的机械流水线）。\n论文评审与引用核验（Critic）：以审稿人视角做科学性、逻辑性与合规性审查，输出 APPROVE / REVISE 裁决、评分与逐条问题清单（含位置、问题、建议与可复核原文证据）；引用核验独立于审稿判断，逐条判定 supported / misrepresented / fabricated / unverifiable。适合：论文审稿 / 同行评审 / 稿件质量检查 / 引用与事实核验 / 查引用是否造假 / 投稿前自检。典型问法：帮我审一篇论文、帮我检查这篇稿子的问题、帮我核对引用是否真实、这篇论文能不能投、给我一份审稿意见、peer review、citation verification、fact checking。"
+    },
+    "yanshu.writer-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.1OGDWX.U9K14M.0CDI",
+      "version": "1.1.0",
+      "description": "论文写作员：按研究主题与编号资料清单起草中文论文。mode=outline 输出 Markdown 大纲（题目、摘要要点、章节标题及每节 2-3 句内容规划，论点标注可引用资料编号）；mode=full 输出全文初稿（摘要/引言/相关工作/方法/实验设计/结论/参考文献）；同时传 feedback 与 previous_draft 即按审稿意见逐条定向返工。入参上限：资料清单 12000 字符、旧稿 12000 字符、审稿意见 4000 字符；mode 仅接受 outline 与 full，其他值直接报错。不做：只依据给定资料组织内容，资料不足处在对应位置标注[需补充证据]，不检索文献、不核查引用真伪、不成稿英文、不输出 LaTeX 或排版结果。\n学术论文写作（Writer）：按研究主题与编号资料清单起草中文论文，支持大纲与全文两档，并可依据审稿意见定向返工修改。适合：论文写作 / 写综述 / 写开题报告与大纲 / 起草初稿 / 按审稿意见改稿 / 学术润色与结构重排。典型问法：帮我写一篇论文、帮我写文献综述、给我一个论文大纲、根据审稿意见改稿、把资料整理成一篇综述、academic writing、paper drafting、revise the manuscript。"
+    },
+    "yanshu.synthesis-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.9HADYH.RLVWEP.07Y5",
+      "version": "1.1.0",
+      "description": "文献精读员：对传入的论文文本（标题+摘要或正文片段）按固定学术 Schema 抽取核心创新点、研究缺口、方法论、实验配置四要素，并给出 3-6 个中文关键词。输入超过 12000 字符时按前 12000 字符截断；单字段不超过 80 字，文本未提及的字段一律返回\"文中未说明\"，不编造。不做：不联网获取原文或 PDF、不做多篇交叉综合、不核查论断真伪、不改写或续写论文。\n论文精读与结构化萃取（Synthesis）：把论文拆成创新点、研究缺口、方法论、实验配置四要素，并给出关键词，供后续综述、矛盾侦测与引用核验使用。适合：论文精读 / 文献结构化整理 / 批量抽取论文要点 / 综述素材整理 / 读文献并做笔记。典型问法：帮我读这几篇论文并提炼要点、把文献整理成结构化表格、提取论文的创新点和研究方法、帮我做文献笔记、paper reading、literature extraction。"
+    },
+    "yanshu.experiment-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.WN4C3S.0C0YA7.0J4R",
+      "version": "1.1.0",
+      "description": "实验员：把研究问题转写为可执行的实验代码，并在受控 GPU 沙盒中跑出真实结果，返回结构化实验报告 JSON——summary（结论摘要）、metrics（指标）、findings（发现）、caveats（局限）、verdict（该假设是否被支持）。执行链路由代码固定：LLM 生成代码 → 输入侧校验（至少含 main.py、单文件 ≤10MB、总输入 ≤50MB、超时 ≤1800s）→ 持 leader 委托的令牌直连 gpu-partner 沙盒执行 → LLM 依据真实 stdout 与产物出报告；代码两轮未过校验即如实报失败，不伪造实验数据。沙盒为断网执行（network=none）、只读根文件系统、非 root 用户、丢弃全部 capabilities。入参：研究问题（必填）、方法（可选）、数据集文本（可选，由 Scout 取回的小样本 CSV 直接传入，沙盒内无法联网下载）、超时（默认 600s）。不做：不做联网检索、不做文献综述、不代替 GPU 节点执行（执行必须经 gpu-partner 的 gpu.run），也不在无沙盒环境跑任意代码。\n实验设计与执行（Experiment）：把研究问题转写为可执行实验代码，在受控 GPU 沙盒中真实运行，返回结构化实验报告（结论摘要、指标、发现、局限与该假设是否被支持）。适合：跑实验 / 验证假设 / 复现论文结果 / 机器学习实验执行 / 需要真实运行结果而不是文字推测。典型问法：帮我做个实验验证这个想法、帮我跑一下这个模型、复现这篇论文的实验、验证这个假设是否成立、run experiments、hypothesis validation。"
+    },
+    "yanshu.frontier-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.V1E6AY.3YME2N.01K2",
+      "version": "1.1.0",
+      "description": "速度前沿探测（为选题服务，不为写作服务）：按关键词扫描近 window_months 个月（默认 12，可设 1-36）内发表的工作，用 OpenAlex 真实引用数据计算 citation velocity（总引用 / 月龄）并统计主题聚集度（同一主题下窗口内新工作数），识别正在爆发的新兴方向，输出方向清单与入场时机。输出含：方向名称、为何判定为新兴（须引用清单内真实数字）、代表工作 id 与标题、速度区间、入场时机（可入场/已过窗口期/需进一步验证）。硬约束由代码保证：每个方向必须通过序号引用至少 2 篇本次真实扫描到的工作，序号越界或引用不足的方向一律丢弃并记入 dropped；速度与聚集度数字全部由系统统计，模型不得生成或改写；入场时机是启发式判断，返回结果中带 heuristic_note 显式标注。另提供 frontier.citation_profile 复核单篇论文的施引年份分布（Semantic Scholar 引用图谱，单次最多取回 1000 条，被截断时 capped=true 且早年年份可能偏少）。不做：不下载或解析 PDF 全文、不做文献质量评审、不代写论文、不预测未来引用数。\n研究前沿与选题探测（Frontier）：按关键词扫描近 6-12 个月发表的工作，用引用速度（总引用/月龄）和主题聚集度识别正在爆发的新兴方向，输出方向清单与入场时机建议。适合：选题 / 找研究热点 / 前沿趋势分析 / 判断方向是否值得做 / 新兴领域扫描 / 论文选题调研。典型问法：帮我找几个值得做的研究方向、这个领域最近有什么热点、帮我做选题调研、哪个方向正在爆发、research trend analysis、topic selection、emerging topics。"
+    },
+    "yanshu.contradiction-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.Z7TJ57.ORGGRY.0ZFO",
+      "version": "1.1.0",
+      "description": "矛盾侦测与假说生成：输入多篇论文的结构化萃取（每篇含来源 id 与创新点/研究缺口/方法论/实验配置四要素），做**跨论文**比对，找出实质冲突并转化为可检验的研究假说。输出结构化矛盾对 JSON：每对含双方论点（claim_a/claim_b）、来源 id（source_a/source_b）、支撑证据、矛盾类型（直接冲突/条件依赖冲突/度量口径冲突/结论外推冲突）、调和假说与可检验预测。硬约束由代码保证：引用同一来源、引用了输入中不存在的来源、缺调和假说或缺可检验预测的候选一律丢弃，并把丢弃理由记入 dropped 供调用方审计。入参上限：资料 14000 字符。不做：不检索文献、不下载或解析 PDF 全文、不对单篇论文做萃取（那是 Synthesis-Partner 的职责）、不评价论文质量、不给论文打分。\n文献矛盾侦测与假说生成（Contradiction）：跨论文比对四要素萃取，找出实质冲突并转化为可检验的研究假说，输出结构化矛盾对（双方论点、证据、来源、矛盾类型）。适合：找文献之间的矛盾 / 发现研究冲突与争议点 / 生成可验证的研究假设 / 综述的批判性分析。典型问法：这些论文里有没有互相矛盾的结论、帮我找研究空白和争议、根据文献冲突提出假设、帮我做批判性文献分析、contradiction detection、hypothesis generation。"
+    },
+    "yanshu.kb-partner": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.D86STV.UBL99U.0BOQ",
+      "version": "1.0.1",
+      "description": "知识库与文献库查询（KB）：数据不动、计算动——受限查询下推 + 字段级脱敏（open 目录 / members 摘要 / curator 全文），支持聚合统计与受控写入。适合：查机构文献库 / 结构化知识检索 / 统计与聚合查询 / 需要按权限分级看数据。典型问法：帮我查库里的文献和统计数字、按条件检索知识库、做一次聚合统计、knowledge base query、restricted data access。也用于：查文献、找文献、查论文、找论文、查资料、找资料、查数据、找数据、查一下库里有什么、文献库里有啥、检索资料、按条件查、字段查询、条件筛选、批量查、数据统计、统计一下、分组统计、求和、计数、分布统计、排名、对比不同机构、按角色看数据、权限分级、脱敏、哪些字段被隐藏、受控写入、把资料入库、录入数据、登记数据。"
+    },
+    "yanshu.citation-integrity": {
+      "aic": "1.2.156.3088.1.BUPT.VTF97R.2QW16N.DPIO3G.0C3M",
+      "version": "1.0.0",
+      "description": "引用完整性核验：把草稿的每一条引用变成结构化裁决与证据摘录。机械流水线四步——①正则解析 [n] 引用标记，抽取（论断句，被引来源）对；②按参考文献条目取源（arXiv ID 优先，持委托令牌经桥直连 scout 深取；无令牌自动降级）；③每条引用一次独立小上下文 LLM 比对（论断 vs 原文摘录）；④汇成 verdict 表并按来源分级。四档裁决：supported（一致）/ misrepresented（曲解）/ fabricated（无中生有或来源不存在）/ unverifiable（未能取到原文，降级模式）。硬约束由代码保证：单次上限 30 条引用；单条摘录上限 1200 字符；核验 LLM 与审稿 LLM 分离（自我复核悖论）；无令牌时诚实标记 source=unverified 而非编造比对结论。不做：不出具正式审稿意见（critic 职责）、不代写修改段落、不评价论断的学术价值、不接收无 [n] 标记的全文比对任务。"
+    }
+  },
+  "skills": {
+    "arxiv.search": {
+      "id": "arxiv.search",
+      "name": "scout_arxiv_search",
+      "description": "arXiv 预印本检索：按关键词或主题检索 arXiv，返回标题、作者、发布时间、摘要与 PDF 链接，适合找最新预印本与前沿工作。输入自然语言关键词即可。",
+      "version": "1.0.0",
+      "tags": [
+        "文献检索",
+        "论文检索",
+        "arXiv",
+        "预印本",
+        "学术搜索",
+        "literature-search",
+        "paper-search"
+      ],
+      "examples": [
+        "帮我检索近三年图神经网络在知识图谱补全方向的论文",
+        "找一下 arXiv 上关于多智能体协作的最新预印本",
+        "给我十篇关于检索增强生成的论文",
+        "search arXiv for recent papers on agent interoperability"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "openalex.search": {
+      "id": "openalex.search",
+      "name": "scout_openalex_search",
+      "description": "OpenAlex 全库检索：覆盖期刊、会议与预印本，返回标题、作者、年份、摘要、DOI、引用数与来源，适合做覆盖面广的文献调研与引文统计。",
+      "version": "1.0.0",
+      "tags": [
+        "文献检索",
+        "学术搜索",
+        "引用数",
+        "OpenAlex",
+        "全库检索",
+        "citation-count",
+        "literature-survey"
+      ],
+      "examples": [
+        "帮我检索这个主题被引最高的十篇论文",
+        "查一下这个方向近五年的高引工作",
+        "找出某篇论文的引用情况",
+        "find the most cited papers on this topic"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "semanticscholar.search": {
+      "id": "semanticscholar.search",
+      "name": "scout_s2_search",
+      "description": "Semantic Scholar 引用图谱检索：返回标题、作者、年份、摘要、引用数与链接，适合沿着引用关系追踪一条研究脉络。",
+      "version": "1.0.0",
+      "tags": [
+        "文献检索",
+        "引用图谱",
+        "Semantic Scholar",
+        "引文追踪",
+        "citation-graph"
+      ],
+      "examples": [
+        "沿着引用关系帮我追踪这条研究脉络",
+        "帮我查这篇论文被谁引用了",
+        "找这个工作的后续研究",
+        "trace the citation graph of this paper"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "arxiv.fetch": {
+      "id": "arxiv.fetch",
+      "name": "scout_arxiv_fetch",
+      "description": "按 arXiv ID 取回单篇论文的完整记录（标题、作者、摘要、PDF 链接），是引用核验的取源通道：拿一条引用去核对原文到底怎么写。",
+      "version": "1.0.0",
+      "tags": [
+        "文献取源",
+        "引用核验",
+        "arXiv",
+        "全文比对",
+        "citation-source",
+        "paper-fetch"
+      ],
+      "examples": [
+        "帮我取这篇论文的原文记录",
+        "核对这条引用对应的论文内容",
+        "fetch the paper by arXiv id"
+      ],
+      "inputModes": [
+        "text/plain"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "research.orchestrate": {
+      "id": "research.orchestrate",
+      "name": "科研任务调度规划",
+      "description": "科研任务总控：把一句话研究需求拆解为可执行计划，调度文献检索、论文精读、矛盾与空白侦测、前沿选题、论文写作、审稿与引用核验、实验执行等专职智能体协作，并返回带 AIC 溯源的结果。也提供只读的集群调度计划与伙伴在线状态查询。",
+      "version": "1.2.0",
+      "tags": [
+        "科研协作",
+        "任务编排",
+        "文献综述",
+        "论文写作",
+        "审稿",
+        "研究助手",
+        "research-orchestration",
+        "literature-review",
+        "paper-writing",
+        "peer-review"
+      ],
+      "examples": [
+        "规划一篇 RAG 与知识图谱融合的 mini survey",
+        "为手写数字识别实验排出可执行的调度计划"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "paper.review": {
+      "id": "paper.review",
+      "name": "review_paper",
+      "description": "模拟审稿人审查论文：输出 APPROVE/REVISE 裁决、0-100 分与逐条问题清单（含位置、问题、建议与可复核的原文证据）。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "review",
+        "论文评审",
+        "审稿",
+        "同行评审",
+        "质量检查",
+        "peer-review",
+        "manuscript-review",
+        "quality-check"
+      ],
+      "examples": [
+        "帮我审这篇论文，给出审稿意见",
+        "这篇稿子有哪些问题，能不能投",
+        "帮我做一次投稿前的质量自检",
+        "review this manuscript and list the issues"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "citation.verify": {
+      "id": "citation.verify",
+      "name": "citation_verify_capability",
+      "description": "引用核验（机械流水线，独立于审稿判断）：解析草稿的 [n] 引用，经桥持令牌取源（scout.arxiv.fetch），逐条小调用比对论断与原文，输出 verdict 表（supported/misrepresented/fabricated/unverifiable）。供 review_gate 与审稿者的 evidence_check 交叉对账。",
+      "version": "1.0.0",
+      "tags": [
+        "review",
+        "citation",
+        "verify",
+        "引用核验",
+        "参考文献",
+        "事实核验",
+        "citation-verification",
+        "reference-check"
+      ],
+      "examples": [
+        "帮我核验这份综述的全部引用",
+        "这些参考文献是真的存在吗",
+        "verify all references in this survey"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "paper.write": {
+      "id": "paper.write",
+      "name": "write_paper",
+      "description": "论文起草：mode=outline 生成大纲，mode=full 输出全文初稿；materials 为编号资料清单，feedback 为上一轮审稿修改意见（返工时传入）。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "writing",
+        "论文写作",
+        "综述写作",
+        "大纲",
+        "初稿",
+        "改稿",
+        "academic-writing",
+        "paper-drafting",
+        "revision"
+      ],
+      "examples": [
+        "帮我写一篇关于这个主题的文献综述",
+        "先给我一份论文大纲，再展开成全文",
+        "按审稿意见修改这份初稿",
+        "draft a survey paper on this topic"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "text/plain"
+      ]
+    },
+    "paper.extract": {
+      "id": "paper.extract",
+      "name": "extract_digest",
+      "description": "输入论文文本（标题+摘要或正文片段），按学术 Schema 抽取核心创新点、研究缺口、方法论与实验配置，输出结构化要素。输入上限 12000 字符，输出固定 5 个键：core_innovation / research_gap / methodology / experiment_setup / keywords。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "synthesis",
+        "schema",
+        "文献精读",
+        "信息抽取",
+        "论文要点",
+        "结构化",
+        "paper-reading",
+        "extraction",
+        "summarization"
+      ],
+      "examples": [
+        "帮我读这几篇论文并提炼创新点和研究方法",
+        "把文献整理成结构化的四要素表格",
+        "提取这篇论文的实验配置",
+        "extract the key contributions and methods from these papers"
+      ],
+      "inputModes": [
+        "text/plain"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "exp.run": {
+      "id": "exp.run",
+      "name": "exp_run",
+      "description": "把研究问题转写为实验代码并在本地 GPU 沙盒（断网、资源限额、非 root）中执行，返回结构化实验报告：summary/metrics/findings/caveats/verdict。高成本能力（消耗 GPU 配额），仅限被授权的调用方；数据集需以文本形式随请求传入（沙盒内不能联网）。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "experiment",
+        "gpu",
+        "实验执行",
+        "假设验证",
+        "复现实验",
+        "机器学习实验",
+        "hypothesis-validation",
+        "reproducibility"
+      ],
+      "examples": [
+        "帮我设计并跑一个实验验证这个假设",
+        "复现这篇论文的实验结果",
+        "帮我训练并评估一个模型",
+        "run an experiment to test this hypothesis"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "frontier.detect": {
+      "id": "frontier.detect",
+      "name": "detect_frontier",
+      "description": "按关键词扫描近 window_months 个月内发表的工作，用引用速度（总引用/月龄）与主题聚集度（同一主题下的新工作数）识别正在爆发的方向，输出方向清单、代表工作、速度区间与入场时机（启发式，带显式标注）。每个方向须引用至少 2 篇本次真实扫描到的工作，速度与聚集度数字由系统统计，模型不得生成数字。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "frontier",
+        "trend",
+        "topic-selection",
+        "选题",
+        "研究热点",
+        "前沿趋势",
+        "新兴方向",
+        "trend-analysis",
+        "emerging-topics"
+      ],
+      "examples": [
+        "帮我找几个值得做的新兴研究方向",
+        "这个领域最近有什么热点",
+        "哪个方向正在爆发，值不值得入场",
+        "find emerging research directions in this area"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "frontier.citation_profile": {
+      "id": "frontier.citation_profile",
+      "name": "citation_profile",
+      "description": "取单篇论文的施引年份分布（Semantic Scholar 引用图谱），用于复核某个方向的引用是否在加速。paper_id 支持 S2 paperId 或 arXiv:<id>。单次最多取回 1000 条施引记录，返回 fetched 为本次取回条数（非论文真实引用总数），被截断时 capped=true，早年年份可能偏少。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "frontier",
+        "citation",
+        "semanticscholar",
+        "引用分析",
+        "趋势判断",
+        "citation-profile",
+        "trend"
+      ],
+      "examples": [
+        "帮我看看这个方向在升温还是降温",
+        "统计这个主题的引用速度",
+        "profile the citation trend of this topic"
+      ],
+      "inputModes": [
+        "text/plain"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "contradiction.detect": {
+      "id": "contradiction.detect",
+      "name": "detect_contradictions",
+      "description": "输入多篇论文的四要素萃取（含来源 id），输出结构化矛盾对：双方论点、证据与来源 id，矛盾类型（直接冲突/条件依赖冲突/度量口径冲突/结论外推冲突），调和假说与可检验预测。代码侧强制：同源自相矛盾、来源不存在、缺调和假说或缺可检验预测的候选一律丢弃。资料上限 14000 字符。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "contradiction",
+        "hypothesis",
+        "矛盾侦测",
+        "研究冲突",
+        "研究假设",
+        "研究空白",
+        "research-gap"
+      ],
+      "examples": [
+        "这些论文里有没有互相矛盾的结论",
+        "帮我找这个方向的研究空白和争议点",
+        "根据文献冲突帮我提出可验证的假设",
+        "find contradictions across these papers"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "kb.schema": {
+      "id": "kb.schema",
+      "name": "kb_schema",
+      "description": "知识库结构卡：字段、档位（open 目录 / members 摘要 / curator 全文）、查询规则与限额；只有结构没有内容。",
+      "version": "1.0.1",
+      "tags": [
+        "知识库",
+        "结构卡",
+        "kb-schema"
+      ],
+      "examples": [
+        "知识库里有哪些字段和查询规则"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "kb.query": {
+      "id": "kb.query",
+      "name": "kb_query",
+      "description": "知识库与文献库查询：查文献、找论文、查资料、查数据；受限查询下推 + 字段级脱敏（open 目录 / members 摘要 / curator 全文），支持条件过滤、字段投影与聚合统计（统计、求和、计数、分组、分布、排名），可防整库导出。",
+      "version": "1.0.1",
+      "tags": [
+        "知识库",
+        "文献库",
+        "查文献",
+        "找论文",
+        "查资料",
+        "查数据",
+        "检索资料",
+        "受限查询",
+        "聚合统计",
+        "统计查询",
+        "knowledge-base",
+        "data-query",
+        "literature-search",
+        "paper-lookup"
+      ],
+      "examples": [
+        "帮我按条件检索知识库里的文献",
+        "查一下库里有哪些相关论文",
+        "统计库里某个字段的分布",
+        "帮我统计一下各机构的论文数量并排名",
+        "query the knowledge base with filters",
+        "look up papers in the literature library"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "kb.ingest": {
+      "id": "kb.ingest",
+      "name": "kb_ingest",
+      "description": "知识库受控写入（策展）：按 schema 校验后入库并附溯源（提交者与时间），每次写入都是审计事件。",
+      "version": "1.0.1",
+      "tags": [
+        "知识库",
+        "受控写入",
+        "策展",
+        "kb-ingest"
+      ],
+      "examples": [
+        "帮我把这批记录写入知识库"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    "citation.rules": {
+      "id": "citation.rules",
+      "name": "核验方法论说明",
+      "description": "返回引用核验的方法论说明：四档裁决定义、来源分级（arxiv/unverified）、审稿与核验 LLM 分离原则、提交格式要求（[n] 标记与 arXiv ID 规范）与能力上限（30 条/次、1200 字符摘录）。公开只读，供调用方在提交前了解口径与格式。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "citation",
+        "verification"
+      ],
+      "examples": [
+        "引用核验的四档裁决分别是什么标准",
+        "提交核验前草稿和参考文献要什么格式",
+        "没有委托令牌时核验结果可信度如何标注"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  },
+  "skillsByAgent": {
+    "yanshu.scout-partner": {
+      "arxiv.search": {
+        "id": "arxiv.search",
+        "name": "scout_arxiv_search",
+        "description": "arXiv 预印本检索：按关键词或主题检索 arXiv，返回标题、作者、发布时间、摘要与 PDF 链接，适合找最新预印本与前沿工作。输入自然语言关键词即可。",
+        "version": "1.0.0",
+        "tags": [
+          "文献检索",
+          "论文检索",
+          "arXiv",
+          "预印本",
+          "学术搜索",
+          "literature-search",
+          "paper-search"
+        ],
+        "examples": [
+          "帮我检索近三年图神经网络在知识图谱补全方向的论文",
+          "找一下 arXiv 上关于多智能体协作的最新预印本",
+          "给我十篇关于检索增强生成的论文",
+          "search arXiv for recent papers on agent interoperability"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "openalex.search": {
+        "id": "openalex.search",
+        "name": "scout_openalex_search",
+        "description": "OpenAlex 全库检索：覆盖期刊、会议与预印本，返回标题、作者、年份、摘要、DOI、引用数与来源，适合做覆盖面广的文献调研与引文统计。",
+        "version": "1.0.0",
+        "tags": [
+          "文献检索",
+          "学术搜索",
+          "引用数",
+          "OpenAlex",
+          "全库检索",
+          "citation-count",
+          "literature-survey"
+        ],
+        "examples": [
+          "帮我检索这个主题被引最高的十篇论文",
+          "查一下这个方向近五年的高引工作",
+          "找出某篇论文的引用情况",
+          "find the most cited papers on this topic"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "semanticscholar.search": {
+        "id": "semanticscholar.search",
+        "name": "scout_s2_search",
+        "description": "Semantic Scholar 引用图谱检索：返回标题、作者、年份、摘要、引用数与链接，适合沿着引用关系追踪一条研究脉络。",
+        "version": "1.0.0",
+        "tags": [
+          "文献检索",
+          "引用图谱",
+          "Semantic Scholar",
+          "引文追踪",
+          "citation-graph"
+        ],
+        "examples": [
+          "沿着引用关系帮我追踪这条研究脉络",
+          "帮我查这篇论文被谁引用了",
+          "找这个工作的后续研究",
+          "trace the citation graph of this paper"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "arxiv.fetch": {
+        "id": "arxiv.fetch",
+        "name": "scout_arxiv_fetch",
+        "description": "按 arXiv ID 取回单篇论文的完整记录（标题、作者、摘要、PDF 链接），是引用核验的取源通道：拿一条引用去核对原文到底怎么写。",
+        "version": "1.0.0",
+        "tags": [
+          "文献取源",
+          "引用核验",
+          "arXiv",
+          "全文比对",
+          "citation-source",
+          "paper-fetch"
+        ],
+        "examples": [
+          "帮我取这篇论文的原文记录",
+          "核对这条引用对应的论文内容",
+          "fetch the paper by arXiv id"
+        ],
+        "inputModes": [
+          "text/plain"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.supervisor": {
+      "research.orchestrate": {
+        "id": "research.orchestrate",
+        "name": "科研任务调度规划",
+        "description": "科研任务总控：把一句话研究需求拆解为可执行计划，调度文献检索、论文精读、矛盾与空白侦测、前沿选题、论文写作、审稿与引用核验、实验执行等专职智能体协作，并返回带 AIC 溯源的结果。也提供只读的集群调度计划与伙伴在线状态查询。",
+        "version": "1.2.0",
+        "tags": [
+          "科研协作",
+          "任务编排",
+          "文献综述",
+          "论文写作",
+          "审稿",
+          "研究助手",
+          "research-orchestration",
+          "literature-review",
+          "paper-writing",
+          "peer-review"
+        ],
+        "examples": [
+          "规划一篇 RAG 与知识图谱融合的 mini survey",
+          "为手写数字识别实验排出可执行的调度计划"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.critic-partner": {
+      "paper.review": {
+        "id": "paper.review",
+        "name": "review_paper",
+        "description": "模拟审稿人审查论文：输出 APPROVE/REVISE 裁决、0-100 分与逐条问题清单（含位置、问题、建议与可复核的原文证据）。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "review",
+          "论文评审",
+          "审稿",
+          "同行评审",
+          "质量检查",
+          "peer-review",
+          "manuscript-review",
+          "quality-check"
+        ],
+        "examples": [
+          "帮我审这篇论文，给出审稿意见",
+          "这篇稿子有哪些问题，能不能投",
+          "帮我做一次投稿前的质量自检",
+          "review this manuscript and list the issues"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "citation.verify": {
+        "id": "citation.verify",
+        "name": "citation_verify_capability",
+        "description": "引用核验（机械流水线，独立于审稿判断）：解析草稿的 [n] 引用，经桥持令牌取源（scout.arxiv.fetch），逐条小调用比对论断与原文，输出 verdict 表（supported/misrepresented/fabricated/unverifiable）。供 review_gate 与审稿者的 evidence_check 交叉对账。",
+        "version": "1.0.0",
+        "tags": [
+          "review",
+          "citation",
+          "verify",
+          "引用核验",
+          "参考文献",
+          "事实核验",
+          "citation-verification",
+          "reference-check"
+        ],
+        "examples": [
+          "帮我核验这份综述的全部引用",
+          "这些参考文献是真的存在吗",
+          "verify all references in this survey"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.writer-partner": {
+      "paper.write": {
+        "id": "paper.write",
+        "name": "write_paper",
+        "description": "论文起草：mode=outline 生成大纲，mode=full 输出全文初稿；materials 为编号资料清单，feedback 为上一轮审稿修改意见（返工时传入）。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "writing",
+          "论文写作",
+          "综述写作",
+          "大纲",
+          "初稿",
+          "改稿",
+          "academic-writing",
+          "paper-drafting",
+          "revision"
+        ],
+        "examples": [
+          "帮我写一篇关于这个主题的文献综述",
+          "先给我一份论文大纲，再展开成全文",
+          "按审稿意见修改这份初稿",
+          "draft a survey paper on this topic"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain"
+        ]
+      }
+    },
+    "yanshu.synthesis-partner": {
+      "paper.extract": {
+        "id": "paper.extract",
+        "name": "extract_digest",
+        "description": "输入论文文本（标题+摘要或正文片段），按学术 Schema 抽取核心创新点、研究缺口、方法论与实验配置，输出结构化要素。输入上限 12000 字符，输出固定 5 个键：core_innovation / research_gap / methodology / experiment_setup / keywords。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "synthesis",
+          "schema",
+          "文献精读",
+          "信息抽取",
+          "论文要点",
+          "结构化",
+          "paper-reading",
+          "extraction",
+          "summarization"
+        ],
+        "examples": [
+          "帮我读这几篇论文并提炼创新点和研究方法",
+          "把文献整理成结构化的四要素表格",
+          "提取这篇论文的实验配置",
+          "extract the key contributions and methods from these papers"
+        ],
+        "inputModes": [
+          "text/plain"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.experiment-partner": {
+      "exp.run": {
+        "id": "exp.run",
+        "name": "exp_run",
+        "description": "把研究问题转写为实验代码并在本地 GPU 沙盒（断网、资源限额、非 root）中执行，返回结构化实验报告：summary/metrics/findings/caveats/verdict。高成本能力（消耗 GPU 配额），仅限被授权的调用方；数据集需以文本形式随请求传入（沙盒内不能联网）。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "experiment",
+          "gpu",
+          "实验执行",
+          "假设验证",
+          "复现实验",
+          "机器学习实验",
+          "hypothesis-validation",
+          "reproducibility"
+        ],
+        "examples": [
+          "帮我设计并跑一个实验验证这个假设",
+          "复现这篇论文的实验结果",
+          "帮我训练并评估一个模型",
+          "run an experiment to test this hypothesis"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.frontier-partner": {
+      "frontier.detect": {
+        "id": "frontier.detect",
+        "name": "detect_frontier",
+        "description": "按关键词扫描近 window_months 个月内发表的工作，用引用速度（总引用/月龄）与主题聚集度（同一主题下的新工作数）识别正在爆发的方向，输出方向清单、代表工作、速度区间与入场时机（启发式，带显式标注）。每个方向须引用至少 2 篇本次真实扫描到的工作，速度与聚集度数字由系统统计，模型不得生成数字。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "frontier",
+          "trend",
+          "topic-selection",
+          "选题",
+          "研究热点",
+          "前沿趋势",
+          "新兴方向",
+          "trend-analysis",
+          "emerging-topics"
+        ],
+        "examples": [
+          "帮我找几个值得做的新兴研究方向",
+          "这个领域最近有什么热点",
+          "哪个方向正在爆发，值不值得入场",
+          "find emerging research directions in this area"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "frontier.citation_profile": {
+        "id": "frontier.citation_profile",
+        "name": "citation_profile",
+        "description": "取单篇论文的施引年份分布（Semantic Scholar 引用图谱），用于复核某个方向的引用是否在加速。paper_id 支持 S2 paperId 或 arXiv:<id>。单次最多取回 1000 条施引记录，返回 fetched 为本次取回条数（非论文真实引用总数），被截断时 capped=true，早年年份可能偏少。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "frontier",
+          "citation",
+          "semanticscholar",
+          "引用分析",
+          "趋势判断",
+          "citation-profile",
+          "trend"
+        ],
+        "examples": [
+          "帮我看看这个方向在升温还是降温",
+          "统计这个主题的引用速度",
+          "profile the citation trend of this topic"
+        ],
+        "inputModes": [
+          "text/plain"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.contradiction-partner": {
+      "contradiction.detect": {
+        "id": "contradiction.detect",
+        "name": "detect_contradictions",
+        "description": "输入多篇论文的四要素萃取（含来源 id），输出结构化矛盾对：双方论点、证据与来源 id，矛盾类型（直接冲突/条件依赖冲突/度量口径冲突/结论外推冲突），调和假说与可检验预测。代码侧强制：同源自相矛盾、来源不存在、缺调和假说或缺可检验预测的候选一律丢弃。资料上限 14000 字符。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "contradiction",
+          "hypothesis",
+          "矛盾侦测",
+          "研究冲突",
+          "研究假设",
+          "研究空白",
+          "research-gap"
+        ],
+        "examples": [
+          "这些论文里有没有互相矛盾的结论",
+          "帮我找这个方向的研究空白和争议点",
+          "根据文献冲突帮我提出可验证的假设",
+          "find contradictions across these papers"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.kb-partner": {
+      "kb.schema": {
+        "id": "kb.schema",
+        "name": "kb_schema",
+        "description": "知识库结构卡：字段、档位（open 目录 / members 摘要 / curator 全文）、查询规则与限额；只有结构没有内容。",
+        "version": "1.0.1",
+        "tags": [
+          "知识库",
+          "结构卡",
+          "kb-schema"
+        ],
+        "examples": [
+          "知识库里有哪些字段和查询规则"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "kb.query": {
+        "id": "kb.query",
+        "name": "kb_query",
+        "description": "知识库与文献库查询：查文献、找论文、查资料、查数据；受限查询下推 + 字段级脱敏（open 目录 / members 摘要 / curator 全文），支持条件过滤、字段投影与聚合统计（统计、求和、计数、分组、分布、排名），可防整库导出。",
+        "version": "1.0.1",
+        "tags": [
+          "知识库",
+          "文献库",
+          "查文献",
+          "找论文",
+          "查资料",
+          "查数据",
+          "检索资料",
+          "受限查询",
+          "聚合统计",
+          "统计查询",
+          "knowledge-base",
+          "data-query",
+          "literature-search",
+          "paper-lookup"
+        ],
+        "examples": [
+          "帮我按条件检索知识库里的文献",
+          "查一下库里有哪些相关论文",
+          "统计库里某个字段的分布",
+          "帮我统计一下各机构的论文数量并排名",
+          "query the knowledge base with filters",
+          "look up papers in the literature library"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "kb.ingest": {
+        "id": "kb.ingest",
+        "name": "kb_ingest",
+        "description": "知识库受控写入（策展）：按 schema 校验后入库并附溯源（提交者与时间），每次写入都是审计事件。",
+        "version": "1.0.1",
+        "tags": [
+          "知识库",
+          "受控写入",
+          "策展",
+          "kb-ingest"
+        ],
+        "examples": [
+          "帮我把这批记录写入知识库"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    },
+    "yanshu.citation-integrity": {
+      "citation.verify": {
+        "id": "citation.verify",
+        "name": "草稿逐条引用核验",
+        "description": "提交含 [n] 引用标记的草稿与编号参考文献条目，返回逐条 verdict 表：四档裁决（supported/misrepresented/fabricated/unverifiable）、支撑裁决的原文证据摘录、来源分级（arxiv=真实取源比对 / unverified=条目自洽性降级）与汇总统计。单次上限 30 条引用。核验 LLM 与审稿 LLM 分离；无委托令牌时对非本地来源自动降级并如实标记。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "citation",
+          "verification"
+        ],
+        "examples": [
+          "核验这份 mini survey 草稿的 12 条引用是否站得住",
+          "检查摘要里 [2] 号引用是否真的支持'线性复杂度'这个论断",
+          "对复现报告的参考文献做逐条 fabricated 排查"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      },
+      "citation.rules": {
+        "id": "citation.rules",
+        "name": "核验方法论说明",
+        "description": "返回引用核验的方法论说明：四档裁决定义、来源分级（arxiv/unverified）、审稿与核验 LLM 分离原则、提交格式要求（[n] 标记与 arXiv ID 规范）与能力上限（30 条/次、1200 字符摘录）。公开只读，供调用方在提交前了解口径与格式。",
+        "version": "1.0.0",
+        "tags": [
+          "research",
+          "citation",
+          "verification"
+        ],
+        "examples": [
+          "引用核验的四档裁决分别是什么标准",
+          "提交核验前草稿和参考文献要什么格式",
+          "没有委托令牌时核验结果可信度如何标注"
+        ],
+        "inputModes": [
+          "application/json"
+        ],
+        "outputModes": [
+          "application/json"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "aic": "",
+  "active": false,
+  "lastModifiedTime": "2026-10-05T18:00:00+08:00",
+  "protocolVersion": "02.02",
+  "name": "研枢-KB-Partner",
+  "description": "机构知识库服务：数据不动、计算动——查询在本机执行，只回结果。检索用受限查询 DSL 表达（JSON 条件 + 白名单聚合函数），不提供任意代码执行面。字段按调用方角色三档分级：open（目录信息：题名/年份/期刊会议/标签）、members（摘要正文）、curator（订阅全文与内部评审笔记）；角色→档位映射为 provider 侧→curator、consumer→members、auditor 与未登记调用方→open，越权请求的字段被静默丢弃并在响应 meta 的 redactedFields 中列明。馆藏元数据三分：owner_aic 是持有该记录的机构身份（本馆自己）、source 是元数据来源（openalex / arxiv / 本馆编目）、source_uri 是原文出处（DOI 或预印本链接）。本库是独立机构的馆藏：来源可以是公共服务，持有方始终是本馆，不代管其他 agent 的产出物。四种查询模式：search（全文检索：trigram 分词，中英文一律按 3 字符滑窗，bm25 相关度排序，返回 ≤320 字有界摘录）、filter（条件过滤 + 字段投影 + 排序 + offset 翻页，单查询返回上限 25 行，matched 给出全库命中数、hasMore 指示还有下一页）、compute（分组聚合，聚合在本机执行、原始行永不下发）与 get（按记录编号取单条）。检索面**按档位分索引**：调用方看不见的字段根本不进它那条检索通道，命中数、相关度得分与摘录均无从透出越权内容。支持条件算子 ==/!=/>/>=/</<=/contains/in，聚合函数 count/min/max/avg/sum。写入为受控入库：按 schema 校验、单批上限 200 条、库容量上限 50000 条、按内容指纹幂等去重（重复导入不产生第二份），可指定外部稳定编号（如 arXiv id），并附提交者与时序溯源；再导入的记录保留原始提交人。不做：不做语义向量检索（做的是 trigram 字面全文检索）、不做跨库联邦查询、不向无权角色下发受限字段、暂不承诺跨查询的累计导出行数计量（分页翻库计量属后续扩展）、不提供库内容批量导出。kb.query 与 kb.ingest 为非公开能力，需授权后方可调用。",
+  "version": "1.0.0",
+  "provider": {
+    "countryCode": "CN",
+    "organization": "北京邮电大学",
+    "name": "wit-research-lab",
+    "email": "huaibin2025@outlook.com"
+  },
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "endPoints": [
+    {
+      "url": "https://192.0.2.10:8465/rpc",
+      "transport": "JSONRPC",
+      "security": [
+        {
+          "mtls": []
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "notification": false,
+    "messageQueue": []
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "skills": [
+    {
+      "id": "kb.schema",
+      "name": "知识库结构卡（字段/分级档位/查询规则）",
+      "description": "知识库结构卡：字段、类型、档位（open 目录 / members 摘要 / curator 全文）、四种查询模式规则与按档位分的全文索引档；只有结构没有内容。",
+      "version": "1.0.0",
+      "tags": [
+        "kb",
+        "schema"
+      ],
+      "examples": [
+        "这个知识库里有哪些字段，哪些是受限的？",
+        "查询支持的算子和聚合函数有哪些？",
+        "单库容量和单次返回行数上限是多少？"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "kb.query",
+      "name": "知识库受限查询（全文检索 / 过滤取行 / 分组聚合 / 按编号取单条）",
+      "description": "受限 DSL 查询（数据不动、计算动）。mode='search'：全文检索（trigram 分词，中英文皆可，bm25 排序，返回有界摘录）；mode='filter'：where 条件数组 + fields 投影 + limit(≤25) + offset 翻页 + sort 排序，返回脱敏后的行；mode='compute'：groupby + aggs（count/min/max/avg/sum 白名单），聚合在本机执行、原始行不下发；mode='get'：按记录编号取单条。检索按档位分索引，越权内容不进调用方检索通道。whereOps/aggFns/索引档见 kb.schema。高成本能力：查询次数受配额约束。",
+      "version": "1.1.0",
+      "tags": [
+        "kb",
+        "query"
+      ],
+      "examples": [
+        "查 2023 年以后标签含 GNN 的文献目录信息",
+        "按年份统计本库各年度的文献数量",
+        "取某几条记录的摘要正文，受限字段按我的角色处理",
+        "命中 1101 条时按年份倒序翻到第 3 页",
+        "按编号 KB000123 取那一条的标题与出处链接",
+        "在库里找讲稀疏注意力和长上下文的文献，给我摘要片段",
+        "按相关度取前 25 条，命中更多时翻下一页",
+        "按编号 ARXIV:2601.22379 取那一条"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "kb.ingest",
+      "name": "知识库受控入库（校验 + 溯源）",
+      "description": "受控写入（策展）：records 数组按 schema 校验，自动赋 id 并附溯源（提交者/时间）；每次写入都是审计事件。",
+      "version": "1.0.0",
+      "tags": [
+        "kb",
+        "ingest"
+      ],
+      "examples": [
+        "把这批新成果元数据入库并记录提交者",
+        "写入若干条带标题、年份与标签的文献记录",
+        "把检索伙伴产出的资料清单沉淀进知识库"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "192.0.2.10"
+      ]
+    }
+  }
+}

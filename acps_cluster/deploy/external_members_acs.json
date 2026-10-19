@@ -1,0 +1,161 @@
+{
+ "_comment": "外部成员（平台在册、不由本集群注册且不持有终稿）的寻址 ACS 脱敏副本：仅作发现缓存预热的离线兜底，平台可达时仍以平台记录为准（见 deploy/seed_discovery.py 的 offline_acs）。字段全为公开声明（aic/endPoints/skills/certificate=SAN 描述），无密钥无口令。",
+ "_source": "ws-designer/acps/acs.final.json（队友 gjw 的节点，与本集群同机 8590；2026-10-15 与平台 ATR 记录逐字比对一致）",
+ "_exported_at": "2026-10-15T13:08:13.060471+00:00",
+ "_refresh_when": "队友换身份/换端点后：重取平台 GET /acps-atr-v2/acs/<aic> 覆盖本文件，并同步 seed_discovery.FALLBACK_AICS（两者 AIC 不一致时 offline_acs 会拒绝使用本副本）",
+ "members": {
+  "designer": {
+   "aic": "1.2.156.3088.1.BUPT.145MB5.3IXQIN.RXO3OT.1AQ9",
+   "name": "Yanshu Research Designer",
+   "active": true,
+   "skills": [
+    {
+     "id": "research.validate_request",
+     "name": "validate_request",
+     "tags": [
+      "科研",
+      "多智能体协作",
+      "输入校验"
+     ],
+     "version": "0.1.0",
+     "inputModes": [
+      "text/plain"
+     ],
+     "description": "校验 Leader 或其他智能体提交的研究设计 JSON 请求，返回缺失信息、证据问题和可安全使用的规范化输入。",
+     "outputModes": [
+      "text/plain"
+     ]
+    },
+    {
+     "id": "research.validate_result",
+     "name": "validate_result",
+     "tags": [
+      "科研",
+      "多智能体协作",
+      "输出校验"
+     ],
+     "version": "0.1.0",
+     "inputModes": [
+      "text/plain"
+     ],
+     "description": "校验研究设计智能体返回给 Leader 的结构化 JSON 结果。",
+     "outputModes": [
+      "text/plain"
+     ]
+    },
+    {
+     "id": "research.plan_template",
+     "name": "get_plan_template",
+     "tags": [
+      "科研",
+      "研究设计",
+      "实验规划"
+     ],
+     "version": "0.1.0",
+     "inputModes": [
+      "text/plain"
+     ],
+     "description": "返回指定研究类型所需的结构化研究设计模板和专项检查项。",
+     "outputModes": [
+      "text/plain"
+     ]
+    },
+    {
+     "id": "research.estimate_sample_size",
+     "name": "estimate_sample_size",
+     "tags": [
+      "科研",
+      "样本量",
+      "统计规划"
+     ],
+     "version": "0.1.0",
+     "inputModes": [
+      "application/json"
+     ],
+     "description": "根据标准化效应量、显著性水平和统计功效，估算配对设计或双独立样本设计的样本量。同一批样本接受两种条件时应选择 paired；不同样本分组时选择 independent。结果只用于早期规划，不能替代正式统计咨询。",
+     "outputModes": [
+      "text/plain"
+     ]
+    },
+    {
+     "id": "research.assess_feasibility",
+     "name": "assess_feasibility",
+     "tags": [
+      "科研",
+      "可行性",
+      "风险评估"
+     ],
+     "version": "0.1.0",
+     "inputModes": [
+      "application/json"
+     ],
+     "description": "根据数据、样本量、时间和计算资源检查研究方案的基础可行性。",
+     "outputModes": [
+      "text/plain"
+     ]
+    },
+    {
+     "id": "research.validate_plan",
+     "name": "validate_plan",
+     "tags": [
+      "科研",
+      "方案校验",
+      "可复现性"
+     ],
+     "version": "0.1.0",
+     "inputModes": [
+      "text/plain"
+     ],
+     "description": "检查 JSON 研究计划是否包含完整章节，并返回缺失项和基础质量警告。",
+     "outputModes": [
+      "text/plain"
+     ]
+    }
+   ],
+   "version": "0.1.0",
+   "provider": {
+    "countryCode": "CN",
+    "organization": "Yanshu"
+   },
+   "endPoints": [
+    {
+     "url": "https://192.0.2.10:8590/rpc",
+     "security": [
+      {
+       "mtls": []
+      }
+     ],
+     "transport": "JSONRPC"
+    }
+   ],
+   "certificate": {
+    "altNames": {
+     "ip": [
+      "192.0.2.10"
+     ]
+    }
+   },
+   "description": "把研究问题和已有证据转化为可执行、可评估、可复现的研究方案。",
+   "capabilities": {
+    "streaming": false,
+    "messageQueue": [],
+    "notification": false
+   },
+   "protocolVersion": "02.02",
+   "securitySchemes": {
+    "mtls": {
+     "type": "mutualTLS",
+     "description": "ACPs mutual TLS identity"
+    }
+   },
+   "lastModifiedTime": "2026-09-24T21:01:53.306873+08:00",
+   "defaultInputModes": [
+    "text/plain",
+    "application/json"
+   ],
+   "defaultOutputModes": [
+    "text/plain"
+   ]
+  }
+ }
+}

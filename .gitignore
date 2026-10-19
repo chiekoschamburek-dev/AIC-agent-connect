@@ -1,0 +1,56 @@
+.env
+.env.*
+.wit/
+*.pyc
+output/
+*.json
+*.jsonl
+*.sqlite3
+*.pem
+*.sqlite3-shm
+*.sqlite3-wal
+*.tar.gz
+*.zip
+# 对外填报用的 ACS 声明稿（只含公开声明字段，无密钥）
+!acps_cluster/acs.*.filled.json
+# 发现层权威输入：运行依赖（覆盖表决定代码投影≡注册版）；2026-10-14 审查修复 *.json 盲杀
+!acps_cluster/registered_acs_overlay.json
+!acps_cluster/_platform_snapshot/
+!acps_cluster/_platform_snapshot/*.json
+# 外部成员（队友节点）寻址副本：纯公开声明字段、无密钥，预热离线兜底的权威输入
+!acps_cluster/deploy/external_members_acs.json
+
+# 本地调试归档（本机整理产物，默认不入库）
+_archive/*
+# 定点白名单：旧代开发 CA 链证书归档（公开证书、无密钥；2026-10-14 归档并入库留痕）
+!_archive/2026-09-dev-ca-genA/
+!_archive/2026-09-dev-ca-genA/*
+
+# 实验运行产物与数据集目录（大文件/运行时生成，不入库）
+acps_cluster/ws-*/
+acps_cluster/datasets/
+acps_cluster/demo_run/autoresearch-prev-*/
+acps_cluster/demo_run/autoresearch/*.log
+
+# 杂散备份文件
+# 含 .bak-cloud 等变体(gitignore 不支持行尾注释,模式与注释必须分行——2026-10-06 审查)
+*.bak*
+# 审查修复前的就地备份（partner_*.py.pre-* 等；归档去 _archive/）
+*.pre-*
+
+# 评测私有数据(标签不出域亦不出库;基准可由 eval_runner 确定性再生)
+eval-private/
+
+# 域 grant 令牌（B3 资源方自签的凭据，绝不入库）
+acps_cluster/ws-*/acps/grants/
+*.token
+
+# 推送前安全收口：密钥、日志、凭据目录与证书备份一律不入库
+**/.campus_key
+**/*.log
+**/secrets/
+tokens/
+**/certs-backup-*/
+
+# wit_framework 无许可证信息，不随仓库分发；本地保留用于开发
+vendor/wit_framework-*.whl

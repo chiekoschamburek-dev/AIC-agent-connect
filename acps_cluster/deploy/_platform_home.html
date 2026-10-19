@@ -1,0 +1,2786 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="wutong-logo.svg" />
+    <link rel="icon" type="image/svg+xml" href="wutong-logo.svg?v=2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>æ¢§æ¡æºè½ä½äºèå¹³å°</title>
+    <style>
+        :root {
+            --primary: #3b6ff6;
+            --primary-light: #e8eeff;
+            --border: #e8eaef;
+            --text: #1a1d28;
+            --text-secondary: #6b7280;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --sidebar-width: 1000px;
+            --agent-card-min: 128px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background: #f0f2f7;
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            height: 64px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            object-fit: contain;   /* è®©å¾çå®æ´æ¾ç¤ºå¨æ¡å */
+            background: #fff;      /* å¦æ logo æ¯æ·±è²çï¼å¯ä»¥ä¿çç½è²èæ¯ï¼å¦ææ³ä¿çåæ¥çèè²æ¸åï¼æ¹æ linear-gradient(135deg, #3b6ff6, #5b8af7) */
+            padding: 1px;          /* å¯éï¼è®©å¾æ ä¸è´´è¾¹ */
+            margin-top: -2px; 
+        }
+        .logo-text { font-size: 22px; font-weight: 700; }
+        .logo-text span { color: var(--primary); }
+        .header-contributor {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+            margin-top: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary);
+            cursor: pointer;
+            white-space: nowrap;
+            line-height: 1;
+        }
+        .header-contributor-popup {
+            position: absolute;
+            top: calc(100% + 18px);
+            left: 0;
+            width: 360px;
+            max-width: min(82vw, 420px);
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(26, 29, 40, 0.96);
+            color: #fff;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(6px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            z-index: 120;
+        }
+        .header-contributor:hover .header-contributor-popup {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .header-contributor-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #cdd8ff;
+            margin: 10px 0 6px;
+        }
+        .header-contributor-title:first-child {
+            margin-top: 0;
+        }
+        .header-contributor-line {
+            font-size: 12px;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.92);
+        }
+        .header-contributor-names {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 10px;
+            font-size: 12px;
+            line-height: 1.65;
+            color: rgba(255,255,255,0.92);
+        }
+        .header-contributor-empty {
+            font-size: 12px;
+            color: rgba(255,255,255,0.56);
+        }
+        .header-badge {
+            padding: 6px 14px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .container {
+            display: flex;
+            padding: 22px 24px;
+            gap: 12px;
+            max-width: 1440px;
+            width: 100%;
+            margin: 0 auto;
+            flex: 1;
+            min-height: 0;
+            align-items: flex-start;
+        }
+        .main {
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            height: calc(100vh - 64px - 44px);
+            min-height: 640px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .sidebar-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px 10px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            flex-shrink: 0;
+        }
+        .sidebar-title-wrap {
+            display: inline-flex;
+            align-items: center;
+            min-width: 0;
+        }
+        .sidebar-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        .sidebar-corner-tools {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            position: relative;
+        }
+        .sidebar-help-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+        .sidebar-help {
+            position: relative;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid #bfd0f4;
+            background: #eef4ff;
+            color: var(--primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(59, 111, 246, 0.08);
+            appearance: none;
+        }
+        .sidebar-help:focus-visible {
+            outline: 2px solid rgba(59, 111, 246, 0.4);
+            outline-offset: 2px;
+        }
+        .sidebar-help-popup {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            left: auto;
+            width: 290px;
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(21, 27, 40, 0.97);
+            color: #fff;
+            box-shadow: 0 14px 30px rgba(0,0,0,0.24);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(6px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            z-index: 140;
+        }
+        .sidebar-help-popup::before {
+            content: "";
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            width: 64px;
+            height: 14px;
+        }
+        .sidebar-help-wrap.is-open .sidebar-help-popup,
+        .sidebar-help-wrap:hover .sidebar-help-popup,
+        .sidebar-help-wrap:focus-within .sidebar-help-popup {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        .sidebar-help-item + .sidebar-help-item {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.12);
+        }
+        .sidebar-help-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #cdd8ff;
+            margin-bottom: 4px;
+        }
+        .sidebar-help-desc {
+            font-size: 12px;
+            line-height: 1.55;
+            color: rgba(255,255,255,0.86);
+        }
+        .sidebar-help-link {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #8fb4ff;
+            text-decoration: none;
+        }
+        .sidebar-help-link:hover {
+            text-decoration: underline;
+        }
+        .docs-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--text-light);
+            background: rgba(255, 255, 255, 0.78);
+            text-decoration: none;
+            font-size: 12px;
+            transition: color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .docs-link:hover {
+            color: var(--primary);
+            border-color: rgba(59, 111, 246, 0.35);
+            box-shadow: 0 6px 16px rgba(59, 111, 246, 0.12);
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            min-width: 0;
+        }
+        .active-agent-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border: 1px solid #dbe7ff;
+            border-radius: 999px;
+            background: #f7faff;
+            color: #53657d;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .active-agent-count::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34,197,94,.12);
+        }
+        .active-agent-count strong { color: #172033; font-size: 13px; }
+        .online-query {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: min(310px, 31vw);
+            height: 34px;
+            padding-left: 12px;
+            border: 1px solid #dce3ef;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(31,49,83,.05);
+            transition: border-color .18s ease, box-shadow .18s ease;
+        }
+        .online-query:focus-within {
+            border-color: rgba(59,111,246,.55);
+            box-shadow: 0 0 0 3px rgba(59,111,246,.1);
+        }
+        .online-query-input {
+            width: 100%;
+            min-width: 0;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text);
+            font: inherit;
+            font-size: 12px;
+        }
+        .online-query-input::placeholder { color: #9aa4b2; }
+        .online-query-button {
+            align-self: stretch;
+            flex: 0 0 auto;
+            padding: 0 13px;
+            border: 0;
+            border-left: 1px solid #e8edf5;
+            border-radius: 0 999px 999px 0;
+            background: #f5f8ff;
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .online-query-button:hover { background: #eaf1ff; }
+        .online-query-button:disabled { color: #94a3b8; cursor: wait; background: #f8fafc; }
+        .online-query-result {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            z-index: 160;
+            width: min(360px, 88vw);
+            padding: 13px 14px;
+            border: 1px solid #e1e7f0;
+            border-radius: 12px;
+            background: #fff;
+            color: #53657d;
+            box-shadow: 0 14px 36px rgba(24,39,75,.18);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .online-query-result[hidden] { display: none; }
+        .online-query-result strong { display: block; margin-bottom: 3px; color: #1e293b; font-size: 13px; }
+        .online-query-result.error { border-color: #fecaca; background: #fff8f8; color: #b42318; }
+        .online-query-result.error strong { color: #b42318; }
+        .online-query-result.empty { border-color: #dbe7ff; background: #f8fbff; }
+        .online-query-result.success { border-color: #bbf7d0; background: #f4fff8; color: #15803d; }
+        .online-query-result.success strong { color: #15803d; }
+        .online-query-result.offline { border-color: #fed7aa; background: #fffaf3; color: #b45309; }
+        .online-query-result.offline strong { color: #b45309; }
+        .resize-handle {
+            width: 10px;
+            flex: 0 0 10px;
+            align-self: stretch;
+            cursor: col-resize;
+            position: relative;
+            border-radius: 999px;
+            touch-action: none;
+        }
+        .resize-handle::before {
+            content: "";
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            left: 4px;
+            width: 2px;
+            border-radius: 999px;
+            background: #cfd5df;
+            transition: background 0.2s, width 0.2s, left 0.2s;
+        }
+        .resize-handle:hover::before,
+        body.resizing-sidebar .resize-handle::before {
+            left: 3px;
+            width: 4px;
+            background: var(--primary);
+        }
+        body.resizing-sidebar {
+            cursor: col-resize;
+            user-select: none;
+        }
+        body.resizing-sidebar iframe {
+            pointer-events: none;
+        }
+        .search-section {
+            background: #fff;
+            padding: 16px 20px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+        .search-section input {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            outline: none;
+            font-size: 15px;
+            background: transparent;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 8px 0 14px;
+        }
+        .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .section-title2 { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .icon-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .icon-dot.new { background: #f59e0b; }
+        .icon-dot.hot { background: #ef4444; }
+        .refresh-btn {
+            font-size: 12px; color: var(--primary); background: var(--primary-light);
+            border: none; padding: 4px 10px; border-radius: 12px; cursor: pointer;
+        }
+        .refresh-btn:disabled { cursor: wait; opacity: .55; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 0;
+            min-height: 0;
+            position: relative;
+            z-index: 3;
+        }
+        .dashboard-section {
+            margin-bottom: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(255,255,255,.9);
+            box-shadow: var(--shadow-sm);
+        }
+        .store-heading {
+            margin: 22px 4px 10px;
+            color: #263244;
+            font-size: 18px;
+            font-weight: 750;
+            line-height: 1.35;
+            letter-spacing: -.01em;
+        }
+        .store-section .section-toggle-title {
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .store-section .section-toggle-desc { font-size: 10px; }
+        .dashboard-section.ranking-section {
+            border-color: #d7e4ff;
+            background: linear-gradient(145deg, #fff 0%, #f7faff 100%);
+            box-shadow: 0 9px 26px rgba(59,111,246,.09);
+        }
+        .dashboard-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 52px;
+            padding: 9px 12px;
+        }
+        .section-toggle {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex: 1;
+            min-width: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+        }
+        .section-toggle-copy { min-width: 0; }
+        .section-toggle-title { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 750; line-height: 1.35; }
+        .section-toggle-desc {
+            display: block;
+            overflow: hidden;
+            margin-top: 1px;
+            color: #8993a4;
+            font-size: 10px;
+            line-height: 1.35;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .section-chevron {
+            flex: 0 0 auto;
+            width: 22px;
+            height: 22px;
+            border-radius: 7px;
+            background: #f1f5fb;
+            color: #718096;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: transform .2s ease;
+        }
+        .dashboard-section.is-collapsed .section-chevron { transform: rotate(-90deg); }
+        .dashboard-section.is-collapsed .section-body { display: none; }
+        .section-body { padding: 0 12px 12px; }
+        .section-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+        .rank-role-select {
+            max-width: 106px;
+            height: 28px;
+            padding: 0 24px 0 8px;
+            border: 1px solid #dae3f2;
+            border-radius: 9px;
+            background: #fff;
+            color: #465264;
+            font-size: 11px;
+            outline: none;
+        }
+        .ranking-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 9px;
+            color: #8a94a5;
+            font-size: 10px;
+            line-height: 1.45;
+        }
+        .ranking-meta-status { text-align: right; }
+        .ranking-meta-status.warning { color: #b45309; }
+        .ranking-list {
+            overflow: hidden;
+            border: 1px solid #e1e8f5;
+            border-radius: 12px;
+            background: #fff;
+        }
+        .ranking-list-head,
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 34px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 9px;
+        }
+        .ranking-list-head {
+            min-height: 30px;
+            padding: 5px 10px;
+            background: #f6f8fc;
+            color: #8b95a5;
+            font-size: 9px;
+            font-weight: 700;
+        }
+        .ranking-list-head span:last-child { text-align: right; }
+        .ranking-row {
+            min-height: 54px;
+            padding: 7px 10px;
+            border-top: 1px solid #edf1f6;
+            transition: background .18s ease;
+        }
+        .ranking-row:hover { background: #f8faff; }
+        .ranking-row.rank-1 { background: linear-gradient(90deg, #fffaf0 0%, #fff 48%); }
+        .ranking-row.rank-2 { background: linear-gradient(90deg, #f8fafc 0%, #fff 48%); }
+        .ranking-row.rank-3 { background: linear-gradient(90deg, #fff8f4 0%, #fff 48%); }
+        .ranking-position {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #edf3ff;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+        }
+        .rank-1 .ranking-position { background: #f7d774; color: #6f4b00; box-shadow: 0 3px 8px rgba(202,145,0,.18); }
+        .rank-2 .ranking-position { background: #dfe5ed; color: #53606f; }
+        .rank-3 .ranking-position { background: #e7b691; color: #704221; }
+        .ranking-main { min-width: 0; }
+        .ranking-count { color: #172033; font-size: 16px; font-weight: 800; line-height: 1.1; text-align: right; white-space: nowrap; }
+        .ranking-unit { margin-left: 3px; color: #8b95a5; font-size: 10px; font-weight: 500; }
+        .ranking-aic {
+            overflow: hidden;
+            color: #344054;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ranking-sources { margin-top: 2px; color: #98a2b3; font-size: 9px; line-height: 1.3; }
+        .ranking-pagination {
+            min-height: 42px;
+            padding: 7px 10px;
+            border-top: 1px solid #e8edf5;
+            background: #fafbfd;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .ranking-page-info {
+            color: #7f8a9c;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+        .ranking-page-actions { display: flex; align-items: center; gap: 6px; }
+        .ranking-page-button {
+            height: 27px;
+            padding: 0 10px;
+            border: 1px solid #dbe3f0;
+            border-radius: 8px;
+            background: #fff;
+            color: #465264;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .ranking-page-button:hover:not(:disabled) {
+            color: var(--primary);
+            border-color: #bfd0f4;
+            background: #f3f7ff;
+        }
+        .ranking-page-button:disabled {
+            cursor: not-allowed;
+            color: #b0b7c3;
+            background: #f4f6f9;
+        }
+        .ranking-state {
+            min-height: 112px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #8792a4;
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.65;
+        }
+        .ranking-state strong { color: #53657d; font-size: 12px; }
+        .cloud-section {
+            margin-top: 6px;
+            position: relative;
+            z-index: 1;
+        }
+        .cloud-wrap {
+            position: relative;
+            z-index: 1;
+            height: 360px;
+            border-radius: 20px;
+            border: 1px solid rgba(88, 132, 255, 0.22);
+            background:
+                radial-gradient(circle at 18% 22%, rgba(47, 152, 255, 0.18), transparent 24%),
+                radial-gradient(circle at 76% 18%, rgba(148, 87, 255, 0.18), transparent 26%),
+                radial-gradient(circle at 72% 72%, rgba(27, 223, 201, 0.12), transparent 24%),
+                linear-gradient(135deg, #07152e 0%, #0d2b67 38%, #32227c 72%, #4e1f86 100%);
+            overflow: hidden;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 16px 36px rgba(10, 20, 58, 0.22);
+        }
+        .cloud-wrap.has-bg-image {
+            background:
+                var(--cloud-bg-image),
+                radial-gradient(circle at 18% 22%, rgba(47, 152, 255, 0.18), transparent 24%),
+                radial-gradient(circle at 76% 18%, rgba(148, 87, 255, 0.18), transparent 26%),
+                radial-gradient(circle at 72% 72%, rgba(27, 223, 201, 0.12), transparent 24%),
+                linear-gradient(135deg, #07152e 0%, #0d2b67 38%, #32227c 72%, #4e1f86 100%);
+            background-size: cover, auto, auto, auto, auto;
+            background-position: center center, 0 0, 0 0, 0 0, 0 0;
+            background-blend-mode: screen, screen, screen, screen, normal;
+        }
+        .cloud-wrap::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 50% 50%, rgba(121, 214, 255, 0.18), transparent 26%),
+                radial-gradient(circle at 50% 50%, rgba(121, 214, 255, 0.09), transparent 42%),
+                repeating-radial-gradient(circle at 50% 50%, rgba(138, 215, 255, 0.08) 0 1px, transparent 1px 28px);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+        .cloud-wrap::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg, transparent 0%, rgba(135, 214, 255, 0.08) 48%, rgba(255,255,255,0.15) 50%, rgba(135, 214, 255, 0.08) 52%, transparent 100%);
+            transform: translateX(-100%);
+            animation: cloud-scan 8s linear infinite;
+            pointer-events: none;
+        }
+        .cloud-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .cloud-node-layer {
+            position: absolute;
+            inset: 0;
+        }
+        .cloud-node {
+            position: absolute;
+            padding: 0;
+            border-radius: 999px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            transform: translate(0, -50%);
+            animation: cloud-float var(--duration, 11s) ease-in-out infinite;
+            animation-delay: var(--delay, 0s);
+            min-width: 122px;
+            max-width: 220px;
+            z-index: 2;
+            cursor: pointer;
+        }
+        .cloud-node::before {
+            display: none;
+        }
+        .cloud-node-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .cloud-node-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            flex: 0 0 46px;
+            object-fit: cover;
+            background:
+                radial-gradient(circle at 30% 30%, rgba(255,255,255,0.32), rgba(255,255,255,0.08) 28%, transparent 29%),
+                linear-gradient(135deg, rgba(44, 154, 255, 0.42), rgba(117, 71, 255, 0.24));
+            border: 1px solid rgba(129, 226, 255, 0.7);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow:
+                0 0 0 4px rgba(89, 195, 255, 0.12),
+                0 0 18px rgba(69, 196, 255, 0.35),
+                inset 0 0 16px rgba(69, 196, 255, 0.2);
+            position: relative;
+        }
+        .cloud-node-icon::before,
+        .cloud-node-icon::after {
+            display: none;
+        }
+        .cloud-node-label {
+            min-width: 0;
+            max-width: 146px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(7, 26, 72, 0.72);
+            border: 1px solid rgba(130, 225, 255, 0.72);
+            box-shadow:
+                0 0 16px rgba(67, 199, 255, 0.18),
+                inset 0 0 16px rgba(67, 199, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .cloud-node:hover .cloud-node-icon {
+            box-shadow:
+                0 0 0 5px rgba(89, 195, 255, 0.16),
+                0 0 24px rgba(69, 196, 255, 0.5),
+                inset 0 0 18px rgba(69, 196, 255, 0.24);
+        }
+        .cloud-node:hover .cloud-node-label {
+            border-color: rgba(156, 232, 255, 0.9);
+            box-shadow:
+                0 0 20px rgba(67, 199, 255, 0.24),
+                inset 0 0 16px rgba(67, 199, 255, 0.1);
+        }
+        .cloud-node-label::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.12), transparent 36%);
+            pointer-events: none;
+        }
+        .cloud-node-name {
+            position: relative;
+            z-index: 1;
+            font-size: 12px;
+            line-height: 1.2;
+            font-weight: 700;
+            color: #ebf7ff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+            text-shadow: 0 0 10px rgba(97, 214, 255, 0.22);
+        }
+        .cloud-halo {
+            position: absolute;
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59,111,246,0.18) 0%, rgba(59,111,246,0.04) 38%, transparent 72%);
+            filter: blur(8px);
+            pointer-events: none;
+        }
+        .cloud-halo.one { top: -40px; left: -20px; }
+        .cloud-halo.two { right: -46px; top: 36px; background: radial-gradient(circle, rgba(24,196,144,0.12) 0%, rgba(24,196,144,0.02) 38%, transparent 72%); }
+        .cloud-halo.three { left: 34%; bottom: -70px; }
+        .cloud-stars {
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle at 12% 18%, rgba(255,255,255,0.9) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 24% 64%, rgba(119,214,255,0.75) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 38% 28%, rgba(255,255,255,0.75) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 62% 52%, rgba(104,194,255,0.78) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 80% 34%, rgba(255,255,255,0.8) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 74% 76%, rgba(122,212,255,0.72) 0 1px, transparent 1.5px),
+                radial-gradient(circle at 90% 18%, rgba(255,255,255,0.72) 0 1px, transparent 1.5px);
+            opacity: 0.9;
+            pointer-events: none;
+        }
+        @keyframes cloud-scan {
+            0% { transform: translateX(-100%); opacity: 0; }
+            8% { opacity: 1; }
+            50% { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0; }
+        }
+        @keyframes cloud-float {
+            0%, 100% { transform: translate(0, -50%) translate3d(0, 0, 0) scale(1); }
+            25% { transform: translate(0, -50%) translate3d(0, -8px, 0) scale(1.02); }
+            50% { transform: translate(0, -50%) translate3d(3px, 4px, 0) scale(0.99); }
+            75% { transform: translate(0, -50%) translate3d(-4px, -5px, 0) scale(1.015); }
+        }
+        .card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+        .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+        .card:hover { z-index: 20; }
+        .card.hidden { display: none; }
+        .card-badge {
+            position: absolute; top: 8px; right: 8px;
+            font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 600;
+        }
+        .badge-new { background: #fef3c7; color: #d97706; }
+        .badge-hot { background: #fee2e2; color: #dc2626; }
+        .card-logo {
+            width: 48px; height: 48px;
+            object-fit: contain; border-radius: 8px; background: #f8f9fc;
+        }
+        .card-icon-fallback { font-size: 36px; }
+        .card-name {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.35;
+            max-width: 100%;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .card-hover {
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: calc(100% - 8px);
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(26, 29, 40, 0.94);
+            color: #fff;
+            text-align: left;
+            opacity: 0;
+            transform: translateY(6px);
+            pointer-events: none;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+            z-index: 30;
+        }
+        .card:hover .card-hover {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .card-hover-title {
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #cdd8ff;
+        }
+        .card-hover-desc {
+            font-size: 11px;
+            line-height: 1.5;
+            color: rgba(255,255,255,0.92);
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .card-hover-aic {
+            font-size: 10px;
+            line-height: 1.35;
+            color: rgba(255,255,255,0.72);
+            word-break: break-all;
+        }
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            color: #b0b7c3;
+            display: none;
+        }
+        .tab-header {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: #fafbfd;
+            flex-shrink: 0;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-secondary);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            background: transparent;
+            border: none;
+            outline: none;
+        }
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: #fff;
+        }
+        .tab-btn:hover:not(.active) {
+            background: #f3f4f9;
+        }
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .footer-scroll {
+            margin: 0 24px 12px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            max-width: 1440px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            overflow-x: auto;
+            white-space: nowrap;
+            cursor: grab;
+            user-select: none;
+            scrollbar-width: thin;
+            scrollbar-color: #c1c7cd #f0f2f5;
+        }
+        .footer-scroll::-webkit-scrollbar { height: 6px; }
+        .footer-scroll::-webkit-scrollbar-track { background: #f0f2f5; border-radius: 3px; }
+        .footer-scroll::-webkit-scrollbar-thumb { background: #c1c7cd; border-radius: 3px; }
+        .footer-scroll:active { cursor: grabbing; }
+        .footer-label {
+            font-weight: 700;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+        .logo-box {
+            width: 100px; height: 38px;
+            border: 1px dashed #d1d5db;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #9ca3af;
+            border-radius: 6px;
+            cursor: pointer;
+            overflow: hidden;
+            flex-shrink: 0;
+            transition: border-color 0.2s, background 0.2s;
+            background: #e8eef7;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.58);
+        }
+        .logo-box:hover { border-color: var(--primary); background: #dfe9fb; }
+        .logo-box img { max-width: 80%; max-height: 70%; object-fit: contain; }
+        .logo-box.logo-box-wide { width: 142px; }
+        .logo-box.logo-box-wide img { max-width: 92%; max-height: 84%; }
+        .icp-footer {
+            text-align: center;
+            padding: 12px 20px 20px;
+            font-size: 12px;
+            color: #9ca3af;
+            background: #f0f2f7;
+        }
+        .icp-footer a { color: inherit; text-decoration: none; }
+        .icp-footer a:hover { text-decoration: underline; }
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; padding: 10px 20px; border-radius: 20px;
+            font-size: 13px; animation: toast-in 0.35s;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .toast.success { background: #22c55e; color: #fff; }
+        .toast.info { background: #3b6ff6; color: #fff; }
+
+        .welcome-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: radial-gradient(circle at 22% 18%, rgba(95, 136, 255, 0.28), transparent 30%),
+                        radial-gradient(circle at 78% 18%, rgba(122, 211, 255, 0.22), transparent 32%),
+                        rgba(15, 23, 42, 0.46);
+            backdrop-filter: blur(10px);
+        }
+        .welcome-overlay.show { display: flex; }
+        .welcome-card {
+            position: relative;
+            width: min(620px, 92vw);
+            overflow: hidden;
+            border-radius: 24px;
+            background: linear-gradient(145deg, rgba(255,255,255,0.98), rgba(246,249,255,0.96));
+            border: 1px solid rgba(219, 231, 255, 0.95);
+            box-shadow: 0 28px 70px rgba(18, 38, 86, 0.24);
+            padding: 30px 32px 26px;
+        }
+        .welcome-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 5px;
+            background: linear-gradient(90deg, #3b6ff6, #67d4ff, #9b8cff);
+        }
+        .welcome-glow {
+            position: absolute;
+            right: -70px;
+            top: -70px;
+            width: 210px;
+            height: 210px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59,111,246,0.22), transparent 66%);
+            pointer-events: none;
+        }
+        .welcome-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #eef4ff;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+        .welcome-title {
+            position: relative;
+            margin: 0 0 10px;
+            font-size: 28px;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+            color: #111827;
+        }
+        .welcome-desc {
+            position: relative;
+            margin: 0 0 16px;
+            color: #5f6b7a;
+            font-size: 15px;
+            line-height: 1.85;
+        }
+        .welcome-link-list {
+            position: relative;
+            display: grid;
+            gap: 7px;
+            margin: 0 0 18px;
+            padding: 13px 14px;
+            border: 1px solid #e4e9f5;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.72);
+        }
+        .welcome-link-row {
+            color: #5f6b7a;
+            font-size: 13px;
+            line-height: 1.55;
+            word-break: break-all;
+        }
+        .welcome-link-row a {
+            color: var(--primary);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(59,111,246,0.28);
+        }
+        .welcome-link-row a:hover { color:#2456d6; border-bottom-color:#2456d6; }
+        .welcome-paths {
+            position: relative;
+            display: grid;
+            gap: 10px;
+            margin: 18px 0 20px;
+        }
+        .welcome-path {
+            display: grid;
+            grid-template-columns: 34px 1fr;
+            gap: 10px;
+            align-items: start;
+            padding: 11px 12px;
+            border: 1px solid #e4e9f5;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.7);
+        }
+        .welcome-path-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #eef4ff, #f7fbff);
+            color: var(--primary);
+            font-size: 17px;
+        }
+        .welcome-path-title {
+            color: #172033;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        .welcome-path-text {
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+        .welcome-actions {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .welcome-close {
+            min-width: 132px;
+            height: 40px;
+            border: 1px solid #d8e0f0;
+            border-radius: 12px;
+            background: #fff;
+            color: #465264;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .welcome-close:disabled {
+            cursor: not-allowed;
+            color: #a0a8b8;
+            background: #eef1f7;
+            border-color: #eef1f7;
+        }
+        .welcome-note {
+            flex-basis: 100%;
+            color: #98a2b3;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        @media (max-width: 640px) {
+            .welcome-card { padding: 26px 20px 22px; }
+            .welcome-title { font-size: 23px; }
+            .welcome-actions { align-items: stretch; }
+            .welcome-close { width: 100%; }
+        }
+
+        @media (max-width: 1200px) {
+            :root { --sidebar-width: 360px; --agent-card-min: 124px; }
+            .online-query { width: min(260px, 28vw); }
+        }
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar { width: 100%; height: 500px; margin-top: 10px; }
+            .resize-handle { display: none; }
+            .cloud-wrap { height: 320px; }
+        }
+        @media (max-width: 560px) {
+            :root { --agent-card-min: 120px; }
+            .header { padding: 0 12px; }
+            .header-left { gap: 7px; }
+            .logo-icon { width: 32px; height: 32px; }
+            .logo-text { font-size: 15px; }
+            .header-contributor, .active-agent-count { display: none; }
+            .header-right { gap: 6px; }
+            .online-query { width: 150px; }
+            .online-query-button { padding: 0 10px; }
+            .docs-link { padding: 5px 8px; }
+            .dashboard-section-header { padding: 8px 9px; }
+            .section-body { padding: 0 9px 9px; }
+            .section-toggle-desc { display: none; }
+            .rank-role-select { max-width: 92px; }
+            .card { padding: 10px 6px; }
+            .cloud-wrap { height: 280px; }
+            .cloud-node { min-width: 90px; max-width: 160px; }
+            .cloud-node-icon {
+                width: 40px;
+                height: 40px;
+                flex-basis: 40px;
+            }
+            .cloud-node-label {
+                max-width: 110px;
+                padding: 6px 10px;
+            }
+            .cloud-node-name { font-size: 11px; }
+            .sidebar-help-popup { right: 0; left: auto; width: 250px; }
+        }
+        @media (max-width: 430px) {
+            .docs-link { display: none; }
+            .online-query { width: 156px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img src="wutong-logo.svg" alt="æ¢§æ¡" class="logo-icon" />
+            <div class="logo-text">æ¢§æ¡<span>æºè½ä½äºèå¹³å°</div>
+            <div class="header-contributor">
+                Contributor
+                <div class="header-contributor-popup">
+                    <div class="header-contributor-title">æ ¸å¿å¢é</div>
+                    <div class="header-contributor-names">
+                        <span>æç</span><span>ç¦¹å¯</span><span>åå</span><span>éç§è¯</span><span>é©¬é</span><span>è¡æå³°</span>
+                    </div>
+                    <div class="header-contributor-title">è¿è¥æ¯æ</div>
+                    <div class="header-contributor-names">
+                        <span>ä¸­å½ç§»å¨éä¿¡éå¢å±±ä¸æéå¬å¸ </span><span>åäº¬å½æ°æºèç§ææéå¬å¸</span>
+                    </div>
+                    <div class="header-contributor-title">å»ºè®¾è</div>
+                    <div class="header-contributor-names">
+                        <span>å´æè¾¾</span><span>å¼ èå½¬</span><span>è¡äº¦å¼ </span><span>çåç¨</span><span>æèª</span><span>ææ¥·ä¸º</span><span>å¯æ¢å²</span><span>éæ è±ª</span><span>å­å¤§å£®</span><span>æè¤é­</span><span>é­ä¸å¿</span><span>é©¬æ¸æ¶</span><span>å²è²é¨</span><span>é»çéª</span>
+                    </div>
+                    <div class="header-contributor-title">è´¡ç®è</div>
+                    <div class="header-contributor-names">
+                        <span>åå­ç(åé®)</span><span>è«å®¶ç(æ¸¯å¤§)</span><span>çå¦è(åç§åæµ)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <form class="online-query" id="onlineQueryForm" role="search" aria-label="æ¥è¯¢æºè½ä½å¨çº¿ç¶æ">
+                <input class="online-query-input" id="onlineAicInput" type="text" autocomplete="off" spellcheck="false" placeholder="è¾å¥ AIC æ¥è¯¢å¨çº¿ç¶æ" aria-label="æºè½ä½ AIC" />
+                <button class="online-query-button" type="submit">æ¥è¯¢</button>
+                <div class="online-query-result empty" id="onlineQueryResult" role="status" aria-live="polite" hidden></div>
+            </form>
+            <div class="active-agent-count" title="æ¥èª Discovery å¿è·³åæ­¥ç¶æ">
+                æ´»è·æºè½ä½ <strong id="activeAgentCount">--</strong>
+            </div>
+            <a class="docs-link" href="/docs.html" target="_blank" rel="noopener noreferrer">ä½¿ç¨è¯´æ</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main">
+            <section class="dashboard-section ranking-section" id="rankingSection" data-collapsible>
+                <div class="dashboard-section-header">
+                    <button class="section-toggle" type="button" aria-expanded="true" aria-controls="rankingSectionBody">
+                        <span class="section-chevron" aria-hidden="true">â</span>
+                        <span class="section-toggle-copy">
+                            <span class="section-toggle-title">æ¢§æ¡æºè½ä½è°ç¨æè¡æ¦</span>
+
+                        </span>
+                    </button>
+                    <div class="section-actions">
+                        <select class="rank-role-select" id="rankingRole" aria-label="æè¡æ¦è§è²">
+                            <option value="callee">è¢«è°ç¨æ¦(å«åé¨è°ç¨)</option>
+                            <option value="caller">è°ç¨æ¦(å«åé¨è°ç¨)</option>
+                            <option value="calleeNonInternal">è¢«è°ç¨æ¦(ä¸å«åé¨è°ç¨)</option>
+                            <option value="callerNonInternal">è°ç¨æ¦(ä¸å«åé¨è°ç¨)</option>
+                        </select>
+                        <button class="refresh-btn" id="rankingRefresh" type="button">å·æ°</button>
+                    </div>
+                </div>
+                <div class="section-body" id="rankingSectionBody">
+                    <div class="ranking-meta">
+                        <span id="rankingTimeRange">ç»è®¡çªå£å è½½ä¸­â¦</span>
+                        <span class="ranking-meta-status" id="rankingMetaStatus">æ­£å¨æ±æ»</span>
+                    </div>
+                    <div class="ranking-list" id="rankingGrid" aria-live="polite">
+                        <div class="ranking-state"><strong>æ­£å¨å è½½æè¡æ¦</strong>æ­£å¨æ±æ»ç´è¿è°ç¨ä¸ç¾¤ç»æ¶æ¯ä»»å¡</div>
+                    </div>
+                </div>
+            </section>
+
+            <h2 class="store-heading">Agent Store</h2>
+
+            <section class="dashboard-section is-collapsed store-section" id="hotSection" data-collapsible>
+                <div class="dashboard-section-header">
+                    <button class="section-toggle" type="button" aria-expanded="false" aria-controls="hotSectionBody">
+                        <span class="section-chevron" aria-hidden="true">â</span>
+                        <span class="section-toggle-copy">
+                            <span class="section-toggle-title"><span class="icon-dot hot"></span> ç­é¨æºè½ä½</span>
+                            <span class="section-toggle-desc">è¿æé«é¢ä½¿ç¨çæºè½ä½</span>
+                        </span>
+                    </button>
+                    <button class="refresh-btn" type="button" onclick="refreshHotAgents()">æ¢ä¸æ¹</button>
+                </div>
+                <div class="section-body" id="hotSectionBody">
+                    <div class="grid" id="hotAgentsGrid">
+                        <div class="empty-state" id="hotEmpty">ææ å¹éçç­é¨æºè½ä½</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-section is-collapsed store-section" id="newSection" data-collapsible>
+                <div class="dashboard-section-header">
+                    <button class="section-toggle" type="button" aria-expanded="false" aria-controls="newSectionBody">
+                        <span class="section-chevron" aria-hidden="true">â</span>
+                        <span class="section-toggle-copy">
+                            <span class="section-toggle-title"><span class="icon-dot new"></span> ä¸æ°æºè½ä½</span>
+                            <span class="section-toggle-desc">æè¿æ¥å¥æ¢§æ¡çæºè½ä½</span>
+                        </span>
+                    </button>
+                    <button class="refresh-btn" type="button" onclick="refreshNewAgents()">æ¢ä¸æ¹</button>
+                </div>
+                <div class="section-body" id="newSectionBody">
+                    <div class="grid" id="newAgentsGrid">
+                        <div class="empty-state" id="newEmpty">ææ å¹éçä¸æ°æºè½ä½</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="resize-handle" id="sidebarResizeHandle" role="separator" aria-orientation="vertical" aria-label="è°æ´å®å½çªå£å®½åº¦" title="æå¨è°æ´å®å½çªå£å®½åº¦"></div>
+
+        <div class="sidebar">
+            <div class="sidebar-topbar">
+                <div class="sidebar-title-wrap">
+                    <div class="sidebar-title">å®å½å©æ</div>
+                </div>
+                <div class="sidebar-corner-tools">
+                    <div class="sidebar-help-wrap" id="sidebarHelpWrap">
+                        <button class="sidebar-help" id="sidebarHelpButton" type="button" aria-label="å¹³å°è¯´æ" aria-expanded="false" aria-controls="sidebarHelpPopup">?</button>
+                        <div class="sidebar-help-popup" id="sidebarHelpPopup" role="dialog" aria-label="å¹³å°è¯´æ">
+                            <div class="sidebar-help-item">
+                                <div class="sidebar-help-name">æºè½ä½æ³¨åå¹³å°</div>
+                                <div class="sidebar-help-desc">ç¨äºæ³¨åãåå¸åç»´æ¤æºè½ä½åæ°æ®ï¼è®©æºè½ä½å¯è¢«åç°ãè°ç¨å¹¶æ¥å¥æ¢§æ¡äºèçæã</div>
+                                <a class="sidebar-help-link" href="https://wt.ioa.pub/registry/" target="_blank" rel="noopener noreferrer">https://wt.ioa.pub/registry/</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="iframe-container" id="iframeContainer">
+                <iframe id="dingdangFrame" src="/dingdang/" title="å®å½æºè½ä½æç´¢" allow="clipboard-write"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-scroll" id="partnerFooter">
+        <span class="footer-label">ð¤ åä½åä½</span>
+    </div>
+
+    <div class="icp-footer">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">äº¬ICPå¤2025124884å·-4</a>
+    </div>
+
+
+    <div class="welcome-overlay" id="welcomeOverlay" aria-hidden="true">
+        <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" aria-describedby="welcomeDesc">
+            <div class="welcome-glow"></div>
+            <div class="welcome-kicker">ä½¿ç¨å¸®å©</div>
+            <h2 class="welcome-title" id="welcomeTitle">å»ºè®®åéè¯»æ¢§æ¡æºè½ä½äºèå¹³å°ä½¿ç¨æå</h2>
+            <p class="welcome-desc" id="welcomeDesc">æ¢§æ¡æºè½ä½äºèå¹³å°åå«é¦é¡µãå®å½ãFluxãæ³¨åå¹³å°å ACPs æ¥å¥æµç¨ãé¦æ¬¡è®¿é®æ¶ï¼å»ºè®®åéè¯»ä½¿ç¨æåï¼äºè§£åå¥å£ç¨éåæ¨èä½¿ç¨é¡ºåºã</p>
+            <div class="welcome-link-list" aria-label="å¸¸ç¨å¥å£">
+                <div class="welcome-link-row">ä½¿ç¨æåï¼<a id="welcomeDocs" href="/docs.html" target="_blank" rel="noopener noreferrer">https://wt.ioa.pub/docs.html</a></div>
+                <div class="welcome-link-row">æ¢§æ¡é¦é¡µï¼<a href="https://wt.ioa.pub/" target="_blank" rel="noopener noreferrer">https://wt.ioa.pub/</a></div>
+                <div class="welcome-link-row">Fluxï¼<a href="https://wt.ioa.pub/flux/" target="_blank" rel="noopener noreferrer">https://wt.ioa.pub/flux/</a></div>
+                <div class="welcome-link-row">å®å½ï¼<a href="https://wt.ioa.pub/dingdang/" target="_blank" rel="noopener noreferrer">https://wt.ioa.pub/dingdang/</a></div>
+                <div class="welcome-link-row">æºè½ä½æ³¨åå¹³å°ï¼<a href="https://wt.ioa.pub/registry/" target="_blank" rel="noopener noreferrer">https://wt.ioa.pub/registry/</a></div>
+            </div>
+            <div class="welcome-actions">
+                <button class="welcome-close" id="welcomeClose" type="button" disabled>5 ç§åå¯å³é­</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer"></div>
+
+    <script src="/dingdang/embed-parent-bridge.js?v=1.3.2"></script>
+    <script>
+        (function() {
+            const API_CONFIG = {
+                newAgentsUrl: '/discovery/acps-adp-v2/discover',
+                hotAgentsUrl: '/discovery/acps-adp-v2/discover',
+                matchedRankingUrl: '/internal/matched-stats/top',
+                onlineStatusUrl: '/discovery/acps-adp-v2/discover',
+                activeAgentCountUrl: '/discovery/admin/alive-sync/status',
+                partnersUrl: '',
+                useMockFallback: true,
+                timeout: 10000,
+            };
+
+            const RANKING_CONFIG = {
+                startAt: '2026-09-24T00:00:00+08:00',
+                fallbackRangeLabel: 'èª 2026-09-24 èµ·',
+                requestTopN: 200,
+                pageSize: 10,
+            };
+
+
+            function initWelcomeOverlay() {
+                const storageKey = 'wutongWelcomeDismissed.v1';
+                const overlay = document.getElementById('welcomeOverlay');
+                const closeBtn = document.getElementById('welcomeClose');
+                const docsLink = document.getElementById('welcomeDocs');
+                if (!overlay || !closeBtn) return;
+
+                let dismissed = false;
+                try {
+                    dismissed = localStorage.getItem(storageKey) === '1';
+                } catch (error) {
+                    dismissed = false;
+                }
+                if (dismissed) return;
+
+                overlay.classList.add('show');
+                overlay.setAttribute('aria-hidden', 'false');
+
+                let remaining = 5;
+                closeBtn.textContent = `${remaining} ç§åå¯å³é­`;
+                const timer = window.setInterval(() => {
+                    remaining -= 1;
+                    if (remaining > 0) {
+                        closeBtn.textContent = `${remaining} ç§åå¯å³é­`;
+                        return;
+                    }
+                    window.clearInterval(timer);
+                    closeBtn.disabled = false;
+                    closeBtn.textContent = 'æå·²éè¯»';
+                    closeBtn.focus({ preventScroll: true });
+                }, 1000);
+
+                const dismiss = () => {
+                    overlay.classList.remove('show');
+                    overlay.setAttribute('aria-hidden', 'true');
+                    try {
+                        localStorage.setItem(storageKey, '1');
+                    } catch (error) {}
+                };
+
+                closeBtn.addEventListener('click', () => {
+                    if (closeBtn.disabled) return;
+                    dismiss();
+                });
+                if (docsLink) {
+                    docsLink.addEventListener('click', dismiss);
+                }
+            }
+
+            const DISCOVERY_REQUESTS = {
+                new: {
+                    type: 'recent',
+                    limit: 6,
+                },
+                hot: {
+                    type: 'trending',
+                    limit: 6,
+                }
+            };
+
+            const BRIDGE_CONFIG = {
+                targetOrigin: window.location.origin,
+                messageType: 'DD_EXECUTE_AGENT',
+                fallbackToSearch: true,
+                ackTimeout: 8000,
+            };
+
+            const CLOUD_BG_CONFIG = {
+                enabled: true,
+                image: 'url("test1.png")',
+            };
+
+            const TAB_URLS = {
+                dingdang: '/dingdang/',
+                platform2: 'https://example.com/platform2',
+                platform3: 'https://example.com/platform3',
+            };
+
+            const mockNewAgents = {
+                agents: [
+                    { id:'n1', name:'æç®æ£ç´¢å©æ', description:'æºè½æ£ç´¢ä¸­å¤å­¦æ¯æç®', icon:'ð', logoUrl:'', callMethod:'API', type:'ioa' },
+                    { id:'n2', name:'è®ºææ¶¦è²å¤§å¸', description:'ä¸­è±æè¯­æ³æ ¡å¯¹ä¸ä¼å', icon:'âï¸', logoUrl:'', callMethod:'SDK', type:'ioa' },
+                    { id:'n3', name:'æ°æ®åæä¸å®¶', description:'ç»è®¡åæä¸å¾è¡¨çæ', icon:'ð', logoUrl:'', callMethod:'Web', type:'web' },
+                    { id:'n4', name:'åºéç³è¯·é¡¾é®', description:'å½èªç¶ç³è¯·ä¹¦è¾å©', icon:'ð', logoUrl:'', callMethod:'API', type:'ioa' },
+                    { id:'n5', name:'å®éªæ¹æ¡è®¾è®¡', description:'èªå¨çæå®éªæ¹æ¡', icon:'ð¬', logoUrl:'', callMethod:'SDK', type:'ioa' },
+                    { id:'n6', name:'æåæ¨èå¼æ', description:'æºè½å¹éæç¨¿æå', icon:'ð¯', logoUrl:'', callMethod:'Web', type:'web' },
+                ]
+            };
+            const mockHotAgents = {
+                agents: [
+                    { id:'h1', name:'æç®ç»¼è¿°çæ', description:'æ¢³çé¢åæç®æ¡æ¶', icon:'ð', logoUrl:'', callMethod:'API', type:'ioa' },
+                    { id:'h2', name:'å­¦æ¯ç¿»è¯å®', description:'ä¸­è±äºè¯å­¦æ¯é£æ ¼', icon:'ð', logoUrl:'', callMethod:'SDK', type:'ioa' },
+                    { id:'h3', name:'ç§ç ç»å¾å©æ', description:'å¾è¡¨æµç¨å¾çæ', icon:'ð¨', logoUrl:'', callMethod:'Web', type:'web' },
+                    { id:'h4', name:'ä¸å©æ£ç´¢å·¥å·', description:'å¨çä¸å©ä¸ä¾µæåæ', icon:'ð', logoUrl:'', callMethod:'API', type:'ioa' },
+                    { id:'h5', name:'ä»£ç è°è¯å©æ', description:'Python/Rä»£ç debug', icon:'ð»', logoUrl:'', callMethod:'SDK', type:'ioa' },
+                    { id:'h6', name:'ä¼è®®å©æ', description:'å­¦æ¯ä¼è®®æ¥ç¨ç®¡ç', icon:'ð', logoUrl:'', callMethod:'Web', type:'web' },
+                ]
+            };
+            const mockPartners = {
+    partners: [
+        { id: '1', name: 'åäº¬é®çµå¤§å­¦', logoUrl: 'beijing-university-of-posts-and-telecommunications-logo-1024px.png', link: 'https://www.bupt.edu.cn' },
+        { id: '2', name: 'æ¸åå¤§å­¦', logoUrl: 'tsinghua-university-logo-1024px.png', link: 'https://www.tsinghua.edu.cn' },
+        { id: '3', name: 'åäº¬å»ºç­å¤§å­¦', logoUrl: 'beijing-university-of-civil-engineering-and-architecture-logo-1024px.png', link: 'https://www.bucea.edu.cn/' },
+        { id: '4', name: 'åäº¬èªç©ºèªå¤©å¤§å­¦', logoUrl: 'beihang-university-logo-1024px.png', link: 'https://www.buaa.edu.cn/' },
+        { id: '5', name: 'ä¸æµ·äº¤éå¤§å­¦', logoUrl: 'shanghai-jiao-tong-university-logo-1024px.png', link: 'https://www.sjtu.edu.cn/' },
+        { id: '6', name: 'å¤æ¦å¤§å­¦éå±ä¸­å±±å»é¢', logoUrl: 'å¤æ¦å¤§å­¦éå±ä¸­å±±å»é¢.png', link: 'https://www.zs-hospital.sh.cn/' },
+        { id: '7', name: 'åç§åæµå»å­¦é¢', logoUrl: 'åç§åæµå»å­¦é¢.png', link: 'https://www.tjmu.edu.cn/' },
+        { id: '8', name: 'æµæ±å¤§å­¦', logoUrl: 'zhejiang-university-logo-1024px.png', link: 'https://www.zju.edu.cn/' },
+        { id: '9', name: 'ä¸­å³æå®éªå®¤', logoUrl: 'ä¸­å³æå®éªå®¤.png', link: 'https://www.nju.edu.cn' },
+        { id: '10', name: 'ä¸­å½ç§å­¦é¢å¤§å­¦', logoUrl: 'university-of-chinese-academy-of-sciences-logo-1024px.png', link: 'https://www.ucas.ac.cn/' },
+        { id: '11', name: 'ä¸­å½ç§å­¦ææ¯å¤§å­¦', logoUrl: 'university-of-science-and-technology-of-china-logo-1024px.png', link: 'https://www.ustc.edu.cn/' },
+        { id: '12', name: 'é¦æ¸¯ä¸­æå¤§å­¦æ·±å³æ ¡åº', logoUrl: 'the-chinese-university-of-hong-kong-shenzhen-logo-1024px.png', link: 'https://www.cuhk.edu.cn/' },
+        { id: '13', name: 'ä¸­å½æ¿æ³å¤§å­¦', logoUrl: 'china-university-of-political-science-and-law-logo-1024px.png', link: 'https://www.cupl.edu.cn/' },
+        { id: '14', name: 'é¦æ¸¯ç§æå¤§å­¦', logoUrl: 'the-hong-kong-university-of-science-and-technology-guangzhou-logo-1024px.png', link: 'https://hkust.edu.hk/' },
+        { id: '15', name: 'åäº¬çå·¥å¤§å­¦', logoUrl: 'beijing-institute-of-technology-logo-1024px.png', link: 'https://www.bit.edu.cn/' },
+        { id: '16', name: 'åäº¬ç©èµå­¦é¢', logoUrl: 'beijing-wuzi-university-logo-1024px.png', link: 'https://www.bwu.edu.cn/' },
+        { id: '17', name: 'åäº¬ä½è²å¤§å­¦', logoUrl: 'beijing-sport-university-logo-1024px.png', link: 'https://www.bsu.edu.cn/' },
+        { id: '18', name: 'ä¸­å½ä¼ åªå¤§å­¦', logoUrl: 'communication-university-of-china-logo-1024px.png', link: 'https://www.cuc.edu.cn/' },
+        { id: '19', name: 'åäº¬äº¤éå¤§å­¦', logoUrl: 'beijing-jiaotong-university-logo-1024px.png', link: 'https://www.bjtu.edu.cn' },
+        { id: '20', name: 'åäº¬å¸èå¤§å­¦', logoUrl: 'beijing-normal-university-logo-1024px.png', link: 'https://www.bnu.edu.cn/' },
+        { id: '21', name: 'å±±ä¸è´¢ç»å¤§å­¦', logoUrl: 'shandong-university-of-finance-and-economics-logo-1024px.png', link: 'https://www.sdufe.edu.cn/' },
+        { id: '22', name: 'å±±ä¸ä½è²å­¦é¢', logoUrl: 'å±±ä¸ä½è²å­¦é¢.png', link: 'https://www.sdpei.edu.cn/' },
+        { id: '23', name: 'çµå­ç§æå¤§å­¦', logoUrl: 'university-of-electronic-science-and-technology-of-china-logo-1024px.png', link: 'https://www.uestc.edu.cn/' },
+        { id: '24', name: 'åå·å¤§å­¦', logoUrl: 'sichuan-university-logo-1024px.png', link: 'https://www.scu.edu.cn/' },
+        { id: '25', name: 'é¦é½å»ç§å¤§å­¦éå±åäº¬å¦äº§å»é¢', logoUrl: 'é¦é½å»ç§å¤§å­¦éå±åäº¬å¦äº§å»é¢.png', link: 'https://www.bjut.edu.cn' },
+        { id: '26', name: 'æ¾³é¨ç§æå¤§å­¦', logoUrl: 'æ¾³é¨ç§æå¤§å­¦.png', link: 'https://www.must.edu.mo/' },
+        { id: '27', name: 'åäº¬ä¸­å»è¯å¤§å­¦ç¬¬ä¸éå±å»é¢', logoUrl: 'åäº¬ä¸­å»è¯å¤§å­¦ç¬¬ä¸éå±å»é¢.png', link: 'https://www.buct.edu.cn' },
+        { id: '28', name: 'åäº¬å¤§å­¦ç¬¬ä¸å»é¢', logoUrl: 'åäº¬å¤§å­¦ç¬¬ä¸å»é¢.png', link: 'https://www.puh3.net.cn/' },
+        { id: '29', name: 'ä¸­å±±å¤§å­¦', logoUrl: 'ä¸­å±±å¤§å­¦.png', link: 'https://www.sysu.edu.cn/' },
+        { id: '30', name: 'ä¸­å½ä¸­å»ç§å­¦é¢', logoUrl: 'ä¸­å»ç§å­¦é¢.png', link: 'https://www.cacms.ac.cn/' },
+        { id: '31', name: 'æ±èæ©åå»è¯', logoUrl: 'æ±èæ©åå»è¯.png', link: 'https://www.nhwa-group.com/' },
+        { id: '32', name: 'å¤æ¦å¤§å­¦', logoUrl: 'å¤æ¦å¤§å­¦.png', link: 'https://www.fudan.edu.cn/' },
+        { id: '33', name: 'ä¸åå¤§å­¦', logoUrl: 'ä¸åå¤§å­¦.png', link: 'https://www.seu.edu.cn/' },
+        { id: '34', name: 'åäº¬é®çµå¤§å­¦', logoUrl: 'åäº¬é®çµå¤§å­¦.png', link: 'https://www.njupt.edu.cn/' },
+        { id: '35', name: 'å±±ä¸å¤§å­¦', logoUrl: 'å±±ä¸å¤§å­¦.png', link: 'https://www.sdu.edu.cn/' },
+        { id: '36', name: 'è¥¿å®çµå­ç§æå¤§å­¦', logoUrl: 'è¥¿å®çµå­ç§æå¤§å­¦.png', link: 'https://www.xidian.edu.cn/' },
+        { id: '37', name: 'åäº¬ä¿¡æ¯ç§æå¤§å­¦', logoUrl: 'åäº¬ä¿¡æ¯ç§æå¤§å­¦.png', link: 'https://www.bistu.edu.cn/' },
+        { id: '38', name: 'åå·å¸èå¤§å­¦', logoUrl: 'åå·å¸èå¤§å­¦.png', link: 'https://www.sicnu.edu.cn/' },
+        { id: '39', name: 'åäº¬æä¸å¤§å­¦', logoUrl: 'åäº¬æä¸å¤§å­¦.png', link: 'https://www.bjfu.edu.cn/' },
+        { id: '40', name: 'åäº¬å·¥åå¤§å­¦', logoUrl: 'åäº¬å·¥åå¤§å­¦.png', link: 'https://www.btbu.edu.cn/' },
+        { id: '41', name: 'å±±ä¸å¸èå¤§å­¦', logoUrl: 'å±±ä¸å¸èå¤§å­¦.png', link: 'https://www.sdnu.edu.cn/' },
+        { id: '42', name: 'æ°èªå¤§å­¦', logoUrl: 'æ°èªå¤§å­¦.png', link: 'https://www.cafuc.edu.cn/' },
+        { id: '43', name: 'åå¼å¤§å­¦', logoUrl: 'åå¼å¤§å­¦.png', link: 'https://www.nankai.edu.cn/' },
+        { id: '44', name: 'åä¸çå·¥å¤§å­¦', logoUrl: 'åä¸çå·¥å¤§å­¦.png', link: 'https://www.ecust.edu.cn/' },
+        { id: '45', name: 'åäº¬å¤§å­¦å£èå»é¢', logoUrl: 'åäº¬å¤§å­¦å£èå»é¢.png', link: 'https://ss.bjmu.edu.cn/' },
+        { id: '46', name: 'ç§»å¨ä¹å¤©', logoUrl: 'ç§»å¨ä¹å¤©.png', link: 'https://jiutian.10086.cn/' },
+        { id: '47', name: 'ä¸­ç§»äºè', logoUrl: 'ä¸­ç§»äºè.png', link: 'https://cmic.chinamobile.com/pages/pcIndex' },
+        { id: '48', name: 'å¹¿ä¸å·¥ä¸å¤§å­¦', logoUrl: 'å¹¿ä¸å·¥ä¸å¤§å­¦.jpg', link: 'https://www.gdut.edu.cn/' },
+        { id: '49', name: 'åæå¤§å­¦', logoUrl: 'åæå¤§å­¦-logo-2048px.png', link: 'https://www.jlu.edu.cn/' },
+        { id: '50', name: 'æ­å·çµå­ç§æå¤§å­¦', logoUrl: 'æ­å·çµå­ç§æå¤§å­¦-logo-2048px.png', link: 'https://www.hdu.edu.cn/' },
+        { id: '51', name: 'é¦æ¸¯å¤§å­¦', logoUrl: 'é¦æ¸¯å¤§å­¦.png', link: 'https://www.hku.edu.cn/' },
+        { id: '52', name: 'ååçµåå¤§å­¦', logoUrl: 'ååçµåå¤§å­¦.jpg', link: 'https://www.ncepu.edu.cn/' },
+        { id: '53', name: 'å¹¿å·èªæµ·å­¦é¢', logoUrl: 'å¹¿å·èªæµ·å­¦é¢.png', link: 'https://www.gzmtu.edu.cn' },
+        { id: '54', name: 'æµæ±ç§»å¨åæ°ç ç©¶é¢', logoUrl: 'æµæ±ç§»å¨åæ°ç ç©¶é¢.png', link: 'https://www.dlzb.com/c-4001499/' },
+        { id: '55', name: 'ç§»å¨ç ç©¶é¢', logoUrl: 'ä¸­å½ç§»å¨ç ç©¶é¢.jpg', link: 'https://www.buu.edu.cn/' },
+        
+    ]
+};
+
+            let newAgents = [];
+            let hotAgents = [];
+            let cloudAgents = [];
+            let rankingPayloads = { matched: null };
+            let rankingFailures = [];
+            let rankingRequestRange = null;
+            let rankingCurrentPage = 1;
+            let currentTab = 'dingdang';
+            let iframeReady = false;
+
+            const $newGrid = document.getElementById('newAgentsGrid');
+            const $hotGrid = document.getElementById('hotAgentsGrid');
+            const $newEmpty = document.getElementById('newEmpty');
+            const $hotEmpty = document.getElementById('hotEmpty');
+            const $partnerFooter = document.getElementById('partnerFooter');
+            const $agentCountBadge = document.getElementById('agentCountBadge');
+            const $iframeContainer = document.getElementById('iframeContainer');
+            const $container = document.querySelector('.container');
+            const $sidebar = document.querySelector('.sidebar');
+            const $resizeHandle = document.getElementById('sidebarResizeHandle');
+            const $cloudWrap = document.getElementById('agentCloudWrap');
+            const $cloudCanvas = document.getElementById('agentCloudCanvas');
+            const $cloudNodes = document.getElementById('agentCloudNodes');
+            const $sidebarHelpWrap = document.getElementById('sidebarHelpWrap');
+            const $sidebarHelpButton = document.getElementById('sidebarHelpButton');
+            const $rankingGrid = document.getElementById('rankingGrid');
+            const $rankingRole = document.getElementById('rankingRole');
+            const $rankingRefresh = document.getElementById('rankingRefresh');
+            const $rankingTimeRange = document.getElementById('rankingTimeRange');
+            const $rankingMetaStatus = document.getElementById('rankingMetaStatus');
+            const $onlineQueryForm = document.getElementById('onlineQueryForm');
+            const $onlineAicInput = document.getElementById('onlineAicInput');
+            const $onlineQueryResult = document.getElementById('onlineQueryResult');
+            const $activeAgentCount = document.getElementById('activeAgentCount');
+
+            function setSidebarHelpOpen(isOpen) {
+                if (!$sidebarHelpWrap || !$sidebarHelpButton) return;
+                $sidebarHelpWrap.classList.toggle('is-open', isOpen);
+                $sidebarHelpButton.setAttribute('aria-expanded', String(isOpen));
+            }
+
+            function initSidebarHelpPopover() {
+                if (!$sidebarHelpWrap || !$sidebarHelpButton) return;
+
+                let closeTimer = null;
+                const clearCloseTimer = () => {
+                    if (closeTimer) {
+                        clearTimeout(closeTimer);
+                        closeTimer = null;
+                    }
+                };
+                const scheduleClose = () => {
+                    clearCloseTimer();
+                    closeTimer = setTimeout(() => setSidebarHelpOpen(false), 180);
+                };
+
+                $sidebarHelpWrap.addEventListener('mouseenter', () => {
+                    clearCloseTimer();
+                    setSidebarHelpOpen(true);
+                });
+                $sidebarHelpWrap.addEventListener('mouseleave', scheduleClose);
+                $sidebarHelpButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    clearCloseTimer();
+                    setSidebarHelpOpen(!$sidebarHelpWrap.classList.contains('is-open'));
+                });
+                document.addEventListener('click', (event) => {
+                    if (!$sidebarHelpWrap.contains(event.target)) {
+                        setSidebarHelpOpen(false);
+                    }
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        setSidebarHelpOpen(false);
+                    }
+                });
+            }
+
+            function markIframeReadyOnce(iframe) {
+                if (!iframe) return;
+                iframe.addEventListener('load', () => {
+                    iframeReady = true;
+                    logBridge('iframe load å®æ');
+                }, { once: true });
+            }
+
+            function showToast(msg, type='info') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = msg;
+                document.getElementById('toastContainer').appendChild(toast);
+                setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.3s'; setTimeout(() => toast.remove(),300); }, 2200);
+            }
+
+            function logBridge(...args) {
+                console.log('[WutongBridge]', ...args);
+            }
+
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            function normalizeAgent(raw, fallbackType) {
+                const type = raw.type || raw.agentType || fallbackType || 'unknown';
+                return {
+                    id: raw.id || raw.agentId || `agent_${Math.random().toString(36).slice(2, 10)}`,
+                    name: raw.name || raw.agentName || 'æªå½åæºè½ä½',
+                    description: raw.description || raw.desc || raw.summary || '',
+                    icon: raw.icon || 'ð¤',
+                    logoUrl: raw.logoUrl || raw.iconUrl || raw.logo || raw.avatar || '',
+                    callMethod: raw.callMethod || raw.method || raw.source || 'API',
+                    type,
+                    endpoint: raw.endpoint || raw.endPoint || '',
+                    aic: raw.aic || '',
+                    url: raw.url || raw.webAppUrl || '',
+                    userQuery: raw.userQuery || raw.query || raw.prompt || '',
+                    bridgeAction: raw.bridgeAction || (type === 'ioa' ? 'execute' : 'search'),
+                    raw,
+                };
+            }
+
+            function applyCloudBackground() {
+                if (!$cloudWrap) return;
+                if (CLOUD_BG_CONFIG.enabled && CLOUD_BG_CONFIG.image) {
+                    $cloudWrap.classList.add('has-bg-image');
+                    $cloudWrap.style.setProperty('--cloud-bg-image', CLOUD_BG_CONFIG.image);
+                } else {
+                    $cloudWrap.classList.remove('has-bg-image');
+                    $cloudWrap.style.removeProperty('--cloud-bg-image');
+                }
+            }
+
+            function getCloudAgents() {
+                const seen = new Set();
+                const unique = [];
+                [...hotAgents, ...newAgents].forEach((agent) => {
+                    const key = agent?.aic || agent?.name || agent?.id;
+                    if (!key || seen.has(key)) return;
+                    seen.add(key);
+                    unique.push(agent);
+                });
+                return unique.slice(0, 12);
+            }
+
+            function openAgent(agent) {
+                if (!agent) {
+                    showToast('æªæ¾å°æºè½ä½æ°æ®', 'info');
+                    return;
+                }
+
+                const sectionType = newAgents.some(item => item.id === agent.id) ? 'new' : 'hot';
+                return window.openAgentFromCard(agent.id, sectionType);
+            }
+
+            function getNodePosition(index, total, width, height) {
+                const presets = [
+                    [0.17, 0.22], [0.34, 0.16], [0.52, 0.12], [0.73, 0.18],
+                    [0.86, 0.31], [0.78, 0.56], [0.64, 0.8], [0.44, 0.84],
+                    [0.22, 0.72], [0.12, 0.5], [0.28, 0.38], [0.58, 0.48]
+                ];
+                const [px, py] = presets[index % presets.length];
+                const driftX = Math.sin(index * 1.9) * Math.min(18, width * 0.018);
+                const driftY = Math.cos(index * 1.4) * Math.min(14, height * 0.024);
+                return {
+                    x: width * px + driftX,
+                    y: height * py + driftY
+                };
+            }
+
+            function renderAgentCloud() {
+                if (!$cloudWrap || !$cloudCanvas || !$cloudNodes) return;
+
+                cloudAgents = getCloudAgents();
+                const width = $cloudWrap.clientWidth;
+                const height = $cloudWrap.clientHeight;
+                if (!width || !height) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                $cloudCanvas.width = Math.floor(width * dpr);
+                $cloudCanvas.height = Math.floor(height * dpr);
+                $cloudCanvas.style.width = `${width}px`;
+                $cloudCanvas.style.height = `${height}px`;
+
+                const ctx = $cloudCanvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, width, height);
+
+                const positions = cloudAgents.map((agent, index) => ({
+                    agent,
+                    ...getNodePosition(index, cloudAgents.length, width, height)
+                }));
+                const nodeRadius = 23;
+
+                const center = { x: width / 2, y: height * 0.52 };
+
+                const meshGradient = ctx.createRadialGradient(center.x, center.y, 10, center.x, center.y, Math.max(width, height) * 0.48);
+                meshGradient.addColorStop(0, 'rgba(121, 218, 255, 0.14)');
+                meshGradient.addColorStop(1, 'rgba(121, 218, 255, 0)');
+                ctx.fillStyle = meshGradient;
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, Math.max(width, height) * 0.42, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(118, 213, 255, 0.12)';
+                ctx.lineWidth = 1;
+                [0.18, 0.28, 0.38, 0.48].forEach((ratio) => {
+                    ctx.beginPath();
+                    ctx.ellipse(center.x, center.y, width * ratio, height * (ratio * 0.5), 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                });
+
+                const edgeSet = new Set();
+                const degreeMap = new Map(positions.map((_, index) => [index, 0]));
+                const pairDistances = [];
+
+                for (let i = 0; i < positions.length; i += 1) {
+                    for (let j = i + 1; j < positions.length; j += 1) {
+                        const dx = positions[j].x - positions[i].x;
+                        const dy = positions[j].y - positions[i].y;
+                        pairDistances.push({
+                            i,
+                            j,
+                            distance: Math.hypot(dx, dy)
+                        });
+                    }
+                }
+
+                const sortedPairs = pairDistances.sort((a, b) => a.distance - b.distance);
+                const edges = [];
+                const maxDistance = Math.min(width, height) * 0.72;
+
+                function addEdge(edge) {
+                    if (edge.distance > maxDistance) return false;
+                    const key = `${edge.i}-${edge.j}`;
+                    if (edgeSet.has(key)) return false;
+                    edgeSet.add(key);
+                    edges.push(edge);
+                    degreeMap.set(edge.i, (degreeMap.get(edge.i) || 0) + 1);
+                    degreeMap.set(edge.j, (degreeMap.get(edge.j) || 0) + 1);
+                    return true;
+                }
+
+                sortedPairs.forEach((edge) => {
+                    const sourceDegree = degreeMap.get(edge.i) || 0;
+                    const targetDegree = degreeMap.get(edge.j) || 0;
+                    if (sourceDegree < 2 || targetDegree < 2) {
+                        addEdge(edge);
+                    }
+                });
+
+                sortedPairs.forEach((edge) => {
+                    const sourceDegree = degreeMap.get(edge.i) || 0;
+                    const targetDegree = degreeMap.get(edge.j) || 0;
+                    if (sourceDegree < 3 || targetDegree < 3) {
+                        addEdge(edge);
+                    }
+                });
+
+                sortedPairs.forEach((edge) => {
+                    const sourceDegree = degreeMap.get(edge.i) || 0;
+                    const targetDegree = degreeMap.get(edge.j) || 0;
+                    if (sourceDegree >= 4 && targetDegree >= 4) return;
+                    if (edge.distance > Math.min(width, height) * 0.5) return;
+                    addEdge(edge);
+                });
+
+                ctx.lineWidth = 1.25;
+                edges.forEach((edge) => {
+                    const startNode = positions[edge.i];
+                    const endNode = positions[edge.j];
+                    const dx = endNode.x - startNode.x;
+                    const dy = endNode.y - startNode.y;
+                    const distance = Math.hypot(dx, dy);
+                    if (!distance) return;
+
+                    const ux = dx / distance;
+                    const uy = dy / distance;
+                    const startX = startNode.x + ux * nodeRadius;
+                    const startY = startNode.y + uy * nodeRadius;
+                    const endX = endNode.x - ux * nodeRadius;
+                    const endY = endNode.y - uy * nodeRadius;
+
+                    const alpha = Math.max(0.18, 0.48 - distance / Math.max(width, height));
+                    const lineGradient = ctx.createLinearGradient(startX, startY, endX, endY);
+                    lineGradient.addColorStop(0, `rgba(118, 226, 255, ${alpha})`);
+                    lineGradient.addColorStop(0.5, `rgba(255, 255, 255, ${Math.min(alpha + 0.1, 0.4)})`);
+                    lineGradient.addColorStop(1, `rgba(154, 121, 255, ${alpha})`);
+                    ctx.strokeStyle = lineGradient;
+                    ctx.shadowColor = 'rgba(105, 212, 255, 0.35)';
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    const progress = ((Date.now() / 1600) + (edge.i + edge.j) * 0.13) % 1;
+                    const particleX = startX + (endX - startX) * progress;
+                    const particleY = startY + (endY - startY) * progress;
+                    ctx.fillStyle = 'rgba(180, 240, 255, 0.85)';
+                    ctx.beginPath();
+                    ctx.arc(particleX, particleY, 1.6, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                positions.forEach((item) => {
+                    const gradient = ctx.createRadialGradient(item.x, item.y, 0, item.x, item.y, 26);
+                    gradient.addColorStop(0, 'rgba(89, 220, 255, 0.34)');
+                    gradient.addColorStop(1, 'rgba(89, 220, 255, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, 26, 0, Math.PI * 2);
+                    ctx.fill();
+
+                });
+
+                $cloudNodes.innerHTML = positions.map((item, index) => {
+                    const icon = item.agent.logoUrl
+                        ? `<img src="${escapeHtml(item.agent.logoUrl)}" class="cloud-node-icon" alt="${escapeHtml(item.agent.name)}" onerror="this.outerHTML='<span class=&quot;cloud-node-icon&quot;>${escapeHtml(item.agent.icon || 'ð¤')}</span>';">`
+                        : `<span class="cloud-node-icon">${escapeHtml(item.agent.icon || 'ð¤')}</span>`;
+
+                    return `
+                        <div class="cloud-node" style="left:${item.x - 23}px;top:${item.y}px;--duration:${9 + (index % 5)}s;--delay:${(index % 4) * 0.6}s;" title="${escapeHtml(item.agent.description || item.agent.name)}" onclick="openAgentFromCloud('${escapeHtml(item.agent.id)}')">
+                            <div class="cloud-node-content">
+                                ${icon}
+                                <div class="cloud-node-label">
+                                    <div class="cloud-node-name">${escapeHtml(item.agent.name)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function animateAgentCloud() {
+                renderAgentCloud();
+                window.requestAnimationFrame(animateAgentCloud);
+            }
+
+            function normalizeAgentList(data, fallbackType) {
+                const sourceList = Array.isArray(data) ? data : Array.isArray(data?.agents) ? data.agents : [];
+                return sourceList.map((item) => normalizeAgent(item, fallbackType));
+            }
+
+            function dedupeAgentsByAic(list) {
+                const seenKey = new Set();
+                const seenName = new Set();
+                const out = [];
+                for (const agent of list || []) {
+                    const aic = agent?.aic || '';
+                    const name = (agent?.name || '').trim();
+                    const key = aic || name || agent?.id || '';
+                    if (!key) { out.push(agent); continue; }
+                    if (seenKey.has(key)) continue;
+                    if (name && seenName.has(name)) continue;
+                    seenKey.add(key);
+                    if (name) seenName.add(name);
+                    out.push(agent);
+                }
+                return out;
+            }
+
+            function extractAgentsFromDiscoveryResult(data, fallbackType) {
+                const result = data?.result || {};
+                const acsMap = result.acsMap || {};
+                const routes = Array.isArray(result.routes) ? result.routes : [];
+                const routeSkills = routes
+                    .flatMap(route => Array.isArray(route.agentGroups) ? route.agentGroups : [])
+                    .flatMap(group => Array.isArray(group.agentSkills) ? group.agentSkills : []);
+
+                const normalized = routeSkills.map((skillRef, index) => {
+                    const acs = acsMap[skillRef.aic];
+                    if (!acs) return null;
+
+                    const firstEndpoint = Array.isArray(acs.endPoints) && acs.endPoints.length > 0
+                        ? acs.endPoints[0]
+                        : null;
+                    const endpoint = firstEndpoint?.url || '';
+                    const skill = Array.isArray(acs.skills)
+                        ? acs.skills.find(item => item.id === skillRef.skillId) || acs.skills[0]
+                        : null;
+                    const hasEndpoints = Array.isArray(acs.endPoints) && acs.endPoints.length > 0;
+                    const hasWebApp = Boolean(acs.webAppUrl);
+                    const agentType = hasEndpoints ? 'ioa' : (hasWebApp ? 'web' : fallbackType);
+                    const aic = acs.aic || skillRef.aic || '';
+                    const recommendationId = [
+                        aic,
+                        skillRef.skillId || 'agent',
+                        skillRef.ranking || index + 1
+                    ].join('::');
+
+                    return normalizeAgent({
+                        id: recommendationId,
+                        name: acs.name || 'æªå½åæºè½ä½',
+                        description: skill?.description || acs.description || '',
+                        callMethod: firstEndpoint?.transport || (endpoint ? 'JSONRPC' : 'Web'),
+                        type: agentType,
+                        endpoint,
+                        aic,
+                        url: acs.webAppUrl || '',
+                        iconUrl: acs.iconUrl || acs.logoUrl || '',
+                        userQuery: skill?.examples?.[0] || '',
+                        raw: {
+                            acs,
+                            skillRef,
+                            skill
+                        }
+                    }, fallbackType);
+                }).filter(Boolean);
+
+                if (normalized.length > 0) {
+                    return dedupeAgentsByAic(normalized);
+                }
+
+                return dedupeAgentsByAic(normalizeAgentList(result.agents || [], fallbackType));
+            }
+
+            function isBridgeReady(agent) {
+                return Boolean(agent.endpoint || agent.aic || agent.url);
+            }
+
+            function buildBridgePayload(agent) {
+                return {
+                    source: 'wutong-left-panel',
+                    action: agent.bridgeAction,
+                    agent: {
+                        id: agent.id,
+                        name: agent.name,
+                        description: agent.description,
+                        type: agent.type,
+                        endpoint: agent.endpoint,
+                        aic: agent.aic,
+                        url: agent.url,
+                        userQuery: agent.userQuery,
+                    }
+                };
+            }
+
+            function postAgentToDingdangWithAck(agent) {
+                const iframe = document.getElementById('dingdangFrame');
+                if (!iframe?.contentWindow) {
+                    return Promise.reject(new Error('Dingdang iframe is not ready'));
+                }
+                if (!window.DingdangEmbedBridge) {
+                    return Promise.reject(new Error('å®å½æ¶æ¯æ¡¥èæ¬æªå è½½'));
+                }
+
+                const payload = buildBridgePayload(agent);
+                logBridge('ç­å¾å®å½ READY ååé DD_EXECUTE_AGENT', {
+                    targetOrigin: BRIDGE_CONFIG.targetOrigin,
+                    payload
+                });
+
+                return window.DingdangEmbedBridge.invokeAgent(iframe, {
+                    type: BRIDGE_CONFIG.messageType,
+                    payload,
+                }, {
+                    targetOrigin: BRIDGE_CONFIG.targetOrigin,
+                    readyTimeoutMs: BRIDGE_CONFIG.ackTimeout,
+                    pingIntervalMs: 100,
+                    ackTimeoutMs: BRIDGE_CONFIG.ackTimeout,
+                });
+            }
+
+            async function fetchData(url, options = {}) {
+                if (!url) {
+                    return null;
+                }
+                try {
+                    const resp = await fetch(url, {
+                        ...options,
+                        signal: AbortSignal.timeout(API_CONFIG.timeout)
+                    });
+                    if (resp.ok) return await resp.json();
+                    console.warn('APIè¯·æ±å¤±è´¥:', resp.status, resp.statusText);
+                } catch (e) { console.warn('APIè¯·æ±å¤±è´¥:', e); }
+                return null;
+            }
+
+            async function loadActiveAgentCount() {
+                if (!$activeAgentCount || !API_CONFIG.activeAgentCountUrl) return;
+                const data = await fetchData(API_CONFIG.activeAgentCountUrl, {
+                    headers: { accept: 'application/json' },
+                    cache: 'no-store',
+                });
+                const count = Number(data?.aliveCount);
+                if (!Number.isInteger(count) || count < 0) return;
+                $activeAgentCount.textContent = count.toLocaleString('zh-CN');
+            }
+
+            function initCollapsibleSections() {
+                document.querySelectorAll('[data-collapsible]').forEach((section) => {
+                    const toggle = section.querySelector('.section-toggle');
+                    if (!toggle) return;
+                    toggle.addEventListener('click', () => {
+                        const collapsed = section.classList.toggle('is-collapsed');
+                        toggle.setAttribute('aria-expanded', String(!collapsed));
+                    });
+                });
+            }
+
+            function showOnlineQueryState(type, title, message) {
+                if (!$onlineQueryResult) return;
+                $onlineQueryResult.className = 'online-query-result ' + type;
+                $onlineQueryResult.innerHTML = '<strong>' + escapeHtml(title) + '</strong>' + escapeHtml(message);
+                $onlineQueryResult.hidden = false;
+            }
+
+            function findAgentStatus(data, aic) {
+                const result = data?.result || data?.data?.result || data?.data || data || {};
+                const acsMap = result.acsMap || {};
+                const aliveMap = result.aliveMap || {};
+                const normalizedAic = aic.toLowerCase();
+                const acs = acsMap[aic] || Object.values(acsMap).find((item) =>
+                    String(item?.aic || '').toLowerCase() === normalizedAic
+                ) || null;
+                const aliveInfo = aliveMap[aic] || Object.entries(aliveMap).find(([key]) =>
+                    key.toLowerCase() === normalizedAic
+                )?.[1] || null;
+                return { acs, aliveInfo };
+            }
+
+            function formatLastSeen(value) {
+                if (!value) return 'ææ æè¿å¿è·³æ¶é´ã';
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) return 'æè¿å¿è·³ï¼' + value;
+                return 'æè¿å¿è·³ï¼' + new Intl.DateTimeFormat('zh-CN', {
+                    timeZone: 'Asia/Shanghai',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                }).format(date);
+            }
+
+            async function queryOnlineStatus(event) {
+                event.preventDefault();
+                const aic = ($onlineAicInput?.value || '').trim();
+                if (!aic) {
+                    showOnlineQueryState('error', 'è¯·è¾å¥ AIC', 'éè¦æä¾æºè½ä½èº«ä»½ç åæè½æ¥è¯¢å¨çº¿ç¶æã');
+                    $onlineAicInput?.focus();
+                    return;
+                }
+                const submitButton = $onlineQueryForm?.querySelector('button[type="submit"]');
+                const originalButtonText = submitButton?.textContent || 'æ¥è¯¢';
+                try {
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                        submitButton.textContent = 'æ¥è¯¢ä¸­';
+                    }
+                    const response = await fetch(API_CONFIG.onlineStatusUrl, {
+                        method: 'POST',
+                        headers: {
+                            accept: 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            type: 'filtered',
+                            limit: 5,
+                            filter: {
+                                conditions: [
+                                    { field: 'aic', op: 'eq', value: aic }
+                                ]
+                            }
+                        }),
+                        cache: 'no-store',
+                        signal: AbortSignal.timeout(API_CONFIG.timeout),
+                    });
+                    if (!response.ok) {
+                        let detail = '';
+                        try {
+                            const problem = await response.json();
+                            detail = problem.detail || problem.message || '';
+                        } catch (error) {}
+                        throw new Error(detail || ('è¯·æ±å¤±è´¥ï¼HTTP ' + response.status + 'ï¼'));
+                    }
+                    const data = await response.json();
+                    const { acs, aliveInfo } = findAgentStatus(data, aic);
+                    if (!acs && !aliveInfo) {
+                        showOnlineQueryState('empty', 'æªæ¥è¯¢å°æºè½ä½', 'Discovery æ²¡æè¿åè¯¥ AICï¼è¯·æ£æ¥è¾å¥æ¯å¦æ­£ç¡®ã');
+                        return;
+                    }
+                    const agentName = acs?.name || aic;
+                    if (aliveInfo?.alive === true) {
+                        showOnlineQueryState('success', agentName + ' Â· å¨çº¿', formatLastSeen(aliveInfo.aliveLastSeenAt));
+                    } else {
+                        showOnlineQueryState('offline', agentName + ' Â· ç¦»çº¿', formatLastSeen(aliveInfo?.aliveLastSeenAt));
+                    }
+                } catch (error) {
+                    showOnlineQueryState('error', 'æ¥è¯¢å¤±è´¥', error?.message || 'å¨çº¿ç¶ææå¡ææ¶ä¸å¯ç¨ï¼è¯·ç¨åéè¯ã');
+                } finally {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.textContent = originalButtonText;
+                    }
+                }
+            }
+
+            function initOnlineStatusQuery() {
+                if (!$onlineQueryForm) return;
+                $onlineQueryForm.addEventListener('submit', queryOnlineStatus);
+                document.addEventListener('click', (event) => {
+                    if ($onlineQueryResult && !$onlineQueryForm.contains(event.target)) {
+                        $onlineQueryResult.hidden = true;
+                    }
+                });
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && $onlineQueryResult) {
+                        $onlineQueryResult.hidden = true;
+                    }
+                });
+            }
+
+            function formatShanghaiHour(timestamp) {
+                const shifted = new Date(timestamp + 8 * 60 * 60 * 1000);
+                const pad = (value) => String(value).padStart(2, '0');
+                return shifted.getUTCFullYear() + '-' +
+                    pad(shifted.getUTCMonth() + 1) + '-' +
+                    pad(shifted.getUTCDate()) + 'T' +
+                    pad(shifted.getUTCHours()) + ':00:00+08:00';
+            }
+
+            function getRankingWindow() {
+                const hour = 60 * 60 * 1000;
+                const endMs = Math.floor(Date.now() / hour) * hour + hour;
+                return {
+                    startAt: RANKING_CONFIG.startAt,
+                    endAt: formatShanghaiHour(endMs),
+                };
+            }
+
+            async function fetchRankingEndpoint(endpoint, range) {
+                const url = new URL(endpoint, window.location.origin);
+                url.searchParams.set('startAt', range.startAt);
+                url.searchParams.set('endAt', range.endAt);
+                url.searchParams.set('n', String(RANKING_CONFIG.requestTopN));
+                const response = await fetch(url.toString(), {
+                    headers: { accept: 'application/json' },
+                    signal: AbortSignal.timeout(API_CONFIG.timeout),
+                });
+                if (!response.ok) {
+                    let detail = '';
+                    try {
+                        const problem = await response.json();
+                        detail = problem.detail || problem.error_code || '';
+                    } catch (error) {}
+                    throw new Error(detail || ('HTTP ' + response.status));
+                }
+                return response.json();
+            }
+
+            function normalizeRankingPayload(raw) {
+                const wrapped = raw && typeof raw === 'object' ? raw : {};
+                const root = wrapped.data && typeof wrapped.data === 'object'
+                    ? wrapped.data
+                    : (wrapped.result && typeof wrapped.result === 'object' ? wrapped.result : wrapped);
+                const rankings = root.rankings && typeof root.rankings === 'object' ? root.rankings : {};
+                const normalizeEntries = (items) => (Array.isArray(items) ? items : [])
+                    .map((item) => {
+                        const access = Number(item?.accessCount ?? item?.access_count ?? 0);
+                        const message = Number(item?.messageCount ?? item?.message_count ?? 0);
+                        return {
+                            aic: String(item?.aic || item?.agentAic || item?.agent_aic || item?.id || '').trim(),
+                            count: Number(item?.count ?? item?.taskCount ?? item?.task_count ?? (access + message)),
+                            access,
+                            message,
+                        };
+                    })
+                    .filter((item) => item.aic && Number.isFinite(item.count));
+                const entries = {};
+                ['caller', 'callee', 'callerNonInternal', 'calleeNonInternal'].forEach((role) => {
+                    entries[role] = normalizeEntries(root[role] || rankings[role]);
+                });
+                return {
+                    entries,
+                    timeRange: root.timeRange || root.time_range || null,
+                    meta: root.meta || root.metadata || {},
+                };
+            }
+
+            function mergeRankingEntries(role) {
+                return [...(rankingPayloads.matched?.entries?.[role] || [])]
+                    .sort((a, b) => b.count - a.count || a.aic.localeCompare(b.aic));
+            }
+
+            function formatRankingRange(range) {
+                if (!range) return RANKING_CONFIG.fallbackRangeLabel;
+                const start = String(range.startAt || range.start_at || '').replace('T', ' ').slice(0, 16);
+                const end = String(range.endAt || range.end_at || '').replace('T', ' ').slice(0, 16);
+                return start && end ? start + ' â ' + end : RANKING_CONFIG.fallbackRangeLabel;
+            }
+
+            function renderRanking() {
+                if (!$rankingGrid) return;
+                const role = $rankingRole?.value || 'callee';
+                const ranking = mergeRankingEntries(role);
+                const availablePayload = rankingPayloads.matched;
+                const timeRange = rankingPayloads.matched?.timeRange || rankingRequestRange;
+                $rankingTimeRange.textContent = formatRankingRange(timeRange);
+
+                const missingHours = new Set();
+                let currentHourOpen = false;
+                const meta = rankingPayloads.matched?.meta || {};
+                currentHourOpen = Boolean(meta.currentHourOpen ?? meta.current_hour_open);
+                [meta.accessMissingHours, meta.access_missing_hours, meta.messageMissingHours, meta.message_missing_hours]
+                    .forEach((missing) => {
+                        if (Array.isArray(missing)) missing.forEach((hour) => missingHours.add(hour));
+                    });
+
+                $rankingMetaStatus.classList.toggle('warning', rankingFailures.length > 0 || missingHours.size > 0 || currentHourOpen);
+                if (rankingFailures.length > 0) {
+                    $rankingMetaStatus.textContent = 'ç»è®¡æå¡æä¸å¯ç¨';
+                } else if (missingHours.size > 0) {
+                    $rankingMetaStatus.textContent = 'ç¼ºå° ' + missingHours.size + ' ä¸ªå°æ¶';
+                } else if (currentHourOpen) {
+                    $rankingMetaStatus.textContent = 'å½åå°æ¶æç»­æ´æ°';
+                } else {
+                    $rankingMetaStatus.textContent = 'ç»è®¡å·²å®æ';
+                }
+
+                if (!availablePayload) {
+                    $rankingGrid.innerHTML = '<div class="ranking-state"><strong>æè¡æ¦ææ¶å è½½å¤±è´¥</strong>ç»è®¡æ¥å£æ¢å¤åå¯ç´æ¥ç¹å»âå·æ°âéè¯ï¼ä¸å½±åé¡µé¢å¶å®åè½ã</div>';
+                    return;
+                }
+                if (ranking.length === 0) {
+                    $rankingGrid.innerHTML = '<div class="ranking-state"><strong>å½åçªå£ææ æè¡æ°æ®</strong>è¿å¯è½è¡¨ç¤ºæ²¡æå¹éä»»å¡ï¼æç»è®¡å°æ¶å°æªè®¡ç®å®æã</div>';
+                    return;
+                }
+                const totalPages = Math.ceil(ranking.length / RANKING_CONFIG.pageSize);
+                rankingCurrentPage = Math.min(Math.max(rankingCurrentPage, 1), totalPages);
+                const pageStart = (rankingCurrentPage - 1) * RANKING_CONFIG.pageSize;
+                const pageItems = ranking.slice(pageStart, pageStart + RANKING_CONFIG.pageSize);
+                const rows = pageItems.map((item, index) => {
+                    const rank = pageStart + index + 1;
+                    return '<article class="ranking-row rank-' + rank + '" role="listitem" title="' + escapeHtml(item.aic) + '">' +
+                        '<span class="ranking-position">' + rank + '</span>' +
+                        '<div class="ranking-main">' +
+                            '<div class="ranking-aic">' + escapeHtml(item.aic) + '</div>' +
+                            '<div class="ranking-sources">Access ' + item.access.toLocaleString('zh-CN') + ' Â· Message ' + item.message.toLocaleString('zh-CN') + '</div>' +
+                        '</div>' +
+                        '<div class="ranking-count">' + item.count.toLocaleString('zh-CN') + '<span class="ranking-unit">ä»»å¡</span></div>' +
+                    '</article>';
+                }).join('');
+                $rankingGrid.innerHTML =
+                    '<div class="ranking-list-head" aria-hidden="true"><span>æå</span><span>æºè½ä½ AIC</span><span>ä»»å¡æ°</span></div>' +
+                    '<div class="ranking-rows" role="list">' + rows + '</div>' +
+                    '<div class="ranking-pagination">' +
+                        '<span class="ranking-page-info">å± ' + ranking.length + ' æ¡ Â· ç¬¬ ' + rankingCurrentPage + ' / ' + totalPages + ' é¡µ</span>' +
+                        '<div class="ranking-page-actions">' +
+                            '<button class="ranking-page-button" type="button" data-ranking-page="prev"' + (rankingCurrentPage === 1 ? ' disabled' : '') + '>ä¸ä¸é¡µ</button>' +
+                            '<button class="ranking-page-button" type="button" data-ranking-page="next"' + (rankingCurrentPage === totalPages ? ' disabled' : '') + '>ä¸ä¸é¡µ</button>' +
+                        '</div>' +
+                    '</div>';
+
+                $rankingGrid.querySelector('[data-ranking-page="prev"]')?.addEventListener('click', () => {
+                    rankingCurrentPage -= 1;
+                    renderRanking();
+                });
+                $rankingGrid.querySelector('[data-ranking-page="next"]')?.addEventListener('click', () => {
+                    rankingCurrentPage += 1;
+                    renderRanking();
+                });
+            }
+
+            async function loadRanking() {
+                if (!$rankingGrid) return;
+                rankingRequestRange = getRankingWindow();
+                rankingFailures = [];
+                rankingCurrentPage = 1;
+                $rankingRefresh.disabled = true;
+                $rankingMetaStatus.classList.remove('warning');
+                $rankingMetaStatus.textContent = 'æ­£å¨æ±æ»';
+                $rankingGrid.innerHTML = '<div class="ranking-state"><strong>æ­£å¨å è½½æè¡æ¦</strong>æ­£å¨æ±æ»ç´è¿è°ç¨ä¸ç¾¤ç»æ¶æ¯ä»»å¡</div>';
+
+                rankingPayloads = { matched: null };
+                try {
+                    const data = await fetchRankingEndpoint(API_CONFIG.matchedRankingUrl, rankingRequestRange);
+                    rankingPayloads.matched = normalizeRankingPayload(data);
+                } catch (error) {
+                    rankingFailures.push({ source: 'matched', message: error?.message || 'è¯·æ±å¤±è´¥' });
+                }
+                renderRanking();
+                $rankingRefresh.disabled = false;
+            }
+
+            function initRanking() {
+                $rankingRole?.addEventListener('change', () => {
+                    rankingCurrentPage = 1;
+                    renderRanking();
+                });
+                $rankingRefresh?.addEventListener('click', loadRanking);
+            }
+
+            function buildCardHTML(agent, type) {
+                const logoHtml = agent.logoUrl ?
+                    `<img src="${escapeHtml(agent.logoUrl)}" class="card-logo" alt="${escapeHtml(agent.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">` : '';
+                const iconHtml = !agent.logoUrl ? `<span class="card-icon-fallback">${agent.icon || 'ð¤'}</span>` : '';
+                return `
+                <div class="card" data-search="${escapeHtml(agent.name + ' ' + agent.description).toLowerCase()}" onclick="openAgentFromCard('${escapeHtml(agent.id)}', '${type}')" title="${escapeHtml(agent.description)}">
+                    <span class="card-badge ${type==='new'?'badge-new':'badge-hot'}">${type==='new'?'NEW':'HOT'}</span>
+                    ${logoHtml}
+                    ${iconHtml}
+                    <div class="card-name">${escapeHtml(agent.name)}</div>
+                    <div class="card-hover">
+                        <div class="card-hover-title">${escapeHtml(agent.name)}</div>
+                        <div class="card-hover-desc">${escapeHtml(agent.description || 'ææ æè¿°')}</div>
+                        <div class="card-hover-aic">${escapeHtml(agent.aic || '')}</div>
+                    </div>
+                </div>`;
+            }
+
+            async function loadNewAgents() {
+                let data = await fetchData(API_CONFIG.newAgentsUrl, {
+                    method: 'POST',
+                    headers: {
+                        'accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: DISCOVERY_REQUESTS.new.type,
+                        limit: DISCOVERY_REQUESTS.new.limit,
+                    })
+                });
+
+                let agents = data ? extractAgentsFromDiscoveryResult(data, 'ioa') : [];
+
+                if (agents.length === 0 && API_CONFIG.useMockFallback) {
+                    agents = normalizeAgentList(mockNewAgents, 'ioa');
+                }
+
+                if (agents.length > 0) {
+                    newAgents = agents;
+                    renderGrid($newGrid, newAgents, 'new', $newEmpty);
+                }
+            }
+
+            async function loadHotAgents() {
+                let data = await fetchData(API_CONFIG.hotAgentsUrl, {
+                    method: 'POST',
+                    headers: {
+                        'accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: DISCOVERY_REQUESTS.hot.type,
+                        limit: DISCOVERY_REQUESTS.hot.limit,
+                    })
+                });
+
+                let agents = data ? extractAgentsFromDiscoveryResult(data, 'ioa') : [];
+
+                if (agents.length === 0 && API_CONFIG.useMockFallback) {
+                    agents = normalizeAgentList(mockHotAgents, 'ioa');
+                }
+
+                if (agents.length > 0) {
+                    hotAgents = agents;
+                    renderGrid($hotGrid, hotAgents, 'hot', $hotEmpty);
+                }
+            }
+
+
+            function renderGrid(gridEl, agents, type, emptyEl) {
+                // æ¸ç©ºç½æ ¼ï¼ä½ä¿çç©ºç¶æåç´ 
+                const cardsHTML = agents.map(agent => buildCardHTML(agent, type)).join('');
+                gridEl.innerHTML = cardsHTML;
+                // éæ°éå ç©ºç¶æåç´ ï¼å¦æä¸å­å¨ååå»ºï¼
+                if (!gridEl.querySelector('.empty-state')) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'empty-state';
+                    emptyDiv.id = emptyEl.id;
+                    emptyDiv.textContent = emptyEl.textContent;
+                    gridEl.appendChild(emptyDiv);
+                }
+                // åå§æ¾ç¤ºææå¡çï¼éèç©ºç¶æ
+                gridEl.querySelectorAll('.card').forEach(c => c.classList.remove('hidden'));
+                const empty = gridEl.querySelector('.empty-state');
+                if (empty) empty.style.display = 'none';
+                // æ´æ° emptyEl å¼ç¨
+                if (emptyEl) {
+                    const newEmpty = gridEl.querySelector('.empty-state');
+                    if (newEmpty) window[emptyEl.id] = newEmpty;
+                }
+            }
+
+            // æç´¢è¿æ»¤ï¼åºäºdata-searchå±æ§æ¾ç¤º/éèå¡ç
+            window.handleSearch = function(val) {
+                const filter = val.trim().toLowerCase();
+                const filterGrid = (gridEl, emptyEl) => {
+                    const cards = gridEl.querySelectorAll('.card');
+                    let visibleCount = 0;
+                    cards.forEach(card => {
+                        const searchText = card.getAttribute('data-search') || '';
+                        if (!filter || searchText.includes(filter)) {
+                            card.classList.remove('hidden');
+                            visibleCount++;
+                        } else {
+                            card.classList.add('hidden');
+                        }
+                    });
+                    const empty = gridEl.querySelector('.empty-state');
+                    if (empty) {
+                        empty.style.display = visibleCount === 0 ? 'block' : 'none';
+                    }
+                };
+                filterGrid($newGrid, $newEmpty);
+                filterGrid($hotGrid, $hotEmpty);
+            };
+
+            window.searchInDingdang = function(agentName) {
+                logBridge('åéä¸ºæç´¢', agentName);
+                switchTab('dingdang');
+                const iframe = document.getElementById('dingdangFrame');
+                if (iframe) {
+                    const targetUrl = `${TAB_URLS.dingdang}?q=${encodeURIComponent(agentName)}`;
+                    iframeReady = false;
+                    iframe.src = targetUrl;
+                    iframe.addEventListener('load', () => {
+                        iframeReady = true;
+                        iframe.contentWindow?.postMessage({
+                            type: 'agent:selected',
+                            payload: { name: agentName }
+                        }, BRIDGE_CONFIG.targetOrigin);
+                    }, { once: true });
+                }
+                showToast(`æ­£å¨å®å½ä¸­æç´¢ï¼${agentName}`, 'info');
+            };
+
+            window.openAgentFromCard = async function(agentId, sectionType) {
+                const list = sectionType === 'new' ? newAgents : hotAgents;
+                const agent = list.find(item => item.id === agentId);
+                if (!agent) {
+                    showToast('æªæ¾å°æºè½ä½æ°æ®', 'info');
+                    return;
+                }
+
+                logBridge('ç¹å»æºè½ä½å¡ç', {
+                    agentId,
+                    sectionType,
+                    agent
+                });
+
+                switchTab('dingdang');
+                if (!isBridgeReady(agent)) {
+                    logBridge('ç¼ºå°æ¡¥æ¥å­æ®µï¼æ æ³ç´è¿', {
+                        name: agent.name,
+                        type: agent.type,
+                        endpoint: agent.endpoint,
+                        aic: agent.aic,
+                        url: agent.url
+                    });
+                    if (BRIDGE_CONFIG.fallbackToSearch) {
+                        window.searchInDingdang(agent.name);
+                    }
+                    return;
+                }
+
+                try {
+                    const iframe = document.getElementById('dingdangFrame');
+                    if (iframe && !window.DingdangEmbedBridge?.isFrameAtTarget(iframe, TAB_URLS.dingdang)) {
+                        logBridge('åå dingdang iframe é¡µé¢');
+                        iframeReady = false;
+                        iframe.src = TAB_URLS.dingdang;
+                    }
+
+                    const result = await postAgentToDingdangWithAck(agent);
+                    const modeText = result?.mode === 'web' ? 'åºç¨å±ç¤º' : 'æ§è¡è°ç¨';
+                    showToast(`å·²åéå°å®å½ï¼${agent.name}ï¼${modeText}ï¼`, 'success');
+                } catch (error) {
+                    console.error('Bridge invoke failed:', error);
+                    showToast(`æ¡¥æ¥å¤±è´¥ï¼åéä¸ºæç´¢ï¼${agent.name}`, 'info');
+                    if (BRIDGE_CONFIG.fallbackToSearch) {
+                        window.searchInDingdang(agent.name);
+                    }
+                }
+            };
+
+            window.openAgentFromCloud = function(agentId) {
+                const agent = [...hotAgents, ...newAgents].find(item => item.id === agentId);
+                openAgent(agent);
+            };
+
+            window.switchTab = function(tabId) {
+                if (currentTab === tabId) return;
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tab === tabId);
+                });
+                currentTab = tabId;
+                iframeReady = false;
+                $iframeContainer.innerHTML = `<iframe id="dingdangFrame" src="${TAB_URLS[tabId]}" title="${tabId}" allow="clipboard-write"></iframe>`;
+                markIframeReadyOnce(document.getElementById('dingdangFrame'));
+            };
+
+            window.refreshNewAgents = async () => {
+                $newGrid.innerHTML = '<div class="card" style="grid-column:1/-1;">å·æ°ä¸­...</div>';
+                await loadNewAgents();
+                // éæ°åºç¨å½åæç´¢
+                handleSearch(document.getElementById('searchInput')?.value || '');
+                showToast('å·²ä¸ºæ¨å¯»æ¾å°ææ°ä¸çº¿æºè½ä½', 'success');
+            };
+            window.refreshHotAgents = async () => {
+                $hotGrid.innerHTML = '<div class="card" style="grid-column:1/-1;">å·æ°ä¸­...</div>';
+                await loadHotAgents();
+                handleSearch(document.getElementById('searchInput')?.value || '');
+                showToast('å·²ä¸ºæ¨å¯»æ¾å°å½åç­é¨æºè½ä½', 'success');
+            };
+
+            async function loadPartners() {
+                let data = await fetchData(API_CONFIG.partnersUrl);
+                if (!data && API_CONFIG.useMockFallback) data = mockPartners;
+                if (data && data.partners) {
+                    const label = document.createElement('span');
+                    label.className = 'footer-label';
+                    label.textContent = 'ð¤ åä½åä½';
+                    $partnerFooter.innerHTML = '';
+                    $partnerFooter.appendChild(label);
+                    data.partners.forEach(p => {
+                        const box = document.createElement('div');
+                        box.className = 'logo-box';
+                        box.title = p.name;
+                        box.onclick = () => { if(p.link) window.open(p.link, '_blank'); };
+                        if(p.logoUrl) {
+                            const img = document.createElement('img');
+                            img.src = p.logoUrl;
+                            img.alt = p.name;
+                            img.onload = () => {
+                                if (img.naturalWidth / Math.max(img.naturalHeight, 1) > 2.8) {
+                                    box.classList.add('logo-box-wide');
+                                }
+                            };
+                            img.onerror = () => { box.textContent = p.name; };
+                            box.appendChild(img);
+                        } else {
+                            box.textContent = p.name;
+                        }
+                        $partnerFooter.appendChild(box);
+                    });
+                    enableDragScroll($partnerFooter);
+                }
+            }
+
+            function initResizableSidebar() {
+                if (!$container || !$sidebar || !$resizeHandle) return;
+
+                const savedWidth = Number(localStorage.getItem('dingdangSidebarWidth'));
+                if (savedWidth) setSidebarWidth(savedWidth);
+
+                let startX = 0;
+                let startWidth = 0;
+
+                function getWidthBounds() {
+                    const containerWidth = $container.getBoundingClientRect().width;
+                    const minSidebarWidth = 320;
+                    const minMainWidth = 360;
+                    const maxSidebarWidth = Math.max(minSidebarWidth, containerWidth - minMainWidth - 34);
+                    return { minSidebarWidth, maxSidebarWidth };
+                }
+
+                function setSidebarWidth(width) {
+                    const { minSidebarWidth, maxSidebarWidth } = getWidthBounds();
+                    const nextWidth = Math.min(Math.max(width, minSidebarWidth), maxSidebarWidth);
+                    document.documentElement.style.setProperty('--sidebar-width', `${nextWidth}px`);
+                    $resizeHandle.setAttribute('aria-valuenow', Math.round(nextWidth));
+                    return nextWidth;
+                }
+
+                $resizeHandle.addEventListener('pointerdown', (event) => {
+                    if (window.matchMedia('(max-width: 900px)').matches) return;
+                    startX = event.clientX;
+                    startWidth = $sidebar.getBoundingClientRect().width;
+                    document.body.classList.add('resizing-sidebar');
+                    $resizeHandle.setPointerCapture(event.pointerId);
+                    event.preventDefault();
+                });
+
+                $resizeHandle.addEventListener('pointermove', (event) => {
+                    if (!document.body.classList.contains('resizing-sidebar')) return;
+                    const deltaX = event.clientX - startX;
+                    setSidebarWidth(startWidth - deltaX);
+                });
+
+                function stopResize(event) {
+                    if (!document.body.classList.contains('resizing-sidebar')) return;
+                    document.body.classList.remove('resizing-sidebar');
+                    localStorage.setItem('dingdangSidebarWidth', Math.round($sidebar.getBoundingClientRect().width));
+                    if ($resizeHandle.hasPointerCapture(event.pointerId)) {
+                        $resizeHandle.releasePointerCapture(event.pointerId);
+                    }
+                }
+
+                $resizeHandle.addEventListener('pointerup', stopResize);
+                $resizeHandle.addEventListener('pointercancel', stopResize);
+                window.addEventListener('resize', () => setSidebarWidth($sidebar.getBoundingClientRect().width));
+            }
+
+            function initCloudResizeObserver() {
+                if (!$cloudWrap || typeof ResizeObserver === 'undefined') {
+                    window.addEventListener('resize', renderAgentCloud);
+                    return;
+                }
+                const observer = new ResizeObserver(() => renderAgentCloud());
+                observer.observe($cloudWrap);
+                window.addEventListener('resize', renderAgentCloud);
+            }
+
+            function enableDragScroll(element) {
+                let isDown = false;
+                let startX, scrollLeft;
+                element.addEventListener('mousedown', (e) => {
+                    isDown = true;
+                    element.style.cursor = 'grabbing';
+                    startX = e.pageX - element.offsetLeft;
+                    scrollLeft = element.scrollLeft;
+                });
+                element.addEventListener('mouseleave', () => {
+                    isDown = false;
+                    element.style.cursor = 'grab';
+                });
+                element.addEventListener('mouseup', () => {
+                    isDown = false;
+                    element.style.cursor = 'grab';
+                });
+                element.addEventListener('mousemove', (e) => {
+                    if (!isDown) return;
+                    e.preventDefault();
+                    const x = e.pageX - element.offsetLeft;
+                    const walk = (x - startX) * 1.5;
+                    element.scrollLeft = scrollLeft - walk;
+                });
+            }
+
+            // åå§åéª¨æ¶ï¼å è½½åå ä½ï¼
+            function initSkeleton() {
+                $newGrid.innerHTML = Array(6).fill('<div class="card card-loading"></div>').join('') + '<div class="empty-state">ææ å¹éçææ°ä¸çº¿æºè½ä½</div>';
+                $hotGrid.innerHTML = Array(6).fill('<div class="card card-loading"></div>').join('') + '<div class="empty-state">ææ å¹éçç­é¨æºè½ä½</div>';
+            }
+            initSkeleton();
+            initWelcomeOverlay();
+            initSidebarHelpPopover();
+            initCollapsibleSections();
+            initOnlineStatusQuery();
+            initRanking();
+            initResizableSidebar();
+            markIframeReadyOnce(document.getElementById('dingdangFrame'));
+
+            async function init() {
+                await Promise.all([loadRanking(), loadNewAgents(), loadHotAgents(), loadPartners(), loadActiveAgentCount()]);
+                window.setInterval(loadActiveAgentCount, 30000);
+                console.log('â å¹³å°å°±ç»ª');
+            }
+            init().catch(console.error);
+        })();
+    </script>
+</body>
+</html>
