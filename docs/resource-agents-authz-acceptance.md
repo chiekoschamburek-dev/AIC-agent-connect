@@ -320,8 +320,18 @@ cat <workspace>/acps/client/certificate.pem >> <workspace>/acps/trust-bundle.pem
 ```
 
 > 2026-10-20 域硬化后：`acps_domain` 只能由 `derive_delegation_claims()` 从域 grant
-> 派生进子令牌；子令牌还必须携带 `acps_parent_jti/exp/max_uses`，PEP 会复核
-> `exp ≤ 父 exp` 并继续扣父 grant 配额。
+> 派生进子令牌；子令牌还必须携带 `acps_parent_jti/exp/max_uses` 以及**父 grant 的 JWS
+> 原文** `acps_parent_grant`。PEP 会重验父签名并核对主体/域/资产/exp/max_uses，再用
+> 已验证父 grant 的配额扣减——自报 parent_jti 或 1e9 配额不再可用。
+>
+> **升级影响**：无 `acps_parent_grant` 的旧域令牌会立即失效；DT 寿命 ≤10 分钟，
+> 在发布窗口内重签/重发即可。PEP 仍要求 provider 侧配额库存在，缺失时派生路径
+> fail-closed（`pep-misconfigured`）。
+>
+> 能力可见 ≠ agent 可见：过滤是 skill 行级；现有资源 agent 都有 public 橱窗能力。
+> 若未来新增一个**全部能力都是 domain/非公开**的 agent，用
+> `agent_profile.make_agent_info` 加一个 public `agent.info` 作为可发现锚点；
+> 只对新 agent 这么做，存量 agent 不新增 capability、不改 ACS。
 
 ## 6. 注册路径实测（2026-10-11）：可程序化提交，但**必须人工审核**
 

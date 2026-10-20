@@ -69,7 +69,8 @@ cp .env.example .env               # Windows: copy .env.example .env
 python -m pytest acps_cluster/tests -q
 ```
 
-当前基线：**622 passed，84 subtests passed**（2026-10-20）。
+最近一次全量基线：**622 passed，84 subtests passed**（2026-10-20，早于本轮域硬化新增用例）。
+本轮新增的域相关回归共 62 项，可用下面的无副作用子集复跑。
 
 生产机可只跑无副作用子集：
 
@@ -77,9 +78,14 @@ python -m pytest acps_cluster/tests -q
 python -m unittest \
   acps_cluster.tests.test_delegation \
   acps_cluster.tests.test_domain \
+  acps_cluster.tests.test_domain_hardening \
+  acps_cluster.tests.test_visibility \
   acps_cluster.tests.test_p0_security.ReviewGateTest \
   acps_cluster.tests.test_p0_security.TokenFileTest
 ```
+
+> 域相关离线子集（章程修订链/父 grant 锚点/可见性）当前 62 项：
+> `test_domain` 31 + `test_domain_hardening` 16 + `test_visibility` 15。
 
 更多注意事项见 [acps_cluster/tests/README.md](acps_cluster/tests/README.md)。
 

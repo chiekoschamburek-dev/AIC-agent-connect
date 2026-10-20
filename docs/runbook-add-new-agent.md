@@ -27,6 +27,19 @@
 1. 复制一个最接近的现有 partner 作为骨架，例如 `cp partner_synthesis.py partner_mynew.py`；
 2. 改四处：`WORKSPACE = Path(__file__).parent / "ws-mynew"`、`WitAgent(id=..., display_name=..., version=..., description=...)`、
    `@capability(id=...)`、`main()` 里的 `port_env` / `default_port` / `creds_prefix`；
+   - **如果新 agent 的全部能力都是 domain/非公开**：发现层按 skill 行过滤，它会整体消失。
+     给它在 capabilities 列表加一个 public `agent.info`（只放公开身份/职责，不列域能力）：
+     ```python
+     from agent_profile import make_agent_info
+     AGENT_INFO = make_agent_info(
+         agent_id="yanshu.mynew", display_name="研枢-新伙伴",
+         summary="公开档案：只说明身份与职责。", public_skills=(),
+     )
+     CAPABILITIES = [*CAPABILITIES, AGENT_INFO]
+     ```
+     `validate_acs` 已能识别这个工厂调用。**存量已注册 agent 不要加**：新增 capability
+     会改 ACS 投影，可能触发 `acs_fingerprint_changed_after_submission`；现有 agent 都已有
+     public 非 domain 入口，不需要它。
 3. 端口选一个没用过的（现有：8443 arXiv 退役 / 8444 supervisor / 8445 scout / 8446 synthesis /
    8447 writer / 8448 critic / 8449 contradiction / 8450 frontier / 8461 experiment / 8590 designer /
    8599 kb）；
