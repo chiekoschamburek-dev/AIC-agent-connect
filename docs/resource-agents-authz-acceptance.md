@@ -435,8 +435,10 @@ skills = kb.schema / kb.query / kb.ingest（均带描述与 examples）
 - 域令牌的 `acps_domain` 必须与代码声明的目标域/章程集合一致 → 否则
   `deny / domain-skill-mismatch`；
 - 域令牌缺失 → `domain-unknown`；冻结 → `domain-frozen`（仍在验签前）；
-- 域令牌必须由 grant 派生，并携带 `acps_parent_jti/exp/max_uses`，否则
-  `deny / invalid-parent-binding`；子令牌 `exp > 父 exp` 同样拒绝。
+- 域令牌必须由 grant 派生，携带 `acps_parent_jti/exp/max_uses`，并把**父 grant
+  的 JWS 原文**作为 `acps_parent_grant` 嵌入；PEP 重验父签名并核对主体/域/资产/
+  exp/max_uses。缺 proof、伪造 jti/配额、父主体或父签发者不符 → 
+  `deny / invalid-parent-binding` 或 `parent-issuer-not-in-domain`。
 
 代码声明单独不会凭空造出一个域（避免把尚未建章程的 scout/hpc 能力锁死）；
 章程一旦发布，高水位/签名副本会保证它不会因删文件而失效。

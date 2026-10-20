@@ -168,7 +168,9 @@ class GrantTokenTest(unittest.TestCase):
             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=5,
         )
         with self.assertRaises(tok.TokenError) as ctx:
-            g.derive_delegation_claims(issued.claims, skill_id="other.skill")
+            g.derive_delegation_claims(
+                issued.claims, skill_id="other.skill", parent_token=issued.token,
+            )
         self.assertEqual(ctx.exception.reason, "derive-out-of-scope")
 
 
@@ -257,7 +259,9 @@ class PepDomainPathTest(unittest.TestCase):
             self.signing, domain="lab-x-y", domain_revision=1, subject_aic=LEADER_AIC,
             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=5, ttl_seconds=3600,
         )
-        inherit = g.derive_delegation_claims(grant.claims, skill_id=GPU_SKILL)
+        inherit = g.derive_delegation_claims(
+            grant.claims, skill_id=GPU_SKILL, parent_token=grant.token,
+        )
         derived = issue_token(
             self.signing, delegate_aic=EXPERIMENT_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
             ttl_seconds=300, not_after=grant.expires_at, extra_claims=inherit,
@@ -277,7 +281,9 @@ class PepDomainPathTest(unittest.TestCase):
             self.signing, domain="lab-x-y", domain_revision=1, subject_aic=LEADER_AIC,
             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=5, ttl_seconds=120,
         )
-        inherit = g.derive_delegation_claims(grant.claims, skill_id=GPU_SKILL)
+        inherit = g.derive_delegation_claims(
+            grant.claims, skill_id=GPU_SKILL, parent_token=grant.token,
+        )
         derived = issue_token(
             self.signing, delegate_aic=EXPERIMENT_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
             ttl_seconds=600, not_after=grant.expires_at, extra_claims=inherit,

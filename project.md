@@ -76,8 +76,9 @@ kb.query 以 consumer 视角实测 curator 档零值泄露。
 - **双签章程**:成员(provider/consumer/auditor)、签发者、资产表(谁的哪个 skill 对哪种
   角色开放)、配额、revision、状态;**修订权=创建权**(防单方 bump 踢人);
 - **GrantToken 与派生继承**:长期凭证(≤30 天)派生短时令牌强制继承
-  (`skill∈父资产`、`exp≤父`),并把 `parent_jti/parent_exp/parent_max_uses` 写进子令牌;
-  PEP 独立复核父到期上界并继续扣父配额,普通令牌不能调域技能;**双配额**
+  (`skill∈父资产`、`exp≤父`),并把 `parent_jti/parent_exp/parent_max_uses` 与
+  **父 grant JWS** 写进子令牌;PEP 重验父签名/主体/资产并继续扣父配额,
+  自报数字不能伪造配额;普通令牌不能调域技能;**双配额**
   (签发侧/使用侧,按 provider 各自记账);
 - **冻结即急停**:验签**之前**查域状态(不 fail-open),杀死一切域派生授权含在途令牌;
   revision 升版驱逐旧令牌,跨重启持久;**双签对账**让用量从日志变可仲裁证据;
@@ -90,7 +91,7 @@ kb.query 以 consumer 视角实测 curator 档零值泄露。
 - **自然推论二:三层能力声明**:`public`(橱窗,引流)/ 非公开(保险柜,凭证准入)/
   `visibility=domain`(会员制,域内可见)——三层是运营决策,改声明即翻转,零代码改动。
 
-**验证**:域/修订链/派生硬化/可见性离线回归 53 项(test_domain 31 + hardening 12 +
+**验证**:域/修订链/派生硬化/可见性离线回归 57 项(test_domain 31 + hardening 16 +
 visibility 10);域×真 GPU G1–G4(allow→配额拒→冻结拒);两机构双边域 S1–S5;
 Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
 

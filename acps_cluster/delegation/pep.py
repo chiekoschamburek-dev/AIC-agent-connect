@@ -706,6 +706,10 @@ def evaluate(
             exc.reason in {
                 "parent-exp-exceeded", "parent-without-domain",
                 "invalid-parent-quota", "parent-revision-mismatch",
+                "parent-grant-invalid", "parent-grant-mismatch",
+                "parent-subject-mismatch", "parent-audience-mismatch",
+                "parent-asset-mismatch", "missing-parent-proof",
+                "invalid-parent-proof",
             }
             or (exc.reason == "missing-claim" and "parent" in str(exc.detail).lower())
             or (exc.reason == "missing-claim" and "domain token" in str(exc.detail).lower())
@@ -735,6 +739,39 @@ def evaluate(
             reason=f"domain {token_domain} frozen at revision {domain_policy.revision}",
             domain=token_domain, domain_revision=domain_policy.revision,
         )
+
+    # 父绑定的密码学复核：verify_token 已经验过嵌入的父 grant，这里再取一次已验证
+    # claims，用于检查 parent iss ∈ 域 issuers，并以**父 grant 自己签过的**配额/到期
+    # 上界扣减——不信任子令牌里的 acps_parent_* 自报值。
+    parent_claims_verified: dict[str, Any] | None = None
+    if token_domain:
+        from .grant import verify_grant  # noqa: PLC0415
+
+        parent_grant = str(claims.get("acps_parent_grant") or "")
+        try:
+            parent_claims_verified = verify_grant(
+                parent_grant,
+                trust_bundle=cfg.trust_bundle,
+                now=checked_at,
+                clock_skew_seconds=cfg.clock_skew_seconds,
+            )
+        except TokenError as exc:
+            return PepOutcome(
+                "deny", "invalid-parent-binding", code=CODE_ACCESS_TOKEN_INVALID,
+                message=MSG_INVALID_ACCESS_TOKEN, reason=exc.reason,
+                jti=str(claims.get("jti") or "") or None,
+                domain=token_domain, domain_revision=domain_policy.revision,
+            )
+        parent_issuer = normalize_audience(str(parent_claims_verified.get("iss") or ""))
+        if parent_issuer not in domain_policy.issuers:
+            return PepOutcome(
+                "deny", "parent-issuer-not-in-domain", code=CODE_ACCESS_TOKEN_INVALID,
+                message=MSG_INVALID_ACCESS_TOKEN,
+                reason=f"parent grant issuer {parent_issuer} not in domain issuers",
+                jti=str(claims.get("jti") or "") or None,
+                domain=token_domain, domain_revision=domain_policy.revision,
+                parent_jti=str(parent_claims_verified.get("jti") or "") or None,
+            )
 
     token_skill = str(claims.get("acps_skill_id") or "")
     skill_key = token_skill or skill or ""
@@ -928,10 +965,21 @@ def evaluate(
     parent_jti = None
     parent_remaining = None
     if token_domain:
-        parent_jti = str(claims.get("acps_parent_jti") or "")
+        if parent_claims_verified is None:
+            return PepOutcome(
+                "deny", "invalid-parent-binding", code=CODE_ACCESS_TOKEN_INVALID,
+                message=MSG_INVALID_ACCESS_TOKEN,
+                reason="verified parent grant missing",
+                jti=jti, delegation_id=delegation_id, domain=token_domain,
+                domain_revision=domain_policy.revision if domain_policy else None,
+            )
+        parent_jti = str(parent_claims_verified.get("jti") or "")
         try:
-            parent_exp = int(claims.get("acps_parent_exp"))
-            parent_max_uses = int(claims.get("acps_parent_max_uses"))
+            parent_exp = int(parent_claims_verified.get("exp") or 0)
+            parent_max_uses = int(parent_claims_verified.get("acps_max_uses") or 0)
+            child_parent_jti = str(claims.get("acps_parent_jti") or "")
+            child_parent_exp = int(claims.get("acps_parent_exp") or 0)
+            child_parent_max = int(claims.get("acps_parent_max_uses") or 0)
         except (TypeError, ValueError):
             return PepOutcome(
                 "deny", "invalid-parent-binding", code=CODE_ACCESS_TOKEN_INVALID,
@@ -940,13 +988,20 @@ def evaluate(
                 jti=jti, delegation_id=delegation_id, domain=token_domain,
                 domain_revision=domain_policy.revision if domain_policy else None,
             )
-        if not parent_jti or parent_max_uses < 1:
+        if (
+            not parent_jti
+            or parent_max_uses < 1
+            or child_parent_jti != parent_jti
+            or child_parent_exp != parent_exp
+            or child_parent_max != parent_max_uses
+        ):
             return PepOutcome(
                 "deny", "invalid-parent-binding", code=CODE_ACCESS_TOKEN_INVALID,
                 message=MSG_INVALID_ACCESS_TOKEN,
-                reason="acps_parent_jti/max_uses invalid",
+                reason="child parent claims do not match the verified parent grant",
                 jti=jti, delegation_id=delegation_id, domain=token_domain,
                 domain_revision=domain_policy.revision if domain_policy else None,
+                parent_jti=parent_jti or None,
             )
         if int(claims["exp"]) > parent_exp:
             return PepOutcome(

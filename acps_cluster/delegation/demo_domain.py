@@ -263,10 +263,18 @@ async def main() -> None:
             leader_signing, domain=DOMAIN, domain_revision=2, subject_aic=EXP_AIC,
             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=5, ttl_seconds=3600,
         )
-        inherit = derive_delegation_claims(frozen_grant.claims, skill_id=GPU_SKILL)
+        # 派生链的父 grant 必须签给**子令牌签发者**（leader 自己）：父 grant 的
+        # sub==子令牌 iss 是密码学持有者绑定，不能拿签给 experiment 的 grant 来派生。
+        frozen_parent = issue_grant(
+            leader_signing, domain=DOMAIN, domain_revision=2, subject_aic=LEADER_AIC,
+            assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=5, ttl_seconds=3600,
+        )
+        inherit = derive_delegation_claims(
+            frozen_parent.claims, skill_id=GPU_SKILL, parent_token=frozen_parent.token,
+        )
         derived = issue_token(
             leader_signing, delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
-            ttl_seconds=300, not_after=frozen_grant.expires_at, extra_claims=inherit,
+            ttl_seconds=300, not_after=frozen_parent.expires_at, extra_claims=inherit,
         )
         resp_g = await _send(EXP_WS, EXP_AIC, PORT_GPU_FROZEN, GPU_AIC, skill=GPU_SKILL, token=frozen_grant.token)
         resp_d = await _send(EXP_WS, EXP_AIC, PORT_GPU_FROZEN, GPU_AIC, skill=GPU_SKILL, token=derived.token)

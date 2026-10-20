@@ -133,7 +133,9 @@ def main() -> int:
             return issue_token(
                 sc, delegate_aic=caller_delegate, target_aic=LEADER, skill_id=skill,
                 ttl_seconds=300, not_after=parent.expires_at, include_intermediates=True,
-                extra_claims=derive_delegation_claims(parent.claims, skill_id=skill),
+                extra_claims=derive_delegation_claims(
+                    parent.claims, skill_id=skill, parent_token=parent.token,
+                ),
             ).token
 
         # 1) 域成员 + 章程 → 放行

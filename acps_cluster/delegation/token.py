@@ -5,7 +5,9 @@
 - §10.3 推荐字段（采用的子集）：acps_subject_type / acps_target_aic / acps_skill_id /
   acps_delegation_id / acps_delegation_mode / acps_allowed_route / acps_chain_depth /
   acps_max_chain_depth / cnf
-- 扩展 claims：sessionId / parentTaskId（AAC 无对应字段，草案文档需注明偏差）
+- 扩展 claims：sessionId / parentTaskId（AAC 无对应字段，草案文档需注明偏差）；
+  域派生扩展：acps_parent_jti/exp/max_uses + acps_parent_grant（父 grant JWS，
+  验证方重验父签名并交叉核对，不把自报数字当配额依据）
 
 x5c 只带 leaf：中间证书由验证方 trust-bundle 提供（`_verify_chain` 第二分支用 bundle
 内的锚验链尾签名），token 缩小 ~0.7K 字符（实测 3234→2548）。**硬依赖：验证方
@@ -232,9 +234,10 @@ def issue_token(
     见 domain_manifest/grant 的嵌套设计）。
 
     域声明只能来自父 grant：`extra_claims` 里出现 `acps_domain` 时，必须同时带
-    `acps_parent_jti` / `acps_parent_exp` / `acps_parent_max_uses`（由
-    derive_delegation_claims() 生成）。父 exp 会**自动收紧**本令牌的 exp，签发方
-    忘传 not_after 也不会签出超父期的子令牌。
+    `acps_parent_jti` / `acps_parent_exp` / `acps_parent_max_uses` 以及**父 grant
+    的 JWS 原文** `acps_parent_grant`（由 derive_delegation_claims(..., parent_token=...)
+    生成）。父 exp 会**自动收紧**本令牌的 exp；验证方会重验父签名并交叉核对
+    jti/域/主体/资产/exp/max_uses，自报数字不再能伪造配额。
     """
     if ttl_seconds <= 0:
         raise TokenError("invalid-ttl", "ttl_seconds must be positive")
@@ -266,6 +269,7 @@ def issue_token(
         or "acps_parent_max_uses" in extra
         or "acps_parent_revision" in extra
         or "acps_parent_issuer" in extra
+        or "acps_parent_grant" in extra
     )
     parent_exp: int | None = None
     if has_parent_fields:
@@ -296,6 +300,15 @@ def issue_token(
                     "acps_parent_revision != acps_domain_revision",
                 )
             extra["acps_parent_revision"] = parent_revision
+        parent_grant = str(extra.get("acps_parent_grant") or "").strip()
+        if not parent_grant:
+            raise TokenError(
+                "missing-parent-proof",
+                "域令牌必须嵌入父 grant JWS（acps_parent_grant）",
+            )
+        if parent_grant.count(".") != 2:
+            raise TokenError("invalid-parent-proof", "acps_parent_grant 必须是 compact JWS")
+        extra["acps_parent_grant"] = parent_grant
         extra["acps_parent_jti"] = parent_jti
         extra["acps_parent_exp"] = parent_exp
         extra["acps_parent_max_uses"] = parent_max_uses
@@ -625,6 +638,68 @@ def verify_token(
                     )
             except (TypeError, ValueError) as exc:
                 raise TokenError("malformed", "domain revision claims must be integers") from exc
+
+        # 父绑定必须是密码学锚点，而不是子令牌里的自报数字：验证嵌入的父 grant JWS，
+        # 再把 jti/域/主体/资产/exp/max_uses 逐项对齐。否则任何持有 leader 私钥的代码
+        # 都能伪造 parent_jti 与 1e9 配额，PEP 的"独立复核"就只是装饰。
+        parent_grant = claims.get("acps_parent_grant")
+        if not isinstance(parent_grant, str) or parent_grant.count(".") != 2:
+            raise TokenError("missing-claim", "domain token requires acps_parent_grant")
+        from .grant import verify_grant  # noqa: PLC0415
+
+        try:
+            parent_claims = verify_grant(
+                parent_grant,
+                trust_bundle=trust_bundle,
+                now=checked_at,
+                clock_skew_seconds=clock_skew_seconds,
+            )
+        except TokenError as exc:
+            raise TokenError("parent-grant-invalid", exc.reason) from exc
+        try:
+            pg_jti = str(parent_claims["jti"])
+            pg_domain = str(parent_claims["acps_domain"])
+            pg_exp = int(parent_claims["exp"])
+            pg_max_uses = int(parent_claims["acps_max_uses"])
+            pg_sub = normalize_audience(str(parent_claims["sub"]))
+            pg_aud = normalize_audience(str(parent_claims["aud"]))
+            pg_revision = int(parent_claims.get("acps_domain_revision") or 1)
+            child_revision = int(claims.get("acps_domain_revision") or 1)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise TokenError("parent-grant-mismatch", f"父 grant 字段不完整: {exc}") from exc
+        if pg_jti != parent_jti:
+            raise TokenError("parent-grant-mismatch", "acps_parent_jti != parent grant jti")
+        if pg_domain != token_domain:
+            raise TokenError("parent-grant-mismatch", "acps_domain != parent grant domain")
+        if pg_exp != parent_exp:
+            raise TokenError("parent-grant-mismatch", "acps_parent_exp != parent grant exp")
+        if pg_max_uses != parent_max_uses:
+            raise TokenError(
+                "parent-grant-mismatch",
+                "acps_parent_max_uses != parent grant max_uses",
+            )
+        if pg_sub != normalize_audience(str(claims["iss"])):
+            raise TokenError(
+                "parent-subject-mismatch",
+                "父 grant sub != 子令牌 iss（签发者不是 grant 持有者）",
+            )
+        if pg_aud != pg_sub:
+            raise TokenError("parent-audience-mismatch", "父 grant aud != sub（未绑定持有者）")
+        if pg_revision != child_revision:
+            raise TokenError("parent-revision-mismatch", "父 grant revision != 子令牌 revision")
+        skill_claim = str(claims.get("acps_skill_id") or "")
+        if not skill_claim:
+            raise TokenError("missing-claim", "acps_skill_id")
+        parent_assets = {
+            (normalize_audience(str(asset.get("providerAic") or "")), str(asset.get("skill") or ""))
+            for asset in parent_claims.get("acps_assets") or ()
+            if isinstance(asset, Mapping)
+        }
+        if (normalize_audience(expected_aud), skill_claim) not in parent_assets:
+            raise TokenError(
+                "parent-asset-mismatch",
+                f"父 grant 资产集不覆盖 ({expected_aud}, {skill_claim})",
+            )
 
     return claims
 

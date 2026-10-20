@@ -169,7 +169,12 @@ def verify_grant(
     return claims
 
 
-def derive_delegation_claims(grant_claims: Mapping[str, Any], *, skill_id: str) -> dict[str, Any]:
+def derive_delegation_claims(
+    grant_claims: Mapping[str, Any],
+    *,
+    skill_id: str,
+    parent_token: str | None = None,
+) -> dict[str, Any]:
     """从父 grant 提取派生 task token 必须继承的 claims（签发侧防"洗白"）。
 
     除了域标识，还必须把**父凭证的句柄/到期上界/使用配额**写进子令牌：
@@ -177,6 +182,10 @@ def derive_delegation_claims(grant_claims: Mapping[str, Any], *, skill_id: str) 
       凭证；父 exp 进子令牌后，issue_token 会自动收紧，PEP 也能独立复核；
     - parent_jti 与 parent_max_uses 让 PEP 在派生路径上继续扣父 grant 的使用配额，
       否则 grant 的 max_uses 只对"直接出示 grant"生效，派生链可以无限洗次数。
+
+    `parent_token` 是父 grant 的 JWS 原文，会作为 `acps_parent_grant` 嵌入子令牌。
+    这些 claims 单独是**自报值**，验证方必须用父签名复核；不带 `parent_token` 的
+    域令牌会被 `issue_token` 直接拒绝（missing-parent-proof）。
     """
     assets = {(str(a.get("providerAic")), str(a.get("skill"))) for a in grant_claims.get("acps_assets") or ()}
     if skill_id not in {skill for _, skill in assets}:
@@ -195,7 +204,7 @@ def derive_delegation_claims(grant_claims: Mapping[str, Any], *, skill_id: str) 
         raise TokenError("derive-bad-parent", "父 grant 缺 jti")
     if parent_max_uses < 1:
         raise TokenError("derive-bad-parent", "父 grant 的 acps_max_uses 必须 ≥ 1")
-    return {
+    claims = {
         "acps_domain": str(grant_claims["acps_domain"]),
         "acps_domain_revision": revision,
         "acps_parent_jti": parent_jti,
@@ -204,3 +213,9 @@ def derive_delegation_claims(grant_claims: Mapping[str, Any], *, skill_id: str) 
         "acps_parent_revision": revision,
         "acps_parent_issuer": str(grant_claims.get("iss") or ""),
     }
+    if parent_token is not None:
+        proof = str(parent_token).strip()
+        if proof.count(".") != 2:
+            raise TokenError("derive-bad-parent", "parent_token 必须是 compact JWS")
+        claims["acps_parent_grant"] = proof
+    return claims

@@ -592,9 +592,16 @@ async def run_c(tmp: Path) -> dict:
         grant = issue_grant(leader_signing(), domain="lab-x-y", domain_revision=1, subject_aic=EXP_AIC,
                             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=2, ttl_seconds=3600)
         rec.add({"type": "token", "kind": "grant", "issuer": "sup", "holder": "exp", "domain": "lab-x-y", "maxUses": 2, "label": "域级 Grant · 配额 2 · jti 一次性入库"})
+        # 派生父 grant 必须签给签发者（leader），不能复用签给 exp 的直接调用 grant
+        grant_parent = issue_grant(leader_signing(), domain="lab-x-y", domain_revision=1,
+                                   subject_aic=LEADER_AIC,
+                                   assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}],
+                                   max_uses=2, ttl_seconds=3600)
         derived = issue_token(leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
-                              ttl_seconds=300, not_after=grant.expires_at,
-                              extra_claims=derive_delegation_claims(grant.claims, skill_id=GPU_SKILL))
+                              ttl_seconds=300, not_after=grant_parent.expires_at,
+                              extra_claims=derive_delegation_claims(
+                                  grant_parent.claims, skill_id=GPU_SKILL,
+                                  parent_token=grant_parent.token))
         rec.add({"type": "token", "kind": "delegation", "issuer": "sup", "holder": "exp", "domain": "lab-x-y", "skill": GPU_SKILL, "label": "派生 Task Token · ≤10min · 收窄 ⊆ GT"})
         await rec.beat()
 
@@ -650,9 +657,15 @@ async def run_c(tmp: Path) -> dict:
         rec.add({"type": "state", "agent": "gpu", "taskId": "t4", "state": "rejected"})
         await rec.beat()
 
+        g2_parent = issue_grant(leader_signing(), domain="lab-x-y", domain_revision=2,
+                                subject_aic=LEADER_AIC,
+                                assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}],
+                                max_uses=5, ttl_seconds=3600)
         d2 = issue_token(leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
-                         ttl_seconds=300, not_after=g2.expires_at,
-                         extra_claims=derive_delegation_claims(g2.claims, skill_id=GPU_SKILL))
+                         ttl_seconds=300, not_after=g2_parent.expires_at,
+                         extra_claims=derive_delegation_claims(
+                             g2_parent.claims, skill_id=GPU_SKILL,
+                             parent_token=g2_parent.token))
         rec.add({"type": "delegate", "from": "sup", "to": "exp", "taskId": "t5", "skill": EXP_SKILL, "label": "冻结后持派生 token 调用"})
         await rec.beat(0.4)
         done = await direct_fetch(exp_fr_rt, exp_fr_state, target_aic=GPU_AIC, request=GPU_JOB_TEXT, token=d2.token, skill_id=GPU_SKILL)
@@ -750,12 +763,13 @@ async def run_a(tmp: Path) -> dict:
         # 建域 + 授权链（真实双签章程）
         rec.add({"type": "domain", "action": "create", "domainId": "lab-x-y", "revision": 1})
         await rec.beat()
-        grant = issue_grant(leader_signing(), domain="lab-x-y", domain_revision=1, subject_aic=EXP_AIC,
+        grant = issue_grant(leader_signing(), domain="lab-x-y", domain_revision=1, subject_aic=LEADER_AIC,
                             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=3, ttl_seconds=3600)
-        rec.add({"type": "token", "kind": "grant", "issuer": "sup", "holder": "exp", "domain": "lab-x-y", "maxUses": 3, "label": "域级 Grant（双签章程 · 配额 3）"})
+        rec.add({"type": "token", "kind": "grant", "issuer": "sup", "holder": "sup", "domain": "lab-x-y", "maxUses": 3, "label": "域级 Grant（双签章程 · 配额 3）"})
         dt = issue_token(leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
                          ttl_seconds=600, not_after=grant.expires_at,
-                         extra_claims=derive_delegation_claims(grant.claims, skill_id=GPU_SKILL))
+                         extra_claims=derive_delegation_claims(
+                             grant.claims, skill_id=GPU_SKILL, parent_token=grant.token))
         rec.add({"type": "token", "kind": "delegation", "issuer": "sup", "holder": "exp", "domain": "lab-x-y", "skill": GPU_SKILL, "label": "派生 Task Token（隧道用）"})
         await rec.beat()
 
@@ -801,7 +815,8 @@ async def run_a(tmp: Path) -> dict:
             dt_fresh = issue_token(
                 leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
                 ttl_seconds=600, not_after=grant.expires_at,
-                extra_claims=derive_delegation_claims(grant.claims, skill_id=GPU_SKILL))
+                extra_claims=derive_delegation_claims(
+                    grant.claims, skill_id=GPU_SKILL, parent_token=grant.token))
             os.environ["ACPS_EXP_GPU_TOKEN"] = dt_fresh.token
             try:
                 done = await call_wait(

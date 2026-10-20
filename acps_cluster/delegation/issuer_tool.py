@@ -105,7 +105,9 @@ def build_issue_token_tool(
             except Exception as exc:  # noqa: BLE001
                 return {"ok": False, "error": f"父 grant 验证失败: {exc}"}
             try:
-                inherit = derive_delegation_claims(parent_claims, skill_id=skill_id)
+                inherit = derive_delegation_claims(
+                    parent_claims, skill_id=skill_id, parent_token=parent_jws.token,
+                )
             except TokenError as exc:
                 return {"ok": False, "error": f"派生超出父授权范围: {exc.reason}"}
             not_after = int(parent_claims["exp"])

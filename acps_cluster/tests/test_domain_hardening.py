@@ -18,6 +18,7 @@ import sys
 import tempfile
 import time
 import unittest
+import uuid
 from pathlib import Path
 
 CLUSTER_DIR = Path(__file__).resolve().parents[1]
@@ -224,7 +225,9 @@ class DerivedBindingTest(unittest.TestCase):
         return tok.issue_token(
             self.sc, delegate_aic=EXPERIMENT_AIC, target_aic=GPU_AIC,
             skill_id=GPU_SKILL, ttl_seconds=ttl,
-            extra_claims=g.derive_delegation_claims(parent.claims, skill_id=GPU_SKILL),
+            extra_claims=g.derive_delegation_claims(
+                parent.claims, skill_id=GPU_SKILL, parent_token=parent.token,
+            ),
         )
 
     def test_普通令牌不能调用域技能(self):
@@ -245,6 +248,54 @@ class DerivedBindingTest(unittest.TestCase):
         self.assertEqual(first.parent_quota_remaining, 0)
         second = evaluate(_request(EXPERIMENT_AIC, token=self._child(parent).token), self.cfg)
         self.assertEqual((second.decision, second.rule), ("deny", "parent-quota-exhausted"))
+
+    def test_伪造父jti与配额没有密码学锚点被拒(self):
+        """复现审查 PoC：拿到 leader 私钥后自报 parent_jti/max_uses，连续伪造都拒绝。"""
+        parent = self._grant(max_uses=1)
+        template = self._child(parent).claims
+        for index in range(3):
+            claims = dict(template)
+            claims.pop("acps_parent_grant", None)
+            claims["jti"] = f"forged-parent-{index}-{uuid.uuid4()}"
+            claims["acps_parent_jti"] = "attacker-fake-parent"
+            claims["acps_parent_max_uses"] = 10**9
+            forged = tok.sign_payload(self.sc, claims)
+            outcome = evaluate(_request(EXPERIMENT_AIC, token=forged), self.cfg)
+            self.assertEqual(
+                (outcome.decision, outcome.rule), ("deny", "invalid-parent-binding")
+            )
+
+    def test_真实父proof不能配合伪造配额(self):
+        parent = self._grant(max_uses=1)
+        claims = dict(self._child(parent).claims)
+        claims["jti"] = f"forged-quota-{uuid.uuid4()}"
+        claims["acps_parent_grant"] = parent.token  # 真 proof
+        claims["acps_parent_jti"] = parent.jti
+        claims["acps_parent_exp"] = parent.expires_at
+        claims["acps_parent_max_uses"] = 10**9     # 假配额
+        forged = tok.sign_payload(self.sc, claims)
+        outcome = evaluate(_request(EXPERIMENT_AIC, token=forged), self.cfg)
+        self.assertEqual((outcome.decision, outcome.rule), ("deny", "invalid-parent-binding"))
+
+    def test_父grant主体必须等于子令牌签发者(self):
+        wrong_holder = g.issue_grant(
+            self.sc, domain=DOMAIN, domain_revision=1, subject_aic=EXPERIMENT_AIC,
+            assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}],
+            max_uses=5, ttl_seconds=3600,
+        )
+        child = self._child(wrong_holder)
+        outcome = evaluate(_request(EXPERIMENT_AIC, token=child.token), self.cfg)
+        self.assertEqual((outcome.decision, outcome.rule), ("deny", "invalid-parent-binding"))
+
+    def test_父grant签发者必须在域issuers(self):
+        rogue_parent = g.issue_grant(
+            GPU, domain=DOMAIN, domain_revision=1, subject_aic=LEADER_AIC,
+            assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}],
+            max_uses=5, ttl_seconds=3600,
+        )
+        child = self._child(rogue_parent)
+        outcome = evaluate(_request(EXPERIMENT_AIC, token=child.token), self.cfg)
+        self.assertEqual((outcome.decision, outcome.rule), ("deny", "parent-issuer-not-in-domain"))
 
     def test_域令牌不得绕开父grant签发(self):
         with self.assertRaises(tok.TokenError) as ctx:
