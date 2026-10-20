@@ -174,7 +174,7 @@ def _acps_config(port: int) -> AcpsConfig:
     )
 
 
-def _manifest(*, revision: int, status: str = "active") -> dict:
+def _manifest(*, revision: int, status: str = "active", previous: dict | None = None) -> dict:
     return build_manifest(
         domain_id=DOMAIN,
         members=[
@@ -191,6 +191,7 @@ def _manifest(*, revision: int, status: str = "active") -> dict:
         issuers=[EDGE_AIC],
         revision=revision,
         status=status,
+        previous=previous,
     )
 
 
@@ -358,7 +359,7 @@ async def main() -> None:
         print(f"[S4] state={state}", flush=True)
 
         # S5：r2 冻结（双签驱替）→ 重启两个 provider → 新 grant 也死
-        r2 = _dual_sign(_manifest(revision=2, status="frozen"))
+        r2 = _dual_sign(_manifest(revision=2, status="frozen", previous=r1))
         verify_manifest(r2, trust_bundle=TRUST)
         _write_charter(r2)
         await gpu_rt.stop_serving()

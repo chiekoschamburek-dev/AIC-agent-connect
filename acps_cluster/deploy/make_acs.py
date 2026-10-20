@@ -10,6 +10,9 @@
 4. 用 registry 的 `acsSchema.json` 做 jsonschema 校验（不传 format_checker，复刻平台行为），
    再用 `deploy/validate_acs.py` 的隐形字符/端点规则复核。
 
+skill 的 `visibility` / `domains` 会原样进入填报稿（registry schema 已放开这两个字段）：
+`visibility=domain` 的技能若缺 domains 会被这里直接拒绝，防止"代码里有、平台看不到"。
+
 用法：
     python acps_cluster/deploy/make_acs.py scout \
         --like acps_cluster/ws-scout/acps/acs.final.json \
@@ -21,8 +24,8 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import sys
-import unicodedata
 from pathlib import Path
 
 CLUSTER = Path(__file__).resolve().parents[1]
@@ -51,7 +54,14 @@ AGENTS: dict[str, tuple[str, str]] = {
 INVISIBLE = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u00a0", "\u2060")
 
 
-SKILL_KEYS = ("id", "name", "description", "version", "tags", "examples", "inputModes", "outputModes")
+SKILL_KEYS = (
+    "id", "name", "description", "version", "tags", "examples", "inputModes", "outputModes",
+    # 三层能力的声明通道：public/非公开由 PEP 的 public 标志决定，visibility=domain
+    # 是发现层的会员制。registry 的 AgentSkill 是 additionalProperties:false，所以
+    # 这两个键必须同时出现在本白名单和 registry schema 里，否则会被静默剥掉。
+    "visibility", "domains",
+)
+_DOMAIN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def build_skills(agent, carrier_skills: list[dict], agent_version: str) -> list[dict]:
@@ -71,7 +81,34 @@ def build_skills(agent, carrier_skills: list[dict], agent_version: str) -> list[
             continue
         sid = skill.get("id")
         cleaned = {k: v for k, v in skill.items() if k in SKILL_KEYS}
-        cleaned.setdefault("version", (old_by_id.get(sid) or {}).get("version") or agent_version)
+        old = old_by_id.get(sid) or {}
+        visibility = str(cleaned.get("visibility") or "").strip().lower()
+        if visibility:
+            if visibility not in {"public", "domain"}:
+                raise SystemExit(f"skill {sid} visibility={visibility!r}（只允许 public|domain）")
+            cleaned["visibility"] = visibility
+        elif str(old.get("visibility") or "").strip().lower() == "domain":
+            # 注册版是域可见、代码却没声明：宁可拒绝重提，也不能静默把会员制技能
+            # 降级成对所有人可见。要撤回域可见性就显式写 visibility="public"。
+            raise SystemExit(
+                f"skill {sid} 注册版是 visibility=domain，但代码未声明——"
+                "拒绝静默降级；如确要公开请显式声明 visibility=\"public\""
+            )
+        if visibility == "domain":
+            domains_raw = cleaned.get("domains")
+            if not isinstance(domains_raw, (list, tuple)) or not domains_raw:
+                raise SystemExit(f"skill {sid} visibility=domain 必须声明非空 domains")
+            domains: list[str] = []
+            for domain in domains_raw:
+                text = str(domain or "").strip()
+                if not text or not _DOMAIN_ID_RE.fullmatch(text):
+                    raise SystemExit(f"skill {sid} 的域 id 不合法: {domain!r}")
+                if text not in domains:
+                    domains.append(text)
+            cleaned["domains"] = domains
+        elif "domains" in cleaned:
+            raise SystemExit(f"skill {sid} 声明了 domains 但没有 visibility=domain")
+        cleaned.setdefault("version", old.get("version") or agent_version)
         cleaned.setdefault("tags", [])
         cleaned.setdefault("examples", [])
         missing = [k for k in ("id", "name", "description", "version", "tags") if not cleaned.get(k)]

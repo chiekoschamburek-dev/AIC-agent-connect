@@ -230,6 +230,11 @@ def issue_token(
     `allowed_route` 缺省为 [leader, delegate, target]（AAC §10.6 固定链路写法：`agent:{AIC}`）。
     `not_after`：绝对到期上界（域级派生继承用——派生 token 的 exp 不得超过父 grant 的 exp，
     见 domain_manifest/grant 的嵌套设计）。
+
+    域声明只能来自父 grant：`extra_claims` 里出现 `acps_domain` 时，必须同时带
+    `acps_parent_jti` / `acps_parent_exp` / `acps_parent_max_uses`（由
+    derive_delegation_claims() 生成）。父 exp 会**自动收紧**本令牌的 exp，签发方
+    忘传 not_after 也不会签出超父期的子令牌。
     """
     if ttl_seconds <= 0:
         raise TokenError("invalid-ttl", "ttl_seconds must be positive")
@@ -243,9 +248,68 @@ def issue_token(
         raise TokenError("inconsistent-scope", f"scope must be {derived_scope!r} (derived from skill_id)")
 
     issued_at = int(now if now is not None else time.time())
+    extra = dict(extra_claims or {})
+
+    domain = str(extra.get("acps_domain") or "").strip()
+    if domain:
+        try:
+            domain_revision = int(extra.get("acps_domain_revision"))
+        except (TypeError, ValueError) as exc:
+            raise TokenError("missing-claim", "acps_domain_revision must accompany acps_domain") from exc
+        extra["acps_domain"] = domain
+        extra["acps_domain_revision"] = domain_revision
+
+    parent_jti = str(extra.get("acps_parent_jti") or "").strip()
+    has_parent_fields = bool(
+        parent_jti
+        or "acps_parent_exp" in extra
+        or "acps_parent_max_uses" in extra
+        or "acps_parent_revision" in extra
+        or "acps_parent_issuer" in extra
+    )
+    parent_exp: int | None = None
+    if has_parent_fields:
+        if not domain:
+            raise TokenError("parent-without-domain", "parent binding claims require acps_domain")
+        if not parent_jti:
+            raise TokenError("incomplete-parent-binding", "acps_parent_jti is required")
+        try:
+            parent_exp = int(extra["acps_parent_exp"])
+            parent_max_uses = int(extra["acps_parent_max_uses"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise TokenError(
+                "incomplete-parent-binding",
+                "acps_parent_exp/acps_parent_max_uses are required",
+            ) from exc
+        if parent_max_uses < 1:
+            raise TokenError("invalid-parent-quota", "acps_parent_max_uses must be >= 1")
+        if parent_exp <= issued_at:
+            raise TokenError("parent-expired", f"parent exp={parent_exp}")
+        if "acps_parent_revision" in extra:
+            try:
+                parent_revision = int(extra["acps_parent_revision"])
+            except (TypeError, ValueError) as exc:
+                raise TokenError("incomplete-parent-binding", "acps_parent_revision must be an integer") from exc
+            if parent_revision != int(extra["acps_domain_revision"]):
+                raise TokenError(
+                    "parent-revision-mismatch",
+                    "acps_parent_revision != acps_domain_revision",
+                )
+            extra["acps_parent_revision"] = parent_revision
+        extra["acps_parent_jti"] = parent_jti
+        extra["acps_parent_exp"] = parent_exp
+        extra["acps_parent_max_uses"] = parent_max_uses
+    elif domain:
+        raise TokenError(
+            "domain-token-requires-parent",
+            "域作用域委托令牌必须由域 grant 派生（缺 acps_parent_jti）",
+        )
+
     expires_at = issued_at + int(ttl_seconds)
-    if not_after is not None and expires_at > int(not_after):
-        expires_at = int(not_after)
+    if not_after is not None:
+        expires_at = min(expires_at, int(not_after))
+    if parent_exp is not None:
+        expires_at = min(expires_at, parent_exp)
     leader_aic = signing.issuer_aic
     route = list(allowed_route) if allowed_route else [
         _agent_uri(leader_aic),
@@ -283,8 +347,14 @@ def issue_token(
         claims["parentTaskId"] = parent_task_id
     if delegate_certificate_fingerprint:
         claims["cnf"] = {"x5t#S256": delegate_certificate_fingerprint}
-    if extra_claims:
-        claims.update(dict(extra_claims))
+    if extra:
+        overridden = sorted(set(extra) & set(claims))
+        if overridden:
+            raise TokenError(
+                "reserved-claim",
+                f"extra_claims 不能覆盖已生成的 claim: {overridden}",
+            )
+        claims.update(extra)
 
     # x5c 默认只带 leaf（体积约减半）：中间证书由验证方 trust-bundle 提供，硬依赖见模块说明；
     # include_intermediates=True 退回整链（兼容未来 root-only bundle 的逃生门）。
@@ -517,6 +587,44 @@ def verify_token(
     act = claims.get("act")
     if not isinstance(act, Mapping) or not act.get("aic"):
         raise TokenError("missing-claim", "act.aic")
+
+    # 域作用域委托令牌必须能证明自己是从父 grant 派生的：父 jti/exp/配额随令牌
+    # 一起签名，验证方不必回查签发侧即可拒绝"超父期"与"无域声明的洗白令牌"。
+    token_domain = str(claims.get("acps_domain") or "").strip()
+    parent_jti = str(claims.get("acps_parent_jti") or "").strip()
+    if token_domain and not parent_jti:
+        raise TokenError("missing-claim", "domain token requires acps_parent_jti")
+    if parent_jti and not token_domain:
+        raise TokenError("parent-without-domain", "acps_parent_jti requires acps_domain")
+    if parent_jti:
+        try:
+            parent_exp = int(claims["acps_parent_exp"])
+            parent_max_uses = int(claims["acps_parent_max_uses"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise TokenError(
+                "missing-claim",
+                "acps_parent_exp/acps_parent_max_uses must be present and integer",
+            ) from exc
+        if parent_max_uses < 1:
+            raise TokenError("invalid-parent-quota", "acps_parent_max_uses must be >= 1")
+        if expires_at > parent_exp:
+            raise TokenError(
+                "parent-exp-exceeded",
+                f"token exp={expires_at} exceeds parent exp={parent_exp}",
+            )
+        parent_revision = claims.get("acps_parent_revision")
+        if parent_revision is not None:
+            domain_revision = claims.get("acps_domain_revision")
+            if domain_revision is None:
+                raise TokenError("missing-claim", "acps_parent_revision requires acps_domain_revision")
+            try:
+                if int(parent_revision) != int(domain_revision):
+                    raise TokenError(
+                        "parent-revision-mismatch",
+                        "acps_parent_revision != acps_domain_revision",
+                    )
+            except (TypeError, ValueError) as exc:
+                raise TokenError("malformed", "domain revision claims must be integers") from exc
 
     return claims
 

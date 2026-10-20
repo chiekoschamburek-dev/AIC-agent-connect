@@ -170,14 +170,37 @@ def verify_grant(
 
 
 def derive_delegation_claims(grant_claims: Mapping[str, Any], *, skill_id: str) -> dict[str, Any]:
-    """从父 grant 提取派生 task token 必须继承的 claims（签发侧防"洗白"）。"""
+    """从父 grant 提取派生 task token 必须继承的 claims（签发侧防"洗白"）。
+
+    除了域标识，还必须把**父凭证的句柄/到期上界/使用配额**写进子令牌：
+    - 只靠签发侧自觉传 not_after 时，漏传一次就得到一枚"看起来是域令牌、实际可超父期"的
+      凭证；父 exp 进子令牌后，issue_token 会自动收紧，PEP 也能独立复核；
+    - parent_jti 与 parent_max_uses 让 PEP 在派生路径上继续扣父 grant 的使用配额，
+      否则 grant 的 max_uses 只对"直接出示 grant"生效，派生链可以无限洗次数。
+    """
     assets = {(str(a.get("providerAic")), str(a.get("skill"))) for a in grant_claims.get("acps_assets") or ()}
     if skill_id not in {skill for _, skill in assets}:
         raise TokenError(
             "derive-out-of-scope",
             f"派生 skill {skill_id!r} 不在父 grant 资产集内（收窄规则：子授权 ≤ 父授权）",
         )
+    try:
+        parent_jti = str(grant_claims["jti"]).strip()
+        parent_exp = int(grant_claims["exp"])
+        parent_max_uses = int(grant_claims["acps_max_uses"])
+        revision = int(grant_claims.get("acps_domain_revision") or 1)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise TokenError("derive-bad-parent", f"父 grant 缺少可继承的绑定字段: {exc}") from exc
+    if not parent_jti:
+        raise TokenError("derive-bad-parent", "父 grant 缺 jti")
+    if parent_max_uses < 1:
+        raise TokenError("derive-bad-parent", "父 grant 的 acps_max_uses 必须 ≥ 1")
     return {
         "acps_domain": str(grant_claims["acps_domain"]),
-        "acps_domain_revision": int(grant_claims.get("acps_domain_revision") or 1),
+        "acps_domain_revision": revision,
+        "acps_parent_jti": parent_jti,
+        "acps_parent_exp": parent_exp,
+        "acps_parent_max_uses": parent_max_uses,
+        "acps_parent_revision": revision,
+        "acps_parent_issuer": str(grant_claims.get("iss") or ""),
     }

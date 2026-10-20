@@ -63,7 +63,7 @@ PORT_FROZEN = 18702
 PORT_R3 = 18703
 
 
-def _manifest(*, revision=1, status="active"):
+def _manifest(*, revision=1, status="active", previous=None):
     """商业章程：provider 定条款（issuer=自己），客户角色 consumer，资产只对 consumer 开。"""
     return build_manifest(
         domain_id=DOMAIN,
@@ -76,6 +76,7 @@ def _manifest(*, revision=1, status="active"):
         revision=revision,
         status=status,
         max_grants_per_day=3,  # 演示口径：试用商户日限 3 张（C7 场景用）
+        previous=previous,
     )
 
 
@@ -110,8 +111,8 @@ async def main() -> None:
     daily_cap = int(body["maxGrantsPerDay"])
     _record("C0 商业章程（provider 为 issuer + 客户签名=接受条款）", "2 签名方",
             f"{len(signers)} 签名方", "issuers=[provider] members=provider,consumer")
-    r2_frozen = _sign_both(_manifest(revision=2, status="frozen"))
-    r3_active = _sign_both(_manifest(revision=3, status="active"))
+    r2_frozen = _sign_both(_manifest(revision=2, status="frozen", previous=r1))
+    r3_active = _sign_both(_manifest(revision=3, status="active", previous=r2_frozen))
 
     runtimes = []
     try:

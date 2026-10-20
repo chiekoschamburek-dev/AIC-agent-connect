@@ -88,6 +88,12 @@ class PepConfig:
     audit_path: Path | None = None
     public_skills: frozenset[str] = frozenset()
     has_non_public_skills: bool = False
+    # 本机代码声明的域可见技能：skill_id -> 允许的域名集合。
+    # ① 带 acps_domain 的令牌必须落在声明集合内（代码没声明时退回章程集合）；
+    # ② 普通令牌的 domain-required 需要**声明与章程资产同时命中**：代码表达了
+    # "这是会员制"的意图，章程才是真正生效的域；二者缺一不硬拒，避免把尚未
+    # 建章程的 scout/hpc 或仅作为额外通道的 gpu.run 误锁死。
+    domain_skills: Mapping[str, frozenset[str]] = field(default_factory=dict)
     unscoped_public_open: bool = True
     require_session_binding: bool = False
     max_token_ttl_seconds: int = MAX_TTL_SECONDS
@@ -135,6 +141,7 @@ class PepConfig:
             "leaderDirectOpen": self.leader_direct_open,
             "publicSkills": sorted(self.public_skills),
             "hasNonPublicSkills": self.has_non_public_skills,
+            "domainSkills": {k: sorted(v) for k, v in sorted(self.domain_skills.items())},
             "unscopedEntryOpen": self.unscoped_entry_open(),
             "unscopedPublicEntryOpen": self.unscoped_public_entry_open(),
             "requireSessionBinding": self.require_session_binding,
@@ -161,6 +168,8 @@ class PepOutcome:
     domain: str | None = None
     domain_revision: int | None = None
     skill_hint: str | None = None
+    parent_jti: str | None = None
+    parent_quota_remaining: int | None = None
     # skill_hint 的证据等级：token-claim（签名凭据）/ self-declared（L1 请求自报）
     skill_source: str | None = None
 
@@ -259,6 +268,7 @@ def load_pep_config(
     *,
     public_skills: Iterable[str] = (),
     has_non_public_skills: bool = False,
+    domain_skills: Mapping[str, Iterable[str]] | None = None,
     my_aic: str | None = None,
     env: Mapping[str, str] | None = None,
 ) -> PepConfig:
@@ -291,6 +301,11 @@ def load_pep_config(
         audit_path=Path(audit_env) if audit_env else default_audit_path(workspace_path),
         public_skills=frozenset(str(s) for s in public_skills),
         has_non_public_skills=has_non_public_skills,
+        domain_skills={
+            str(skill): frozenset(str(d) for d in domains if str(d).strip())
+            for skill, domains in (domain_skills or {}).items()
+            if str(skill).strip()
+        },
         unscoped_public_open=_env_flag(env, "ACPS_PEP_UNSCOPED_PUBLIC", True),
         # 资源类 agent 用 `ACPS_PEP_LEADER_DIRECT=0` 关掉"直调免令牌"通道，
         # 同时保留 `ACPS_PEP_LEADER_AICS`（承认 leader 的**签发资格**）——
@@ -335,6 +350,25 @@ def current_domains(cfg: PepConfig) -> Mapping[str, Any]:
     return policies
 
 
+def domains_governing_skill(
+    cfg: PepConfig,
+    policies: Mapping[str, Any],
+    skill_id: str | None,
+) -> frozenset[str]:
+    """一个 skill 在本机被**章程资产表**划入哪些域（访问控制的权威来源）。
+
+    代码里的 `visibility=domain` 主要是发现层元数据；在没有章程时若也据此硬拒，
+    会把尚未建域的 scout/hpc 能力直接锁死（属于未部署状态，不是安全边界）。
+    """
+    if not skill_id:
+        return frozenset()
+    governing: set[str] = set()
+    for policy in policies.values():
+        if (cfg.my_aic, str(skill_id)) in getattr(policy, "assets", {}):
+            governing.add(str(policy.domain_id))
+    return frozenset(governing)
+
+
 def _validate_config(cfg: PepConfig) -> None:
     """启用态的启动期检查：aud 校验必须有本机身份；白名单为空只告警。"""
     if not cfg.enabled:
@@ -348,6 +382,32 @@ def _validate_config(cfg: PepConfig) -> None:
         print(
             "[pep] 警告: ACPS_PEP_LEADER_AICS 为空——L1 白名单与 L2 委托 token 均不可用，"
             "仅 L0 公开能力可放行；若本机存在非公开能力，它们将被全部锁死",
+            file=sys.stderr,
+        )
+    declared_domains = {d for domains in cfg.domain_skills.values() for d in domains}
+    missing = sorted(declared_domains - set(cfg.domains))
+    if missing:
+        print(
+            f"[pep] 警告: 代码声明了域可见技能，但本地没有章程: {missing}——"
+            "带 acps_domain 的令牌会被拒(domain-unknown)；普通令牌仍走旧路径。"
+            "要启用域访问控制，请发布章程（代码声明本身不凭空造域）",
+            file=sys.stderr,
+        )
+    uncovered: list[str] = []
+    for skill, domains in cfg.domain_skills.items():
+        present = [d for d in domains if d in cfg.domains]
+        if not present:
+            continue  # 缺章程已由上面的警告覆盖
+        if not any(
+            (cfg.my_aic, skill) in getattr(cfg.domains.get(domain), "assets", {})
+            for domain in present
+        ):
+            uncovered.append(skill)
+    uncovered.sort()
+    if uncovered:
+        print(
+            f"[pep] 警告: 代码声明为域可见、但章程资产表未收录: {uncovered}——"
+            "普通令牌仍可调用；补齐章程资产后 domain-required 才会生效",
             file=sys.stderr,
         )
 
@@ -379,6 +439,37 @@ def capability_visibility(capabilities: Iterable[Any] | None) -> tuple[frozenset
         else:
             has_non_public = True
     return frozenset(public_ids), has_non_public
+
+
+def capability_domain_scopes(
+    capabilities: Iterable[Any] | None,
+) -> dict[str, frozenset[str]]:
+    """从本机 capability 声明取 `acps_skill.visibility == "domain"` 的技能及其域。
+
+    用途是发现层元数据 + **域令牌的目标域约束**。注意：代码声明本身不构成访问控制；
+    普通令牌是否必须带域，以**本地已发布章程**是否把该资产纳入管辖为准。
+    """
+    scopes: dict[str, frozenset[str]] = {}
+    for raw in capabilities or ():
+        capability = _capability_of(raw)
+        identifier = getattr(capability, "id", None)
+        skill = getattr(capability, "acps_skill", None)
+        if isinstance(capability, Mapping):
+            identifier = capability.get("id")
+            skill = capability.get("acps_skill")
+        if not identifier or not isinstance(skill, Mapping):
+            continue
+        if str(skill.get("visibility") or "").strip() != "domain":
+            continue
+        raw_domains = skill.get("domains") or ()
+        if not isinstance(raw_domains, (list, tuple, set, frozenset)):
+            raise TypeError(f"capability {identifier!r} 的 domains 必须是数组")
+        domains = frozenset(str(d).strip() for d in raw_domains if str(d).strip())
+        if not domains:
+            # 声明了会员制却没说哪个域：fail-fast，不能静默退回 public/白名单路径
+            raise ValueError(f"capability {identifier!r} 声明 visibility=domain 但没有 domains")
+        scopes[str(identifier)] = domains
+    return scopes
 
 
 # 预留公共 API（delegation 包 __all__ 导出；文档 §4.2.1 的"代码侧收集公开技能"语义）：
@@ -430,6 +521,10 @@ def _trace(cfg: PepConfig, request: AipPartnerAdmissionRequest, outcome: PepOutc
     if outcome.domain_revision is not None:
         extra.setdefault("domainRevision", outcome.domain_revision)
     extra.setdefault("skillHint", outcome.skill_hint or NO_SKILL)
+    if outcome.parent_jti:
+        extra.setdefault("parentJti", outcome.parent_jti)
+    if outcome.parent_quota_remaining is not None:
+        extra.setdefault("parentQuotaRemaining", outcome.parent_quota_remaining)
     # 技能归属的**证据等级**（2026-10-16）：`skillHint` 只在校验过的凭据（域 grant / 委托
     # 令牌）路径上有值，且它同时被 skill_scope 用来做能力收窄——所以这里只加审计字段、
     # 不改它的语义。`declaredSkill` 是调用方自报的能力，配上 `skillSource` 才能把
@@ -564,8 +659,9 @@ def evaluate(
         pre_claims = pre_claims if isinstance(pre_claims, dict) else {}
     except TokenError:
         pre_claims = {}
+    policies = current_domains(cfg)
     token_domain = str(pre_claims.get("acps_domain") or "")
-    domain_policy = current_domains(cfg).get(token_domain) if token_domain else None
+    domain_policy = policies.get(token_domain) if token_domain else None
     if token_domain:
         if domain_policy is None:
             return PepOutcome(
@@ -574,6 +670,7 @@ def evaluate(
                 code=CODE_ACCESS_TOKEN_INVALID,
                 message=MSG_INVALID_ACCESS_TOKEN,
                 reason=f"unknown/unloadable domain {token_domain} (pre-signature)",
+                domain=token_domain,
             )
         if domain_policy.status != "active":
             return PepOutcome(
@@ -582,6 +679,8 @@ def evaluate(
                 code=CODE_AUTHORIZATION_FAILED,
                 message=MSG_AUTHORIZATION_FAILED,
                 reason=f"domain {token_domain} frozen at revision {domain_policy.revision} (pre-signature)",
+                domain=token_domain,
+                domain_revision=domain_policy.revision,
             )
 
     # 域级 grant 画像（长期凭证、无 act 链、配额制）走独立裁决；delegation 原路径不变
@@ -603,13 +702,72 @@ def evaluate(
             max_ttl_seconds=cfg.max_token_ttl_seconds,
         )
     except TokenError as exc:
+        parent_related = (
+            exc.reason in {
+                "parent-exp-exceeded", "parent-without-domain",
+                "invalid-parent-quota", "parent-revision-mismatch",
+            }
+            or (exc.reason == "missing-claim" and "parent" in str(exc.detail).lower())
+            or (exc.reason == "missing-claim" and "domain token" in str(exc.detail).lower())
+        )
         return PepOutcome(
             "deny",
-            "invalid-token",
+            "invalid-parent-binding" if parent_related else "invalid-token",
             code=CODE_ACCESS_TOKEN_INVALID,
             message=MSG_INVALID_ACCESS_TOKEN,
             reason=exc.reason,
         )
+
+    # 验签后的域归属以签名 claims 为准（预检用的是同一串，但这里不依赖预检结论）。
+    token_domain = str(claims.get("acps_domain") or "")
+    domain_policy = policies.get(token_domain) if token_domain else None
+    if token_domain and domain_policy is None:
+        return PepOutcome(
+            "deny", "domain-unknown", code=CODE_ACCESS_TOKEN_INVALID,
+            message=MSG_INVALID_ACCESS_TOKEN,
+            reason=f"unknown/unloadable domain {token_domain} (post-signature)",
+            domain=token_domain,
+        )
+    if token_domain and domain_policy.status != "active":
+        return PepOutcome(
+            "deny", "domain-frozen", code=CODE_AUTHORIZATION_FAILED,
+            message=MSG_AUTHORIZATION_FAILED,
+            reason=f"domain {token_domain} frozen at revision {domain_policy.revision}",
+            domain=token_domain, domain_revision=domain_policy.revision,
+        )
+
+    token_skill = str(claims.get("acps_skill_id") or "")
+    skill_key = token_skill or skill or ""
+    policy_domains = domains_governing_skill(cfg, policies, skill_key)
+    declared = frozenset(cfg.domain_skills.get(skill_key, ()))
+    # 只有"代码声明了会员制"且"章程真的把该资产纳入管辖"时才强制域令牌。
+    # 后者是访问控制权威，前者防止把一条演示章程当成对所有调用方式的封锁；
+    # 二者同时命中才说明这个部署确实在运营一个域（eval.submit / kb.query 等）。
+    required_domains = declared & policy_domains
+    if required_domains and not token_domain:
+        # 关键绕过修复：普通令牌不能"省掉 parent_jti"进入已生效的域——
+        # 否则冻结、成员表、配额全部失效。
+        return PepOutcome(
+            "deny", "domain-required", code=CODE_AUTHORIZATION_FAILED,
+            message=MSG_AUTHORIZATION_FAILED,
+            reason=f"skill {skill_key} is domain-governed ({sorted(required_domains)}); "
+                   "a domain-scoped token derived from a grant is required",
+            jti=str(claims.get("jti") or "") or None,
+            skill_hint=skill_key or None,
+            skill_source=SKILL_SOURCE_TOKEN_CLAIM if token_skill else None,
+        )
+    # 已经声称域身份的令牌，还要对得上代码声明的目标域；代码没声明时退回章程集合。
+    if token_domain:
+        allowed_domains = declared or policy_domains
+        if allowed_domains and token_domain not in allowed_domains:
+            return PepOutcome(
+                "deny", "domain-skill-mismatch", code=CODE_AUTHORIZATION_FAILED,
+                message=MSG_AUTHORIZATION_FAILED,
+                reason=f"skill {skill_key} belongs to {sorted(allowed_domains)}, "
+                       f"token domain={token_domain}",
+                jti=str(claims.get("jti") or "") or None,
+                skill_hint=skill_key or None,
+            )
 
     # 3a 补充：签发者授权——受信证书 ≠ 有权签发。社区内任何 agent 都持有效证书，
     # 必须限定只有白名单 leader（或未来 STS）签发的 token 才被接受（2026-09-28 审计 PoC：
@@ -765,6 +923,66 @@ def evaluate(
             delegation_id=delegation_id,
         )
 
+    # 派生委托也消耗父 grant 的使用配额（签发侧已强制把 parent_jti/max_uses 写进子令牌）。
+    # 否则 grant 的 acps_max_uses 只对"直接出示 grant"生效，leader 可以无限派生绕过。
+    parent_jti = None
+    parent_remaining = None
+    if token_domain:
+        parent_jti = str(claims.get("acps_parent_jti") or "")
+        try:
+            parent_exp = int(claims.get("acps_parent_exp"))
+            parent_max_uses = int(claims.get("acps_parent_max_uses"))
+        except (TypeError, ValueError):
+            return PepOutcome(
+                "deny", "invalid-parent-binding", code=CODE_ACCESS_TOKEN_INVALID,
+                message=MSG_INVALID_ACCESS_TOKEN,
+                reason="parent exp/max_uses missing or malformed",
+                jti=jti, delegation_id=delegation_id, domain=token_domain,
+                domain_revision=domain_policy.revision if domain_policy else None,
+            )
+        if not parent_jti or parent_max_uses < 1:
+            return PepOutcome(
+                "deny", "invalid-parent-binding", code=CODE_ACCESS_TOKEN_INVALID,
+                message=MSG_INVALID_ACCESS_TOKEN,
+                reason="acps_parent_jti/max_uses invalid",
+                jti=jti, delegation_id=delegation_id, domain=token_domain,
+                domain_revision=domain_policy.revision if domain_policy else None,
+            )
+        if int(claims["exp"]) > parent_exp:
+            return PepOutcome(
+                "deny", "parent-exp-exceeded", code=CODE_ACCESS_TOKEN_INVALID,
+                message=MSG_INVALID_ACCESS_TOKEN,
+                reason=f"child exp={claims['exp']} > parent exp={parent_exp}",
+                jti=jti, delegation_id=delegation_id, domain=token_domain,
+                domain_revision=domain_policy.revision if domain_policy else None,
+                parent_jti=parent_jti,
+            )
+        if cfg.quota_path is None:
+            return PepOutcome(
+                "deny", "pep-misconfigured", code=CODE_AUTHORIZATION_FAILED,
+                message=MSG_AUTHORIZATION_FAILED,
+                reason="quota store missing (derived domain tokens consume parent quota)",
+                jti=jti, delegation_id=delegation_id, domain=token_domain,
+                domain_revision=domain_policy.revision if domain_policy else None,
+                parent_jti=parent_jti,
+            )
+        from .quota import consume as quota_consume
+
+        ok, parent_remaining = quota_consume(
+            cfg.quota_path,
+            jti=parent_jti, domain=token_domain, caller_aic=request.leader_aic,
+            max_uses=parent_max_uses, now=checked_at,
+        )
+        if not ok:
+            return PepOutcome(
+                "deny", "parent-quota-exhausted", code=CODE_AUTHORIZATION_FAILED,
+                message=MSG_AUTHORIZATION_FAILED,
+                reason=f"parent grant jti={parent_jti[:8]}… max_uses={parent_max_uses} exhausted",
+                jti=jti, delegation_id=delegation_id, domain=token_domain,
+                domain_revision=domain_policy.revision if domain_policy else None,
+                parent_jti=parent_jti, parent_quota_remaining=0,
+            )
+
     return PepOutcome(
         "allow",
         "domain-delegation" if token_domain else "delegation-token",
@@ -774,6 +992,8 @@ def evaluate(
         domain=token_domain or None,
         domain_revision=(int(claims.get("acps_domain_revision")) if token_domain and claims.get("acps_domain_revision") else None),
         skill_hint=skill or (str(claims.get("acps_skill_id") or "") or None),
+        parent_jti=parent_jti,
+        parent_quota_remaining=parent_remaining,
     )
 
 
@@ -857,6 +1077,18 @@ def _evaluate_grant(
             jti=jti, domain=domain_id, domain_revision=policy.revision,
         )
 
+    # 代码里的 domain visibility 声明是第二把锁：即使某个域章程把该资产列进来了，
+    # 若技能声明只属于别的域，也不接受这一域的 grant。
+    declared_domains = cfg.domain_skills.get(resolved_skill)
+    if declared_domains and domain_id not in declared_domains:
+        return PepOutcome(
+            "deny", "grant-domain-mismatch", code=CODE_AUTHORIZATION_FAILED,
+            message=MSG_AUTHORIZATION_FAILED,
+            reason=f"skill {resolved_skill} is declared for domains {sorted(declared_domains)}, "
+                   f"grant domain={domain_id}",
+            jti=jti, domain=domain_id, domain_revision=policy.revision,
+        )
+
     # 域章程对该资产的角色许可（grant 说"给了什么"，章程说"这个角色配不配用"）
     if not policy.asset_allows(provider_aic=cfg.my_aic, skill_id=resolved_skill, role=role):
         return PepOutcome(
@@ -876,7 +1108,7 @@ def _evaluate_grant(
         )
     from .quota import consume as quota_consume
 
-    ok, remaining = quota_consume(
+    ok, _ = quota_consume(
         cfg.quota_path,
         jti=jti, domain=domain_id, caller_aic=request.leader_aic,
         max_uses=int(claims["acps_max_uses"]), now=checked_at,
@@ -942,6 +1174,7 @@ def build_pep_hook(
     workspace: Path | str | None = None,
     public_skills: Iterable[str] = (),
     has_non_public_skills: bool = False,
+    domain_skills: Mapping[str, Iterable[str]] | None = None,
     jti_registry: JtiRegistry | None = None,
     env: Mapping[str, str] | None = None,
     priority: int = 100,
@@ -954,6 +1187,7 @@ def build_pep_hook(
             workspace,
             public_skills=public_skills,
             has_non_public_skills=has_non_public_skills,
+            domain_skills=domain_skills,
             env=env,
         )
     else:

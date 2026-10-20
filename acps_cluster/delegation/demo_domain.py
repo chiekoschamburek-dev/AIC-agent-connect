@@ -104,7 +104,7 @@ def _acps_config(port: int) -> AcpsConfig:
     )
 
 
-def _manifest(*, revision=1, status="active", members=None):
+def _manifest(*, revision=1, status="active", members=None, previous=None):
     return build_manifest(
         domain_id=DOMAIN,
         members=members
@@ -121,6 +121,7 @@ def _manifest(*, revision=1, status="active", members=None):
         issuers=[LEADER_AIC],
         revision=revision,
         status=status,
+        previous=previous,
     )
 
 
@@ -214,14 +215,14 @@ async def main() -> None:
     d1_ok = signers == frozenset({LEADER_AIC, GPU_AIC})
     _record("D1 双签章程验证", "2 签名方", f"{len(signers)} 签名方 {sorted(signers)[-1][-6:]}…" if d1_ok else "验证失败",
             f"domain={DOMAIN} assets=2 issuers=[leader]")
-    r2_frozen = _dual_sign(_manifest(revision=2, status="frozen"))
-    r3_active = _dual_sign(_manifest(revision=3, status="active"))
+    r2_frozen = _dual_sign(_manifest(revision=2, status="frozen", previous=r1))
+    r3_active = _dual_sign(_manifest(revision=3, status="active", previous=r2_frozen))
     members_without_exp = [
         {"aic": GPU_AIC, "role": "provider"},
         {"aic": SCOUT_AIC, "role": "provider"},
         {"aic": LEADER_AIC, "role": "auditor"},
     ]
-    r2_evict = _dual_sign(_manifest(revision=2, members=members_without_exp))
+    r2_evict = _dual_sign(_manifest(revision=2, members=members_without_exp, previous=r1))
 
     runtimes = []
     try:

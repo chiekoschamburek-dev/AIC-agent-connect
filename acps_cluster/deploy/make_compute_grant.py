@@ -58,6 +58,8 @@ def main() -> int:
                     help="grant 文件输出路径（默认 <consumer>/acps/grants/<domain>.grant.json）")
     ap.add_argument("--domain", default="compute-gpu")
     ap.add_argument("--revision", type=int, default=1)
+    ap.add_argument("--previous", default=None,
+                    help="上一版章程文件（revision>1 必填/可自动发现）")
     ap.add_argument("--max-uses", type=int, default=5)
     ap.add_argument("--ttl", type=int, default=3600)
     ap.add_argument("--skill", action="append", default=[],
@@ -75,6 +77,30 @@ def main() -> int:
     supervisor_signing = load_signing_context(
         supervisor_ws / "acps" / "client", trust_bundle=supervisor_ws / "acps" / "trust-bundle.pem")
     trust = provider_ws / "acps" / "trust-bundle.pem"
+    domains_dir = provider_ws / "acps" / "domains"
+    existing = sorted(
+        domains_dir.glob(f"{args.domain}.r*.json"),
+        key=lambda p: int(p.stem.rsplit(".r", 1)[-1]),
+    ) if domains_dir.is_dir() else []
+    if existing and int(existing[-1].stem.rsplit(".r", 1)[-1]) >= args.revision:
+        print(f"✘ 目录里已有 {args.domain}.r{existing[-1].stem.rsplit('.r', 1)[-1]}"
+              f"（≥ 本次 revision={args.revision}）；修订必须升 revision")
+        return 2
+    previous = None
+    if args.revision > 1:
+        prev_path = Path(args.previous) if args.previous else (
+            domains_dir / f"{args.domain}.r{args.revision - 1}.json"
+        )
+        if not prev_path.is_file() and existing:
+            prev_path = existing[-1]
+        if not prev_path.is_file():
+            print(f"✘ revision={args.revision} 需要上一版章程；找不到 {prev_path}，用 --previous 指定")
+            return 2
+        previous = json.loads(prev_path.read_text(encoding="utf-8"))
+        prev_body, _ = verify_manifest(previous, trust_bundle=trust)
+        if int(prev_body.get("revision") or 0) >= args.revision:
+            print("✘ 上一版 revision 不低于新 revision")
+            return 2
 
     skills = args.skill or ["gpu.run", "gpu.data.fetch"]
     manifest = build_manifest(
@@ -92,12 +118,12 @@ def main() -> int:
         issuers=[provider_aic],  # 只有算力方可以签发
         revision=args.revision,
         status="active",
+        previous=previous,
     )
     # 双签：算力方 + 域 auditor（研枢 supervisor）；研枢不签 grant 本身。
     manifest = sign_manifest(manifest, provider_signing)
     manifest = sign_manifest(manifest, supervisor_signing)
     verify_manifest(manifest, trust_bundle=trust)
-    domains_dir = provider_ws / "acps" / "domains"
     domains_dir.mkdir(parents=True, exist_ok=True)
     write_manifest(manifest, domains_dir)
 

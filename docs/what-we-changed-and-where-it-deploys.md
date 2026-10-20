@@ -21,7 +21,7 @@
 | **① 框架运行时补丁** | `RunConfig` 工具超时补丁（抬到 300s）、`discovery_filter` 补丁（平台已废弃 `filter` 字段） | **我们代码里**（`cluster_common.py` 顶部 monkey patch），不改 wit 包 | ✅ **已经在服务器上生效**（服务器同文件里可见这两处补丁） |
 | **② 应用层扩展** | 委托授权令牌 + PEP 准入、协作域/商业域、审计、`plan_gate`/`review_gate`/`product_gate`、引用核验三步、DeepResearch/AutoResearch 剧本… | 全部基于**官方 SDK 扩展点**实现（`aip_hooks` / `hooks` / `WitAgent.capabilities`），不 patch 框架 | ⚠️ **需要在服务器上更新我们的应用代码**——就是 `delegation/`（已部署）+ `partner_*.py` / `supervisor.py` / `cluster_common.py`（**已回滚，仍是旧版**，见 §4） |
 | **③ 智能体描述/技能（ACS）** | 门面文本、tags、examples、能力声明 | **平台侧数据**，不在 wit 里 | ✅ 已通过注册生效（8 个 agent 现网描述 269–820 字、examples 2–15 条） |
-| **④ 协议级研究贡献** | 域可见性过滤（`ACPs-community` 里那条 `feat: domain visibility filtering` 提交） | 若平台采纳，应部署在**平台的 discovery-server** | ❌ 那是**平台侧组件**，不是我们服务器的；只能提交给平台（研究贡献/论文素材），不能我们自己装到 app 服务器上 |
+| **④ 协议级研究贡献** | 域可见性过滤（`ACPs-community` 里那条 `feat: domain visibility filtering` 提交） | 若平台采纳，应部署在**平台的 discovery-server** | ❌ 那是**平台侧组件**，不是我们服务器的；只能提交给平台（研究贡献/论文素材），不能我们自己装到 app 服务器上。2026-10-20 本仓已补齐同语义纯函数（`delegation/visibility.py`）、`make_acs` 透传与 registry schema 字段；平台是否真正可见仍取决于平台侧更新 |
 
 **一句话**：能"上传服务器"的只有 ②（我们的应用代码），① 已经在跑，③ 是平台侧数据，④ 是平台侧组件。
 

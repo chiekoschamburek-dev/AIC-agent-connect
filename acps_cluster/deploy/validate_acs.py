@@ -14,16 +14,17 @@
 
 用法（用 registry 的 venv，它装了 jsonschema）：
     ACPs-community/registry-server/.venv/Scripts/python.exe acps_cluster/deploy/validate_acs.py acps_cluster/acs.gpu-partner.filled.json
+    ... validate_acs.py <acs.json> --module partner_kb   # 含域可见性/域名一致性检查
     ... validate_acs.py --all          # 校验三份填报稿 + 已过审批次做对照组
 退出码：0 全通过，1 有 FAIL。
 """
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
-import unicodedata
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -174,6 +175,49 @@ def _is_wit_runtime(arg: ast.arg) -> bool:
     return name in {"WitRuntime", "AgentState"}
 
 
+def domain_visibility_from_module(module_name: str) -> dict[str, list[str]]:
+    """从源码 AST 取 `acps_skill={"visibility": "domain", "domains": [...]}` 声明。
+
+    平台的 AgentSkill 是 additionalProperties:false，填报稿里漏掉/被脚本剥掉
+    visibility 时，代码里的声明就"平台看不到"——这里把它变成硬性一致性检查。
+    """
+    import ast
+
+    path = CLUSTER / f"{module_name}.py"
+    if not path.is_file():
+        return {}
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    declared: dict[str, list[str]] = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for deco in node.decorator_list:
+            if not (isinstance(deco, ast.Call) and getattr(deco.func, "id", "") == "capability"):
+                continue
+            kwargs = {kw.arg: kw.value for kw in deco.keywords}
+            id_node = kwargs.get("id")
+            skill_node = kwargs.get("acps_skill")
+            if not (isinstance(id_node, ast.Constant) and isinstance(id_node.value, str)):
+                continue
+            if not isinstance(skill_node, ast.Dict):
+                continue
+            mapping = {
+                key.value: value
+                for key, value in zip(skill_node.keys, skill_node.values)
+                if isinstance(key, ast.Constant) and isinstance(key.value, str)
+            }
+            visibility = mapping.get("visibility")
+            if not (isinstance(visibility, ast.Constant) and visibility.value == "domain"):
+                continue
+            domains_node = mapping.get("domains")
+            domains = [
+                item.value for item in getattr(domains_node, "elts", [])
+                if isinstance(item, ast.Constant) and isinstance(item.value, str)
+            ]
+            declared[id_node.value] = domains
+    return declared
+
+
 def check_code_consistency(acs: dict, module_name: str | None, report: Report) -> None:
     if not module_name:
         report.warn("未指定 --module：跳过与代码的一致性校验")
@@ -188,6 +232,22 @@ def check_code_consistency(acs: dict, module_name: str | None, report: Report) -
         report.fail(f"代码声明但 ACS 未列（会被 ADP 漏匹配）: {sorted(missing)}")
     if extra:
         report.fail(f"ACS 列了但代码没有（审核实测能力时必翻车）: {sorted(extra)}")
+    declared_visibility = domain_visibility_from_module(module_name)
+    acs_skills = {str(s.get("id")): s for s in acs.get("skills") or []}
+    for skill_id, domains in declared_visibility.items():
+        skill = acs_skills.get(skill_id)
+        if skill is None:
+            continue  # 缺技能已在上方 missing 报过
+        if str(skill.get("visibility") or "") != "domain":
+            report.fail(
+                f"skill {skill_id} 代码声明 domain 可见，但 ACS 没有 visibility=domain"
+                "（平台/发现层会把它当 public）"
+            )
+        elif sorted(str(d) for d in skill.get("domains") or []) != sorted(domains):
+            report.fail(
+                f"skill {skill_id} domains 与代码不一致："
+                f"ACS={skill.get('domains')!r} 代码={domains!r}"
+            )
     for skill in acs.get("skills") or []:
         params = arity.get(skill.get("id"), 0)
         if params and not skill.get("inputModes"):
@@ -261,8 +321,16 @@ def main(argv: list[str]) -> int:
                     for w in ("ws-gpu", "ws-cpu", "ws-kb")
                     if (CLUSTER / w / "acps" / "acs.final.json").is_file()]
     else:
+        module = None
+        if "--module" in argv:
+            idx = argv.index("--module")
+            if idx + 1 >= len(argv):
+                print("--module 缺参数")
+                return 2
+            module = argv[idx + 1]
+            argv = argv[:idx] + argv[idx + 2:]
         paths = [Path(a) for a in argv if not a.startswith("--")]
-        targets = [(p, None) for p in paths]
+        targets = [(p, module) for p in paths]
     failed = 0
     for path, module in targets:
         report = validate(path, module)

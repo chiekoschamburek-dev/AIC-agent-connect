@@ -357,7 +357,7 @@ async def call_wait(
     return done
 
 
-def charter_manifest(revision: int, status: str = "active") -> dict:
+def charter_manifest(revision: int, status: str = "active", previous: dict | None = None) -> dict:
     return build_manifest(
         domain_id="lab-x-y",
         members=[
@@ -373,6 +373,7 @@ def charter_manifest(revision: int, status: str = "active") -> dict:
         issuers=[LEADER_AIC],
         revision=revision,
         status=status,
+        previous=previous,
     )
 
 
@@ -536,8 +537,8 @@ async def run_c(tmp: Path) -> dict:
     gpu_audit = out / "gpu-audit.jsonl"
     runtimes: list = []
     r1 = dual_sign(charter_manifest(1))
-    r2 = dual_sign(charter_manifest(2, status="frozen"))
-    r3 = dual_sign(charter_manifest(3, status="active"))
+    r2 = dual_sign(charter_manifest(2, status="frozen", previous=r1))
+    r3 = dual_sign(charter_manifest(3, status="active", previous=r2))
     verify_manifest(r1, trust_bundle=TRUST)
     try:
         rec.add({"type": "instruction", "text": "授权层实战：无凭据拦截 → 自签令牌拦截 → 域授权 → 配额烧尽 → 冻结急停 → 解冻恢复 → 双签对账。（真实 PEP 裁决）"})
@@ -730,9 +731,8 @@ async def run_a(tmp: Path) -> dict:
         writer_rt, writer_acs = await serve_partner(partner_writer.build_writer_agent, agents.build_provider(), WRITER_WS, 18751, tmp, label="writer", audit=writer_audit)
         critic_rt, critic_acs = await serve_partner(partner_critic.build_critic_agent, agents.build_provider(), CRITIC_WS, 18752, tmp, label="critic", audit=critic_audit)
         gpu_rt, gpu_acs = await serve_partner(partner_gpu.build_gpu_agent, agents.build_provider(), GPU_WS, 18753, tmp, label="gpu", audit=gpu_audit, charters=[r1])
-        # A 的 exp 侧 LLM 代码生成在慢网关下常超 10 分钟，按 RFC §7 偏差 1「MAY 上调」把 DT 时效放宽到 30 分钟
-        # （签发侧 max_ttl_seconds=None + PEP 侧 ACPS_PEP_MAX_TOKEN_TTL，两侧同步）。
-        os.environ["ACPS_PEP_MAX_TOKEN_TTL"] = "1800"
+        # DT 保持在 RFC 的 ≤600s；exp 侧代码生成超时就重签一枚新鲜令牌（下方 t3 循环）。
+        os.environ["ACPS_PEP_MAX_TOKEN_TTL"] = "600"
         exp_rt, exp_acs = await serve_partner(partner_experiment.build_experiment_agent, agents.build_provider(), EXP_WS, 18754, tmp, label="exp", audit=exp_audit, cache_acs=[gpu_acs])
         runtimes = [scout_rt, writer_rt, critic_rt, gpu_rt, exp_rt]
         sup_rt, sup_state = make_caller(SUPERVISOR_WS, 18755, tmp, "sup", [scout_acs, writer_acs, critic_acs, exp_acs])
@@ -754,7 +754,7 @@ async def run_a(tmp: Path) -> dict:
                             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=3, ttl_seconds=3600)
         rec.add({"type": "token", "kind": "grant", "issuer": "sup", "holder": "exp", "domain": "lab-x-y", "maxUses": 3, "label": "域级 Grant（双签章程 · 配额 3）"})
         dt = issue_token(leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
-                         ttl_seconds=1800, not_after=grant.expires_at, max_ttl_seconds=None,
+                         ttl_seconds=600, not_after=grant.expires_at,
                          extra_claims=derive_delegation_claims(grant.claims, skill_id=GPU_SKILL))
         rec.add({"type": "token", "kind": "delegation", "issuer": "sup", "holder": "exp", "domain": "lab-x-y", "skill": GPU_SKILL, "label": "派生 Task Token（隧道用）"})
         await rec.beat()
@@ -800,7 +800,7 @@ async def run_a(tmp: Path) -> dict:
         for attempt in range(3):
             dt_fresh = issue_token(
                 leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
-                ttl_seconds=1800, not_after=grant.expires_at, max_ttl_seconds=None,
+                ttl_seconds=600, not_after=grant.expires_at,
                 extra_claims=derive_delegation_claims(grant.claims, skill_id=GPU_SKILL))
             os.environ["ACPS_EXP_GPU_TOKEN"] = dt_fresh.token
             try:

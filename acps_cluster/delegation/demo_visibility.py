@@ -1,9 +1,10 @@
-"""Phase D 域可见性过滤：V1–V4 四场景。
+"""Phase D 域可见性过滤：V1–V5 五场景。
 
 两种运行模式：
-1. **纯函数模式**（默认，无 DB/无网络/无模型）：直接调 discovery-server 的
-   `filter_rows` 纯谓词，用**真实签发的章程投影**做四场景断言——语义与线上一致，
-   因为线上走的就是这同一个函数（service.local_discover → filter_rows）。
+1. **纯函数模式**（默认，无 DB/无网络/无模型）：调用本仓
+   `delegation.visibility.filter_rows` 纯谓词，用**真实签发的章程投影**做场景断言。
+   该模块与 ACPs-community/discovery-server 的 domain_policy 保持同一套语义，
+   因此本仓可以离线验证/演示，不依赖兄弟仓路径；线上仍由发现服务侧执行同一谓词。
 2. **活栈模式**（--live，需 postgres + discovery-server）：起真服务打 HTTP。
 
 场景：
@@ -28,14 +29,14 @@ from pathlib import Path  # noqa: E402
 
 PROJECT = Path(__file__).resolve().parents[2]
 CLUSTER = PROJECT / "acps_cluster"
-DISCOVERY = PROJECT.parent / "ACPs-community" / "discovery-server"
-for _p in (str(PROJECT), str(CLUSTER), str(DISCOVERY)):
+for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from delegation.domain_manifest import (  # noqa: E402
     build_manifest, export_policy_projection, sign_manifest, to_policy, verify_manifest,
 )
+from delegation.visibility import filter_rows  # noqa: E402
 
 GPU_WS = CLUSTER / "ws-gpu"
 EXP_WS = CLUSTER / "ws-experiment"
@@ -81,8 +82,6 @@ def _projection() -> dict:
 
 
 def run_pure() -> int:
-    from app.discovery.domain_policy import filter_rows
-
     projection = _projection()
     policies = {projection["domainId"]: projection["members"]}
     out = CLUSTER / "demo_run" / "visibility"
@@ -116,7 +115,7 @@ def run_pure() -> int:
         passed += ok
         print(f"{'✅' if ok else '❌'} {name}")
         print(f"    期望 {expect_ids} / 实际 {got_ids}")
-    print(f"\n[visibility] 纯函数模式 通过 {passed}/{len(rows)}（线上 local_discover 走同一 filter_rows）")
+    print(f"\n[visibility] 纯函数模式 通过 {passed}/{len(rows)}（本仓谓词；线上 discovery-server 同语义）")
     return passed == len(rows)
 
 

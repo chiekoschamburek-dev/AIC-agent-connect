@@ -144,6 +144,8 @@ def build_issue_token_tool(
             "不必回到 leader 中转。参数：delegate_aic（受托伙伴的 AIC，通常就是你 continue 的那个等待伙伴）、"
             "target_aic（单个目标伙伴 AIC）或 targets（多个目标 AIC 的数组，一次签发多枚，用于平行扇出）、"
             "skill_id（授权的 skill id）、ttl_seconds（可选，默认 300，上限 600）。"
+            "**域管辖的技能必须同时给 parent_jti**（从域 grant 派生）：子令牌会继承域名、"
+            "父到期上界与父配额；不带 parent_jti 的令牌会被对端 PEP 以 domain-required 拒绝。"
             "**只返回 jti 句柄数组（不含令牌原文，这是有意的）**。签发后立即用 delegate_continue 把这些 jti "
             "连同给伙伴的说明发出去；**不要把 jti 之外的东西当成令牌，也不要试图构造令牌文本**。"
         ),
@@ -161,7 +163,7 @@ def build_issue_token_tool(
                 "ttl_seconds": {"type": "integer", "description": "有效期秒数，默认 300"},
                 "session_id": {"type": "string", "description": "可选：绑定会话（须等于使用时对端的 sessionId）"},
                 "parent_task_id": {"type": "string", "description": "可选：任务血缘，仅审计"},
-                "parent_jti": {"type": "string", "description": "可选：域授权的父 grant 句柄（从域 grant 派生时必填：继承域标识且有效期不超过父凭证）"},
+                "parent_jti": {"type": "string", "description": "域技能的父 grant 句柄（必填）：继承域标识、父到期上界与父使用配额；对端 PEP 会复核"},
             },
             "required": ["delegate_aic", "skill_id"],
         },

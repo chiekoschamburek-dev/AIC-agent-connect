@@ -8,6 +8,7 @@
 - client.py       受托方出站调用（delegation dataItem 构造、token 剥离、direct_fetch）
 - issuer_tool.py  leader 侧本地签发工具（只回 jti 句柄）
 - leader_tools.py leader 侧 run-scoped 挂载（签发 + delegate_continue 代码侧组装）
+- visibility.py    域可见性纯谓词（与 discovery-server 同语义；元数据层，不是访问控制）
 
 不改 wit / acps_sdk 源码：全部通过 wit 官方扩展点 `WitAgent.aip_hooks` / `WitAgent.hooks` 交付。
 """
@@ -40,6 +41,7 @@ from .pep import (
     PepConfig,
     PepOutcome,
     build_pep_hook,
+    capability_domain_scopes,
     capability_visibility,
     evaluate,
     load_pep_config,
@@ -68,13 +70,18 @@ from .bridge import (
     delegated_fetch,
 )
 from .domain_manifest import (
+    MIN_CONTINUITY_SIGNERS,
     DomainPolicy,
     build_manifest,
+    domain_state_path,
     export_policy_projection,
     load_domain_policies,
+    manifest_digest,
+    purge_domain_store,
     sign_manifest,
     to_policy,
     verify_manifest,
+    verify_revision_continuity,
     write_manifest,
 )
 from .grant import (
@@ -86,6 +93,14 @@ from .grant import (
 from .quota import QuotaStore, consume as quota_consume
 from .reconciliation import audit_window, build_report, sign_report, verify_report
 from .leader_tools import DelegationLeaderHooks, build_delegate_continue_tool
+from .visibility import (
+    filter_rows,
+    load_policy_projections,
+    overfetch_limit,
+    sanitize_acs,
+    skill_visible_to,
+    write_policy_projections,
+)
 
 
 def build_pep_hooks(**kwargs) -> list:
@@ -101,6 +116,8 @@ def build_pep_hooks(**kwargs) -> list:
     不传则**不装配**该钩子（保持既有行为，向后兼容）。
     """
     capabilities = kwargs.pop("capabilities", None)
+    if capabilities is not None and "domain_skills" not in kwargs:
+        kwargs["domain_skills"] = capability_domain_scopes(capabilities)
     admission = build_pep_hook(**kwargs)
     hooks: list = [admission, DelegationTokenScrubHooks(getattr(admission, "config", None))]
     if capabilities is not None:
@@ -165,24 +182,36 @@ __all__ = [
     "build_issue_token_tool",
     "build_issue_token_tool_from_workspace",
     "DomainPolicy",
+    "MIN_CONTINUITY_SIGNERS",
     "build_manifest",
     "audit_window",
     "build_report",
     "derive_delegation_claims",
+    "domain_state_path",
     "issue_grant",
     "export_policy_projection",
     "load_domain_policies",
+    "manifest_digest",
+    "purge_domain_store",
     "sign_manifest",
     "sign_report",
     "to_policy",
+    "filter_rows",
+    "load_policy_projections",
+    "overfetch_limit",
+    "sanitize_acs",
+    "skill_visible_to",
+    "write_policy_projections",
     "verify_grant",
     "verify_manifest",
     "verify_report",
+    "verify_revision_continuity",
     "write_manifest",
     "build_pep_hook",
     "build_pep_hooks",
     "split_pep_hooks",
     "canonical_audience",
+    "capability_domain_scopes",
     "capability_visibility",
     "certificate_sha256_fingerprint",
     "delegate_marker",

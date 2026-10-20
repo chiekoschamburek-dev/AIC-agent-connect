@@ -43,6 +43,7 @@ from delegation import (  # noqa: E402
     build_manifest,
     issue_grant,
     load_signing_context,
+    purge_domain_store,
     sign_manifest,
     token_data_item,
     verify_manifest,
@@ -159,7 +160,7 @@ def _acps_config(port: int) -> AcpsConfig:
     )
 
 
-def _manifest(*, revision: int, status: str = "active") -> dict:
+def _manifest(*, revision: int, status: str = "active", previous: dict | None = None) -> dict:
     # 关键：直接调 gpu.run 的域内 consumer 必须是 experiment（不在 provider 白名单里）。
     # leader 若亲自调用，会命中 L1 白名单并在域检查之前放行——白名单是 provider 的固有
     # 权利，不受域治理约束（domain_manifest.py 的文档化语义）。
@@ -174,6 +175,7 @@ def _manifest(*, revision: int, status: str = "active") -> dict:
         issuers=[LEADER_AIC],
         revision=revision,
         status=status,
+        previous=previous,
     )
 
 
@@ -283,6 +285,9 @@ async def main() -> None:
     # 先清掉本域的历史章程：同 domainId 取最高 revision，残留的冻结 r2 会压过新 r1
     domains_dir = GPU_WS / "acps" / "domains"
     domains_dir.mkdir(parents=True, exist_ok=True)
+    # 演示重置是**显式管理操作**：普通删除章程文件现在会被高水位/签名副本挡住
+    # （防止"删冻结文件=回滚"），所以先清 store，再清主文件。
+    purge_domain_store(domains_dir, DOMAIN)
     for stale in domains_dir.glob(f"{DOMAIN}.r*.json"):
         stale.unlink()
     r1 = _dual_sign(_manifest(revision=1, status="active"))
@@ -318,8 +323,9 @@ async def main() -> None:
                         "sandbox_run": None, "audit": _audit_lines(audit)[-1:]})
         print(f"[G3] state={state}", flush=True)
 
-        # G4：r2 冻结（双签驱替）→ 重启实例加载新章程 → 新 grant 也死（验签前）
-        r2 = _dual_sign(_manifest(revision=2, status="frozen"))
+        # G4：r2 冻结（双签驱替，绑定 r1 正文并由同一对签署方连署）
+        # → 重启实例加载新章程 → 新 grant 也死（验签前）
+        r2 = _dual_sign(_manifest(revision=2, status="frozen", previous=r1))
         verify_manifest(r2, trust_bundle=TRUST)
         write_manifest(r2, domains_dir)
         await gpu_rt.stop_serving()

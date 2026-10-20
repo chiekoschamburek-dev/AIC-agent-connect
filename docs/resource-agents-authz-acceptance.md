@@ -315,8 +315,13 @@ cat <workspace>/acps/client/certificate.pem >> <workspace>/acps/trust-bundle.pem
   aud = acps:agent:…<资源 agent AIC>      （受众 = 目标资源 agent）
   act = {aic: …JXN8O8.98DOO8.0EB6}        （调用方绑定）
   acps_skill_id = cpu.run                 （能力绑定）
-  无 acps_domain claim                     → 不走域路径（KB 无需章程即可通过）
+  无 acps_domain claim                     → 普通技能走非域路径；若目标技能声明
+                                           visibility=domain，PEP 现在会 deny domain-required
 ```
+
+> 2026-10-20 域硬化后：`acps_domain` 只能由 `derive_delegation_claims()` 从域 grant
+> 派生进子令牌；子令牌还必须携带 `acps_parent_jti/exp/max_uses`，PEP 会复核
+> `exp ≤ 父 exp` 并继续扣父 grant 配额。
 
 ## 6. 注册路径实测（2026-10-11）：可程序化提交，但**必须人工审核**
 
@@ -413,24 +418,28 @@ skills = kb.schema / kb.query / kb.ingest（均带描述与 examples）
 
 ## 7. 关于 yanshu-kb 域章程（可选硬化；脚本已就绪并通过流程验证）
 
-### 5.1 它不阻塞"必须令牌"这一需求
+### 5.1 本机声明现在参与准入裁决（2026-10-20 硬化）
 
 `partner_kb.py` 的 `kb.query` / `kb.ingest` 声明了
 `acps_skill={"visibility": "domain", "domains": ["yanshu-kb"]}`。
 
-**实测结论：这个本机声明本身不参与准入裁决**——
-`pep.py:486` 的 `token_domain` 取自**令牌的 `acps_domain` claim**：
+**旧行为（已修复）**：`token_domain` 只取令牌的 `acps_domain` claim，所以 leader
+用一枚普通委托令牌调 KB 时根本不碰域校验——代码里写着 domain，平台/PEP 却看不到。
 
-```python
-token_domain = str(pre_claims.get("acps_domain") or "")
-domain_policy = current_domains(cfg).get(token_domain) if token_domain else None
-if token_domain:
-    if domain_policy is None:  → deny "domain-unknown"
-```
+**现在**：`build_pep_hooks(capabilities=...)` 会把代码声明解析成
+`PepConfig.domain_skills`（发现层元数据 + 域令牌的目标域约束）；**访问控制本身
+以已发布的域章程资产表为准**：
 
-所以：
-- **leader 用普通委托令牌调 KB → 不碰域校验，无需章程即可通过**（需求 (2)(3) 已满足）；
-- 只有走**域级授权**（域 grant 派生令牌）时才必须有章程，否则 `deny / domain-unknown`。
+- **代码声明 `visibility=domain` 且章程资产表收录**的技能，普通委托令牌
+  （无 `acps_domain`）→ `deny / domain-required`（KB 两者都有，因此这条现在生效）；
+- 域令牌的 `acps_domain` 必须与代码声明的目标域/章程集合一致 → 否则
+  `deny / domain-skill-mismatch`；
+- 域令牌缺失 → `domain-unknown`；冻结 → `domain-frozen`（仍在验签前）；
+- 域令牌必须由 grant 派生，并携带 `acps_parent_jti/exp/max_uses`，否则
+  `deny / invalid-parent-binding`；子令牌 `exp > 父 exp` 同样拒绝。
+
+代码声明单独不会凭空造出一个域（避免把尚未建章程的 scout/hpc 能力锁死）；
+章程一旦发布，高水位/签名副本会保证它不会因删文件而失效。
 
 ### 5.2 生成脚本与**必须遵守的两条约束**
 
@@ -454,6 +463,11 @@ manifest-signer-not-party: 签名者不是域成员/签发者
 （设计意图：防"两个自注册身份双签一份把自己列为 issuer+资产的章程"。）
 
 ⚠️ **约束二：至少 2 位不同的签名者**（`MIN_SIGNATURES = 2`），且不能是同一方签两次。
+
+⚠️ **约束三：revision>1 必须引用上一版**。脚本会自动找
+`<out-dir>/<domain>.r{revision-1}.json`（或 `--previous <文件>`），新版写入
+`previousRevision` / `previousDigest`；加载器要求上一版至少 2 位签署方连署。
+否则修订会被隔离（不会毒化域，但也绝不生效）。
 
 因此 **KB 必须自己先注册**（拿到证书才能作为签名者），之后：
 
@@ -632,24 +646,30 @@ supervisor 的调用在 **L1 白名单**就被放行（审计里是 `leader-allo
    ```
    双签方都必须是域当事方，否则 `verify_manifest` 判 `manifest-signer-not-party`，
    而 `load_domain_policies` 验签失败时**不会报错、会把章程毒化成 frozen**（脚本已拦住并回读校验）。
-4. **（可选，真要把 leader 卡住才做）改服务 env**：`ACPS_PEP_LEADER_AICS=` 置空。
-   原因是 delegation 那条路是
-   `allowed_issuers = cfg.leader_aics | set(domain_policy.issuers)`，只要白名单还写着
-   supervisor，它自签的**委托令牌**（非 grant）就仍然有效——B3 只做了一半。
-   **代价**：置空后现有"leader 带自签委托令牌调 KB"的通路立即失效，必须先由本馆
-   给 supervisor 签一枚 grant 才能恢复；`ACPS_PEP_LEADER_DIRECT=0`（已置）与此独立。
-   只做演示"域概念成立"的话可以不做这步：K11 已经在 grant 通道上证明了
-   章程权威（`issuer-not-in-domain`），不必把另一条门也焊死。
-   置空后 grant 通道照常工作，因为它只比对 `policy.issuers`；PEP 会打一条
-   "leader 白名单为空"的告警，是预期的。
+4. **`ACPS_PEP_LEADER_AICS` 可以保留**：`kb.query` 已声明 domain，普通委托令牌
+   会先被 `deny / domain-required`，不依赖"白名单置空"来堵；`ACPS_PEP_LEADER_DIRECT=0`
+   （已置）关掉的是 L1 直调通道。域令牌的签发者仍按
+   `cfg.leader_aics | domain_policy.issuers` 校验，保留 leader 只影响它签的**域令牌**；
+   而 `issue_token` 现在拒绝无父 grant 的域令牌，所以这条通路也被收紧。
 5. **给消费方签 grant**：`kb_admin.py grant --subject <消费方 AIC> --skill kb.query`，带外递令牌
-   （落 `ws-kb/acps/grants/<jti>.token`，不进模型上下文）。
-   **不做第 4 步时新旧两条通路并存**，现网调用不受任何影响——r2 只是把"谁能签发 grant"
-   从 leader 收窄到本馆，属于零风险的一步。
-6. **复跑准入矩阵** `acceptance_kb_live.sh`：若做了第 4 步，"leader 指名 kb.query
-   （携自签委托令牌）→ allow / delegation-token"这一行会变 deny，是预期变更不是回归；
-   若不做第 4 步，该行照旧，只需另测"持本馆 grant → allow / domain-grant"。
-7. **回滚**：删掉 `yanshu-kb.r2.json` 即回落 r1（`load_domain_policies` 取最高 revision）。
+   （落 `ws-kb/acps/grants/<jti>.token`，不进模型上下文）。消费方/leader 要用时，
+   必须用 `derive_delegation_claims()` 从这枚 grant 派生 task token；普通令牌不再
+   能"换条路"调域技能。
+6. **复跑准入矩阵** `acceptance_kb_live.sh`：`kb.query` 已声明 domain，因此
+   "leader 指名 kb.query（携普通委托令牌）"现在会 `deny / domain-required`
+   （2026-10-20 起，即使不做第 4 步也一样）；要放行必须由域 issuer 签发 grant，
+   再派生携带父绑定的 task token。
+7. **回滚**：删除 `yanshu-kb.r2.json` **不再**自动回落 r1——2026-10-20 起
+   `load_domain_policies` 有高水位 + 签名副本，删除冻结文件仍保持冻结
+   （防"删文件即解冻"）。需要显式管理操作：
+   ```sh
+   python -c "from delegation import purge_domain_store; \
+       purge_domain_store('ws-kb/acps/domains', 'yanshu-kb')"
+   rm ws-kb/acps/domains/yanshu-kb.r2.json
+   ```
+   第一步会清掉该域的高水位与签名副本；不执行它就删文件，域仍按已知最高版本裁决。
+   修订链本身也必须连续：r2 必须带 `previousRevision/previousDigest`，并由 r1
+   的至少两位签署方连署；新脚本已自动写入。
 
 ### B3 的边界（不是缺口，是这个体系的边界）
 

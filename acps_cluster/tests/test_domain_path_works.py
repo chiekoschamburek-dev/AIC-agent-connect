@@ -29,10 +29,8 @@ token 的 acps_domain claim
 
 from __future__ import annotations
 
-import json
 import sys
 import tempfile
-import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -46,6 +44,7 @@ from delegation.domain_manifest import (  # noqa: E402
     sign_manifest,
     write_manifest,
 )
+from delegation.grant import derive_delegation_claims, issue_grant  # noqa: E402
 from delegation.pep import PepConfig, evaluate  # noqa: E402
 from delegation.token import issue_token, load_signing_context  # noqa: E402
 
@@ -83,7 +82,7 @@ def _make_charter(out_dir: Path, *, status: str = "active") -> None:
     write_manifest(signed, out_dir)
 
 
-def _cfg(domains: dict, *, my_aic: str) -> PepConfig:
+def _cfg(domains: dict, *, my_aic: str, quota_path=None) -> PepConfig:
     return PepConfig(
         enabled=True, my_aic=my_aic,
         public_skills=frozenset({"kb.schema"}), has_non_public_skills=True,
@@ -92,6 +91,7 @@ def _cfg(domains: dict, *, my_aic: str) -> PepConfig:
         trust_bundle=BUNDLE,
         domains=domains,          # 直接注入已验证的章程（等价于从 domains_dir 加载）
         domains_dir=None,
+        quota_path=quota_path,    # 派生委托按父 grant 的 max_uses 扣配额
     )
 
 
@@ -121,16 +121,23 @@ def main() -> int:
               f"assets={len(pol.assets)} issuers={len(pol.issuers)}")
         domains = {DOMAIN: pol}
 
-        # 域令牌：provider=本机(LEADER)，带 acps_domain
-        def issue_dom(caller_delegate: str, *, domain: str = DOMAIN) -> str:
+        # 域令牌：provider=本机(LEADER)。现在必须从一枚父 grant 派生——子令牌会带上
+        # parent_jti/exp/max_uses，PEP 才能独立复核并继续扣父配额。
+        def issue_dom(caller_delegate: str, *, domain: str = DOMAIN,
+                      skill: str = "kb.query") -> str:
+            parent = issue_grant(
+                sc, domain=domain, domain_revision=1, subject_aic=LEADER,
+                assets=[{"providerAic": LEADER, "skill": skill}],
+                max_uses=10, ttl_seconds=3600,
+            )
             return issue_token(
-                sc, delegate_aic=caller_delegate, target_aic=LEADER, skill_id="kb.query",
-                ttl_seconds=300, include_intermediates=True,
-                extra_claims={"acps_domain": domain, "acps_domain_revision": 1},
+                sc, delegate_aic=caller_delegate, target_aic=LEADER, skill_id=skill,
+                ttl_seconds=300, not_after=parent.expires_at, include_intermediates=True,
+                extra_claims=derive_delegation_claims(parent.claims, skill_id=skill),
             ).token
 
         # 1) 域成员 + 章程 → 放行
-        cfg = _cfg(domains, my_aic=LEADER)
+        cfg = _cfg(domains, my_aic=LEADER, quota_path=out / "quota.sqlite3")
         out1 = evaluate(_req(MEMBER, issue_dom(MEMBER)), cfg)
         print(f"  [1] 域成员（{MEMBER[-18:]}）+ 章程 → {out1.decision} / {out1.rule}")
         if not out1.allowed:
@@ -142,12 +149,8 @@ def main() -> int:
         if out2.allowed:
             failures.append("[2] 域外调用方被放行")
 
-        # 3) skill 未被 asset 授权 → 拒绝
-        tok3 = issue_token(
-            sc, delegate_aic=MEMBER, target_aic=LEADER, skill_id="kb.ingest",
-            ttl_seconds=300, include_intermediates=True,
-            extra_claims={"acps_domain": DOMAIN, "acps_domain_revision": 1},
-        ).token
+        # 3) skill 未被 asset 授权 → 拒绝（父 grant 覆盖它，但章程资产表不放行）
+        tok3 = issue_dom(MEMBER, skill="kb.ingest")
         out3 = evaluate(_req(MEMBER, tok3, skill="kb.ingest"), cfg)
         print(f"  [3] 请求未授权 skill（kb.ingest，asset 只允许 kb.query）→ "
               f"{out3.decision} / {out3.rule}")

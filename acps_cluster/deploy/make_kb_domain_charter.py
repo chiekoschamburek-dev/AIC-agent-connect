@@ -6,11 +6,14 @@
 `partner_kb.py` 的 `kb.query` / `kb.ingest` 声明了
 `acps_skill={"visibility": "domain", "domains": ["yanshu-kb"]}`。
 
-**注意（2026-10-11 实测）**：该本机声明**本身不参与准入裁决**——`pep.py` 的
-`token_domain` 取自**令牌的 `acps_domain` claim**。因此：
-  · 普通委托令牌调 KB → 不碰域校验 → 走的是 leader 白名单那条路；
-  · 走**域级授权**（grant 或 grant 派生令牌）才必须有章程，否则带 `acps_domain`
-    的令牌被判 `deny / domain-unknown`。
+**注意（2026-10-20 硬化后）**：该声明现在**参与准入裁决**——
+`build_pep_hooks(capabilities=...)` 会把 `visibility=domain` 解析成
+`PepConfig.domain_skills`。因此：
+  · 普通委托令牌（无 `acps_domain`）调 KB → `deny / domain-required`；
+  · 必须走**域级授权**：issuer 签 grant → `derive_delegation_claims()` 派生 task
+    token（带 `acps_parent_jti/exp/max_uses`）→ 才能通过 PEP；
+  · 本地缺章程时域令牌判 `deny / domain-unknown`；章程冻结则在验签前
+    `deny / domain-frozen`。
 
 ## B3：谁有权签发（2026-10-18 改）
 
@@ -33,6 +36,9 @@
 - `issuers`: 必须**都是域成员**
 - `MIN_SIGNATURES = 2` → **至少两方签名**，且签名者必须是域当事方（members ∪ issuers）；
   第二签从消费方工作区出，语义是"消费方确认条款"，不是"上级批准"
+- `revision > 1`：必须引用上一版（自动找 `.r{revision-1}.json`，或 `--previous`）。
+  新版会写 `previousRevision/previousDigest`，并由上一版至少两位签署方连署；
+  加载器按高水位拒绝"删冻结文件回旧 active"与"两个新身份自签高版本"。
 
 ## 用法
 
@@ -62,6 +68,7 @@ from delegation.domain_manifest import (  # noqa: E402
     build_manifest,
     load_domain_policies,
     sign_manifest,
+    verify_manifest,
     write_manifest,
 )
 from delegation.token import load_signing_context  # noqa: E402
@@ -102,10 +109,16 @@ def main() -> int:
                          "测试时指向临时目录，避免污染现网工作区——这是本脚本第一版的一个坑："
                          "把 --kb-workspace-name 当输出目录会直接写进别人家工作区。")
     ap.add_argument("--revision", type=int, default=1)
+    ap.add_argument("--previous", default=None,
+                    help="上一版章程文件（revision>1 必填/可自动发现）。"
+                         "新版本必须绑定上一版正文并由上一版签署方连署。")
     ap.add_argument("--valid-until", default=None, help="可选，格式如 2027-12-31T23:59:59Z")
     ap.add_argument("--dry-run", action="store_true", help="只打印，不落盘")
     args = ap.parse_args()
     root = Path(args.root)
+    if args.revision < 1:
+        print("  ✘ --revision 必须 ≥ 1")
+        return 2
 
     consumers = list(args.consumer_aic)
     if args.leader_aic:
@@ -133,9 +146,57 @@ def main() -> int:
             print(f"  ✘ 签发者 {issuer[-24:]} 不是域成员，章程验不过")
             return 2
 
+    out_dir = (Path(args.out_dir) if args.out_dir
+               else root / f"ws-{args.kb_workspace_name}" / "acps" / "domains")
+    sign_workspaces = list(args.sign_with) or [args.kb_workspace_name, "supervisor"]
+    bundle = root / f"ws-{args.kb_workspace_name}" / "acps" / "trust-bundle.pem"
+    if not bundle.is_file():
+        bundle = root / f"ws-{sign_workspaces[0]}" / "acps" / "trust-bundle.pem"
+
+    existing = sorted(
+        out_dir.glob(f"{DOMAIN_ID}.r*.json"),
+        key=lambda p: int(p.stem.rsplit(".r", 1)[-1]),
+    ) if out_dir.is_dir() else []
+    if existing:
+        top = int(existing[-1].stem.rsplit(".r", 1)[-1])
+        if top >= args.revision:
+            print(f"  ✘ 目录里已有 {DOMAIN_ID}.r{top}（≥ 本次 revision={args.revision}）。"
+                  f"修订必须升 revision；回滚要显式走 purge_domain_store。")
+            return 2
+
+    previous_manifest = None
+    if args.revision > 1:
+        prev_path = Path(args.previous) if args.previous else None
+        if prev_path is None:
+            exact = out_dir / f"{DOMAIN_ID}.r{args.revision - 1}.json"
+            if exact.is_file():
+                prev_path = exact
+            elif existing:
+                prev_path = existing[-1]
+        if prev_path is None or not prev_path.is_file():
+            print(f"  ✘ revision={args.revision} 必须引用上一版章程："
+                  f"{out_dir} 下找不到 {DOMAIN_ID}.r{args.revision - 1}.json，"
+                  f"也没有更高版本可自动发现。用 --previous <文件> 显式指定。")
+            return 2
+        try:
+            previous_manifest = json.loads(prev_path.read_text(encoding="utf-8"))
+            prev_body, _ = verify_manifest(previous_manifest, trust_bundle=bundle)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ✘ 上一版章程 {prev_path} 验签失败：{type(exc).__name__}: {exc}")
+            return 2
+        prev_rev = int(prev_body.get("revision") or 0)
+        if prev_rev >= args.revision:
+            print(f"  ✘ 上一版 revision={prev_rev} 不低于新 revision={args.revision}")
+            return 2
+        print(f"  上一版      = r{prev_rev} ({prev_path.name}) → 新版本将绑定其正文摘要")
+    elif args.previous:
+        print("  ✘ revision=1 不能使用 --previous")
+        return 2
+
     manifest = build_manifest(
         domain_id=DOMAIN_ID, members=members, assets=assets, issuers=issuers,
         revision=args.revision, status="active", valid_until=args.valid_until,
+        previous=previous_manifest,
     )
     print(f"  domain_id   = {DOMAIN_ID}  revision={args.revision}")
     print(f"  members     = {[(m['aic'][-24:], m['role']) for m in members]}")
@@ -144,10 +205,8 @@ def main() -> int:
           f"{'（资源方自签）' if issuers == [args.kb_aic] else '（多签发方）'}")
     print(f"  法定签名数  = {MIN_SIGNATURES}")
 
-    # 签名者必须是域当事方（members ∪ issuers），且必须互不相同
     # 签名者必须是域当事方（members ∪ issuers）且互不相同。默认：本馆 + leader 的工作区
     # （leader 现在是 consumer 成员，它的签名含义是"消费方确认条款"，不再是"我批准你"）
-    sign_workspaces = list(args.sign_with) or [args.kb_workspace_name, "supervisor"]
     party_aics = {m["aic"] for m in members} | set(issuers)
     signed = dict(manifest)
     signers = []
@@ -179,8 +238,6 @@ def main() -> int:
         print(f"  ✘ 签名者不足 {MIN_SIGNATURES} 个（当前 {len(seen_aics)}）")
         return 2
 
-    out_dir = (Path(args.out_dir) if args.out_dir
-               else root / f"ws-{args.kb_workspace_name}" / "acps" / "domains")
     if args.dry_run:
         print(f"  （dry-run）将写入 {out_dir}")
         print("  --- 章程摘要")
@@ -194,10 +251,6 @@ def main() -> int:
 
     # 立刻回读验签（fail-closed：验不过就等于没生效）。
     # bundle 用 **KB 工作区**的（域策略由 KB 侧加载）；测试时若 KB 不存在则退回首个签名工作区。
-    bundle = root / f"ws-{args.kb_workspace_name}" / "acps" / "trust-bundle.pem"
-    if not bundle.is_file():
-        bundle = root / f"ws-{sign_workspaces[0]}" / "acps" / "trust-bundle.pem"
-        print(f"  （提示：ws-{args.kb_workspace_name} 无 bundle，回读改用 {bundle.parent.parent.name} 的）")
     policies = load_domain_policies(out_dir, trust_bundle=bundle)
     pol = policies.get(DOMAIN_ID)
     if pol is None:
@@ -210,7 +263,12 @@ def main() -> int:
         print(f"  ✘ 回读为**毒化态**（验签失败或已冻结）：status={pol.status} "
               f"members={len(pol.members)} assets={len(pol.assets)}")
         print("     常见原因：① 签名者不是域成员/签发者（verify_manifest 的 "
-              "manifest-signer-not-party）；② trust-bundle 缺中间 CA；③ 签名数不足 2。")
+              "manifest-signer-not-party）；② trust-bundle 缺中间 CA；③ 签名数不足 2；"
+              "④ revision>1 缺上一版签署方连署/正文摘要不匹配。")
+        return 3
+    if pol.revision != args.revision:
+        print(f"  ✘ 回读到的不是本次版本：期望 r{args.revision}，实际 r{pol.revision}"
+              f"（高水位里已有更高/不同版本，拒绝静默覆盖）。")
         return 3
     print(f"  ✔ 回读验签通过：revision={pol.revision} status={pol.status} "
           f"members={len(pol.members)} assets={len(pol.assets)} issuers={len(pol.issuers)}")
