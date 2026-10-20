@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import importlib.util
 import json
@@ -19,6 +20,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 CLUSTER = Path(__file__).resolve().parents[1]
 PROJECT = CLUSTER.parent
@@ -26,6 +29,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from acps_cluster.agent_profile import make_agent_info  # noqa: E402
 from acps_cluster.delegation.pep import capability_domain_scopes  # noqa: E402
 from acps_cluster.delegation.visibility import (  # noqa: E402
     filter_rows,
@@ -181,6 +185,62 @@ class AcsVisibilityTest(unittest.TestCase):
             validator.validate(_skill(visibility="domain"))
 
 
+class AgentInfoTemplateTest(unittest.TestCase):
+    """纯 domain agent 的 public 锚点：agent.info 是普通 public 能力，不是过滤特例。"""
+
+    def _info(self):
+        return make_agent_info(
+            agent_id="yanshu.example",
+            display_name="示例资源 agent",
+            summary="公开档案：只说明身份与职责。",
+            public_skills=("example.status", "example.health"),
+        )
+
+    def test_agent_info是public且非domain(self):
+        from acps_cluster.delegation.pep import capability_visibility
+
+        info = self._info()
+        public, _ = capability_visibility([info])
+        self.assertIn("agent.info", public)
+        self.assertNotIn("agent.info", capability_domain_scopes([info]))
+        skill = info.capability.to_acps_skill()
+        self.assertEqual(skill.get("id"), "agent.info")
+        self.assertIsNone(skill.get("visibility"))
+
+    def test_handler只返回公开档案(self):
+        result = asyncio.run(self._info()())
+        self.assertEqual(result["agentId"], "yanshu.example")
+        self.assertEqual(result["displayName"], "示例资源 agent")
+        self.assertEqual(result["publicSkills"], ["example.health", "example.status"])
+        self.assertEqual(result["profileVisibility"], "public")
+
+    def test_纯domain能力加agent_info后守卫通过(self):
+        from acps_cluster.delegation.pep import capability_visibility
+
+        domain_only = SimpleNamespace(
+            id="example.domain_only", public=False,
+            acps_skill={"visibility": "domain", "domains": ["d"]},
+        )
+        caps = [domain_only, self._info()]
+        public, _ = capability_visibility(caps)
+        domain = set(capability_domain_scopes(caps))
+        self.assertEqual(public - domain, {"agent.info"})
+
+    def test_validate_acs识别工厂调用(self):
+        validate_acs = _load_script("validate_acs")
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "fake_agent.py").write_text(
+                "from agent_profile import make_agent_info\n"
+                "INFO = make_agent_info(agent_id='a', display_name='A', summary='s')\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(validate_acs, "CLUSTER", root):
+                declared, arity = validate_acs.capability_ids_from_module("fake_agent")
+        self.assertIn("agent.info", declared)
+        self.assertEqual(arity.get("agent.info"), 0)
+
+
 class AgentDiscoverabilityGuardTest(unittest.TestCase):
     """能力不可见 ≠ agent 不可见：每个 agent 至少保留一个 public 非 domain 能力。
 
@@ -207,11 +267,9 @@ class AgentDiscoverabilityGuardTest(unittest.TestCase):
             ):
                 caps.append(value)
             elif isinstance(value, (list, tuple)):
-                caps.extend(
-                    item for item in value
-                    if getattr(item, "capability", None) is not None
-                    and getattr(item, "__module__", None) == module.__name__
-                )
+                # 列表是 agent 自己的能力清单；共享工厂（agent_profile.make_agent_info）
+                # 产物的 __module__ 不在这里，也要算进来。
+                caps.extend(item for item in value if getattr(item, "capability", None) is not None)
         return caps
 
     def test_each_agent_has_public_non_domain_capability(self):

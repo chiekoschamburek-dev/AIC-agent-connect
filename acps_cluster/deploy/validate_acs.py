@@ -164,6 +164,16 @@ def capability_ids_from_module(module_name: str) -> tuple[set[str], dict[str, in
             n_params -= sum(1 for a in (*args.args, *args.kwonlyargs) if a.arg in excluded)
             n_params -= sum(1 for a in (*args.args, *args.kwonlyargs) if _is_wit_runtime(a))
             arity[id_node.value] = max(0, n_params)
+    # 共享工厂构造的能力没有 @capability 装饰器，但同样是代码声明；
+    # 目前只有纯 domain agent 的 public profile 使用这个通道。
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "make_agent_info"
+        ):
+            declared.add("agent.info")
+            arity.setdefault("agent.info", 0)
     return declared, arity
 
 

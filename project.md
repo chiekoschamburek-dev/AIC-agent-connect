@@ -87,12 +87,14 @@ kb.query 以 consumer 视角实测 curator 档零值泄露。
   `visibility=domain` 仅域成员可见、匿名只见 public、**agent 无可见 skill 则整体不出现
   (存在性不泄露)**;响应内 ACS 体同步脱敏;本仓已有同语义纯函数(`delegation.visibility`)
   与 ACS 透传(registry schema 接受 `visibility/domains`),平台侧由 discovery-server 执行;
-  定调为元数据层收窄(访问控制永远在 PEP);
+  定调为元数据层收窄(访问控制永远在 PEP)。若某个新 agent 的能力全部是 domain/非公开，
+  用 `agent_profile.make_agent_info` 加一个 public `agent.info` 作为可发现锚点；
+  现有已注册 agent 都已有 public 非 domain 能力，不新增、不改 ACS。
 - **自然推论二:三层能力声明**:`public`(橱窗,引流)/ 非公开(保险柜,凭证准入)/
   `visibility=domain`(会员制,域内可见)——三层是运营决策,改声明即翻转,零代码改动。
 
-**验证**:域/修订链/派生硬化/可见性离线回归 58 项(test_domain 31 + hardening 16 +
-visibility 11);域×真 GPU G1–G4(allow→配额拒→冻结拒);两机构双边域 S1–S5;
+**验证**:域/修订链/派生硬化/可见性离线回归 62 项(test_domain 31 + hardening 16 +
+visibility 15);域×真 GPU G1–G4(allow→配额拒→冻结拒);两机构双边域 S1–S5;
 Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
 
 ---
