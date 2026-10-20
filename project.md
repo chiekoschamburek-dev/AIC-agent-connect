@@ -91,8 +91,8 @@ kb.query 以 consumer 视角实测 curator 档零值泄露。
 - **自然推论二:三层能力声明**:`public`(橱窗,引流)/ 非公开(保险柜,凭证准入)/
   `visibility=domain`(会员制,域内可见)——三层是运营决策,改声明即翻转,零代码改动。
 
-**验证**:域/修订链/派生硬化/可见性离线回归 57 项(test_domain 31 + hardening 16 +
-visibility 10);域×真 GPU G1–G4(allow→配额拒→冻结拒);两机构双边域 S1–S5;
+**验证**:域/修订链/派生硬化/可见性离线回归 58 项(test_domain 31 + hardening 16 +
+visibility 11);域×真 GPU G1–G4(allow→配额拒→冻结拒);两机构双边域 S1–S5;
 Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
 
 ---

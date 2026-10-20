@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import json
 import sys
@@ -178,6 +179,60 @@ class AcsVisibilityTest(unittest.TestCase):
         validator.validate(_skill(visibility="domain", domains=["yanshu-eval"]))
         with self.assertRaises(ValidationError):
             validator.validate(_skill(visibility="domain"))
+
+
+class AgentDiscoverabilityGuardTest(unittest.TestCase):
+    """能力不可见 ≠ agent 不可见：每个 agent 至少保留一个 public 非 domain 能力。
+
+    这是对“无可见能力则整个 agent 消失”这一副作用的守门：现有 agent 都有
+    `research.orchestrate` / `gpu.env` / `eval.benchmark_info` 之类的公开入口，
+    不需要额外加 `agent.info`，也不会改已注册 ACS。将来若新增一个纯 domain agent，
+    这个测试会先失败，迫使显式选择“加 public profile 能力”或“接受 agent 隐身”。
+    """
+
+    AGENT_MODULES = (
+        "supervisor", "partner_scout", "partner_writer", "partner_synthesis",
+        "partner_critic", "partner_frontier", "partner_contradiction",
+        "partner_experiment", "partner_gpu", "partner_cpu", "partner_model",
+        "partner_eval", "partner_kb", "partner_hpc", "partner_citation",
+    )
+
+    @staticmethod
+    def _module_capabilities(module) -> list:
+        caps = []
+        for value in vars(module).values():
+            if (
+                getattr(value, "capability", None) is not None
+                and getattr(value, "__module__", None) == module.__name__
+            ):
+                caps.append(value)
+            elif isinstance(value, (list, tuple)):
+                caps.extend(
+                    item for item in value
+                    if getattr(item, "capability", None) is not None
+                    and getattr(item, "__module__", None) == module.__name__
+                )
+        return caps
+
+    def test_each_agent_has_public_non_domain_capability(self):
+        from acps_cluster.delegation.pep import (
+            capability_domain_scopes,
+            capability_visibility,
+        )
+
+        missing: list[str] = []
+        for module_name in self.AGENT_MODULES:
+            module = importlib.import_module(module_name)
+            capabilities = self._module_capabilities(module)
+            public, _ = capability_visibility(capabilities)
+            domain = set(capability_domain_scopes(capabilities))
+            if not (public - domain):
+                missing.append(f"{module_name}(public={sorted(public)}, domain={sorted(domain)})")
+        self.assertFalse(
+            missing,
+            "以下 agent 没有 public 非 domain 能力，会在能力全隐藏时整体消失: "
+            + ", ".join(missing),
+        )
 
 
 if __name__ == "__main__":
