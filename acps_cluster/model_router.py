@@ -2,7 +2,7 @@
 
 ## 为什么单独一个模块
 
-集群里所有 agent 都经 `agents.build_provider()` 拿 provider，而部分能力
+集群里所有 agent 都经 `bootstrap.build_provider()` 拿 provider，而部分能力
 （`llm_tools.chat`）另走一条 HTTP 直连。要让"主用/保底"对**两条路径都生效**，
 逻辑必须收在一处，两处共用同一份配置解析。
 

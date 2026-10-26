@@ -25,6 +25,7 @@ yanshu-AIC/
 │   ├── covert_event_guard.py     # 兼容 shim（让原模块路径继续可用）
 │   ├── partner_*.py              # 各研究 / 资源 agent 与 workspace 存储实例
 │   ├── supervisor.py             # 编排器：发现 → 计划 → 委派 → 汇总
+│   ├── bootstrap.py              # 启动引导：.env 加载、模型路由、LLM 调用硬闸
 │   ├── cluster_roster.py         # 名册（本地 + 外部成员）
 │   ├── discovery_metadata.py     # 能力分层、可见范围与发现层元数据
 │   ├── viz_live.py               # 前端数据后端：run → Scenario、ws_file/ws_zone、guard_alert
@@ -37,8 +38,6 @@ yanshu-AIC/
 │   └── wenji/                    # 问迹（subtree，含其自有 frontend/）
 ├── cluster-viz/                  # 集群总览前端（React + Vite + ReactFlow）
 ├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、运行手册
-├── hooks.py                      # WIT 官方扩展点（运行日志 / 工具重试 / 资料注入）
-├── agents.py                     # 单 agent 示例入口（早期示例，保留可运行）
 ├── project.md                    # 项目总览、实验与量化证据
 ├── requirements.txt / pyproject.toml
 ├── vendor/acps_sdk-*.whl         # 随仓库分发（MulanPSL-2.0）；wit_framework 不分发
@@ -137,8 +136,10 @@ yanshu-AIC/
   `acps_cluster/deploy/amp_heartbeat_sender.py`、`amp_heartbeat_mirror.py`、
   `amp_access_sender.py`，以及 `partners/designer/src/amp_kafka_forwarder.py`
   （JSONL → Kafka，断点续传）。见 [docs/amp-compliance-and-gaps.md](docs/amp-compliance-and-gaps.md)。
-- **hooks.py 官方扩展点**：`RunLogger`、`ToolRetry`、`MaterialContext` 三个 `WitHooks`
-  实现；AIP 入参外壳化在 `acps_cluster/aip_guard.py`。
+- **WIT 官方扩展点**：集群的日志、重试、上下文注入与 AIP 入参外壳化全部通过
+  `WitHooks` 实现（见 `acps_cluster/supervisor.py`、`acps_cluster/aip_guard.py`），
+  未修改框架源码；启动引导（`.env`、模型路由、LLM 调用硬闸）在
+  `acps_cluster/bootstrap.py`。
 
 ### 5. 前端 viz
 

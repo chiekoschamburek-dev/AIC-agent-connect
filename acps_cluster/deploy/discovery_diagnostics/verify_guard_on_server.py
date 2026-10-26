@@ -68,7 +68,7 @@ async def one(key: str, ws_name: str, prefix: str) -> bool:
 
     set_paths()
     for mod_name in list(sys.modules):
-        if mod_name.startswith(("partner_", "cluster_common", "discovery_metadata", "agents", "supervisor")):
+        if mod_name.startswith(("partner_", "cluster_common", "discovery_metadata", "bootstrap", "supervisor")):
             del sys.modules[mod_name]
 
     cc = importlib.import_module("cluster_common")

@@ -20,7 +20,7 @@ pydantic>=2.10.0
 cryptography>=42.0.0
 jcs>=0.2.0
 
-# 说明：agents.py 的 .env 加载是零依赖自实现（load_env_file），无需 python-dotenv。
+# 说明：acps_cluster/bootstrap.py 的 .env 加载是零依赖自实现（load_env_file），无需 python-dotenv。
 # 标准库（asyncio/json/pathlib/re/os/sys/time/datetime/dataclasses/typing/
 # collections.abc/xml.etree）不列入。
 # acps_cluster/group（消息队列群组）如需启用，追加：aio-pika>=10.0.1,<11

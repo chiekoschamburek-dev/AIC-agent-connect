@@ -1,4 +1,4 @@
-#!/bin/sh
+﻿#!/bin/sh
 # 审核通过后：把 KB 注册状态恢复/迁移到正式工作区 ws-kb，并跑通到就绪
 #
 # 背景（2026-10-11 实测）：
@@ -80,12 +80,12 @@ for ln in envfile.read_text(encoding='utf-8').splitlines():
         os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 os.environ.setdefault('ACPS_PEP_MY_AIC', '1.2.156.3088.1.BUPT.VTF97R.PLACEHLD.PLACEH.PLC1')
 sys.path.insert(0, '/opt/wit/my-project'); sys.path.insert(0, '/opt/wit/my-project/acps_cluster')
-import agents, cluster_common
+import bootstrap, cluster_common
 from wit import WitRuntime
 import partner_kb
 
 async def main():
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     rt = WitRuntime(partner_kb.build_kb_agent(provider), workspace=Path(sys.argv[1]),
                     acps=cluster_common.build_acps_config(8464))
     try:

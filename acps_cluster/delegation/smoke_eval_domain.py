@@ -27,7 +27,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
 
 import os
 
-import agents  # noqa: E402
+import bootstrap  # noqa: E402
 import partner_eval  # noqa: E402
 from delegation import demo_pep as dp  # noqa: E402
 from delegation import issue_grant, load_signing_context, token_data_item  # noqa: E402
@@ -52,7 +52,7 @@ async def main() -> None:
     os.environ["ACPS_PEP_LEADER_AICS"] = SUPERVISOR_AIC
     os.environ["ACPS_PEP_AUDIT_PATH"] = str(AUDIT)
 
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     eval_rt = WitRuntime(
         partner_eval.build_eval_agent(provider), workspace=CLUSTER / "ws-eval", acps=dp._acps_config(PORT)
     )

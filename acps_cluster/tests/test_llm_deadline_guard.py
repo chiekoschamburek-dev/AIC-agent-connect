@@ -21,7 +21,7 @@ os.environ["ACPS_LLM_CALL_TIMEOUT"] = "3"
 os.environ.setdefault("OPENAI_MODEL", "dummy")
 os.environ.setdefault("OPENAI_API_KEY", "dummy")
 
-import agents  # noqa: E402
+import bootstrap  # noqa: E402
 
 
 class _StallFirstByte:
@@ -59,7 +59,7 @@ async def main() -> int:
     failures: list[str] = []
 
     # 1) 首片段不来 → 必须在 ~1s 内抛错
-    p1 = agents._with_response_deadline(_StallFirstByte())
+    p1 = bootstrap.with_response_deadline(_StallFirstByte())
     t0 = asyncio.get_event_loop().time()
     try:
         async for _ in p1.stream(None):
@@ -73,7 +73,7 @@ async def main() -> int:
             failures.append(f"[1] 触发太慢：{dt:.1f}s")
 
     # 2) 中途停住 → 也必须在总闸内抛错
-    p2 = agents._with_response_deadline(_StallMidStream())
+    p2 = bootstrap.with_response_deadline(_StallMidStream())
     got = 0
     t0 = asyncio.get_event_loop().time()
     try:
@@ -87,14 +87,14 @@ async def main() -> int:
             failures.append(f"[2] 已收片段数异常：{got}")
 
     # 3) 健康流不受影响（片段齐全、不抛错）
-    p3 = agents._with_response_deadline(_Healthy())
+    p3 = bootstrap.with_response_deadline(_Healthy())
     items = [x async for x in p3.stream(None)]
     print(f"  [3] 健康流 → 收到 {len(items)} 个片段 {items} ✔")
     if items != ["chunk-0", "chunk-1", "chunk-2"]:
         failures.append(f"[3] 健康流被破坏：{items}")
 
     # 4) complete() 也有总闸
-    p4 = agents._with_response_deadline(_StallFirstByte())
+    p4 = bootstrap.with_response_deadline(_StallFirstByte())
     try:
         await asyncio.wait_for(p4.complete(None), timeout=5)
         failures.append("[4] complete 卡住没有抛错")
@@ -104,7 +104,7 @@ async def main() -> int:
     # 5) 开关可关
     os.environ["ACPS_LLM_DEADLINE"] = "0"
     raw = _StallFirstByte()
-    same = agents._with_response_deadline(raw)
+    same = bootstrap.with_response_deadline(raw)
     print(f"  [5] ACPS_LLM_DEADLINE=0 → 原样返回: {same is raw} ✔")
     if same is not raw:
         failures.append("[5] 关闭开关无效")

@@ -54,7 +54,7 @@
 | agents | `acps_cluster/partner_*.py`（工作流 9 + 资源 4 + eval/model）、`capabilities/*.py`、`partners/designer/`、`partners/wenji/` |
 | 互联机制 | `acps_cluster/delegation/`（pep.py / token.py / client.py / bridge.py / domain_manifest.py / grant.py / visibility.py / reconciliation.py / quota.py） |
 | 衍生机制 | 三级能力边界（各 partner 的 `capability_visibility`）、`discovery_metadata.py`、`arg_shapes.py` |
-| 框架与运行时 | `hooks.py`、`acps_cluster/deploy/amp_*.py`、`partners/designer/src/amp_kafka_forwarder.py`、`requirements.txt`（WIT 只声明依赖） |
+| 框架与运行时 | `acps_cluster/bootstrap.py`（.env / 模型路由 / LLM 硬闸）、`acps_cluster/deploy/amp_*.py`、`partners/designer/src/amp_kafka_forwarder.py`、`requirements.txt`（WIT 只声明依赖） |
 | 前端 viz | `cluster-viz/`、`acps_cluster/viz_live.py`、`acps_cluster/delegation/viz_record.py` |
 
 ---
@@ -238,7 +238,7 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 | 保留 | 理由 |
 |---|---|
 | `acps_cluster/`（supervisor、partner_*、delegation、tests、deploy 运行组件） | 集群本体与互联机制 |
-| `capabilities/`、`hooks.py`、`agents.py` | 能力实现与官方扩展点 |
+| `capabilities/`、`acps_cluster/bootstrap.py` | 能力实现、启动引导与官方扩展点 |
 | `registered_acs_overlay.json`、`policy-projections/` | 发现层覆盖表与域策略投影（无密钥） |
 | `docs/` 精选 | 架构、协议、工作区、AMP、名册、新增 agent 手册 |
 

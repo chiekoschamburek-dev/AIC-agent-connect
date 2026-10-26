@@ -93,7 +93,7 @@ STAMP=$(date +%Y%m%d-%H%M%S)
 BAK=/opt/wit/yanshu-golive-backup-$STAMP
 mkdir -p "$BAK"
 cp -a "$CL"/supervisor.py "$CL"/partner_*.py "$BAK"/ 2>/dev/null
-cp -a "$CL"/agents.py "$CL"/model_router.py "$CL"/llm_tools.py "$BAK"/ 2>/dev/null
+cp -a "$CL"/bootstrap.py "$CL"/model_router.py "$CL"/llm_tools.py "$BAK"/ 2>/dev/null
 cp -a "$CL"/feed_tasks.py "$BAK"/ 2>/dev/null
 mkdir -p "$BAK/deploy"
 cp -a "$CL"/deploy/wit-yanshu@.service "$CL"/deploy/run_supervisor.sh \

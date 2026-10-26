@@ -111,7 +111,7 @@ _patch_discovery_filter()
 
 # ── 框架补丁：模型调用总时长硬闸 ────────────────────────────────────────────
 # 为什么打在 wit 这一层（2026-10-10 实测）：
-#   我们曾在 provider 上包装 `stream()`/`complete()`（`agents._with_response_deadline`），
+#   我们曾在 provider 上包装 `stream()`/`complete()`（`bootstrap.with_response_deadline`），
 #   但线上仍出现"伙伴进程 CPU 0.0%、主线程在 select() 等 I/O、入站任务卡 9 小时"：
 #   卡点在 SDK 发出请求到**首个响应到达之前**这段，且 httpx 的 timeout 是**读间隔**而非
 #   总时长，provider 侧包装无法覆盖全部路径。
@@ -379,10 +379,10 @@ async def serve_partner(
     runtime_cls 允许伙伴在 ACS 投影上做最小差异（workspace 的已批 ACS certificate
     为空，需要裁掉代码默认的 altNames），不影响证书请求本身。
     """
-    import agents  # noqa: PLC0415  (触发 .env 加载)
+    import bootstrap  # noqa: PLC0415  (触发 .env 加载)
 
     port = int(os.getenv(port_env, str(default_port)))
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     agent = build_agent(provider)
     runtime = runtime_cls(agent, workspace=workspace, acps=build_acps_config(port))
     try:

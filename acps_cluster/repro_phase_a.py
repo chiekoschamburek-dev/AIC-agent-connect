@@ -30,7 +30,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import agents  # noqa: E402  导入即加载 .env
+import bootstrap  # noqa: E402  导入即加载 .env
 import llm_tools  # noqa: E402
 import partner_critic  # noqa: E402
 import partner_gpu  # noqa: E402
@@ -214,7 +214,7 @@ def _serve_partners(tmp: Path):
         os.environ["ACPS_PEP_AUDIT_PATH"] = str(audit)
         root = tmp / f"ws-{kind}"
         shutil.copytree(CLUSTER / f"ws-{kind}" / "acps", root / "acps")
-        providers[kind] = agents.build_provider()
+        providers[kind] = bootstrap.build_provider()
         runtimes[kind] = WitRuntime(
             builders[kind](providers[kind]), workspace=root, acps=dp._acps_config(PORTS[kind])
         )
@@ -222,7 +222,7 @@ def _serve_partners(tmp: Path):
     for kind in ("synthesis", "writer", "critic"):
         root = tmp / f"ws-{kind}"
         shutil.copytree(CLUSTER / f"ws-{kind}" / "acps", root / "acps")
-        providers[kind] = agents.build_provider()
+        providers[kind] = bootstrap.build_provider()
         runtimes[kind] = WitRuntime(
             builders[kind](providers[kind]), workspace=root, acps=dp._acps_config(PORTS[kind])
         )

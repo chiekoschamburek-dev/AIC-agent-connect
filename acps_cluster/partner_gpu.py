@@ -216,10 +216,10 @@ async def _serve_local() -> None:
     只传 None 时准入与协议层能验证，但 agent 循环跑不起来、产不出 Product。
     `ACPS_GPU_LOCAL_NO_MODEL=1` 可退回"无模型"的纯准入演示（原行为）。
     """
-    import agents  # 触发 .env 加载（build_acps_config 也需要其中的 ACPS_*_URL）
+    import bootstrap  # 触发 .env 加载（build_acps_config 也需要其中的 ACPS_*_URL）
 
     port = int(os.getenv(GPU_PORT_ENV, str(GPU_PORT_DEFAULT)))
-    provider = None if os.getenv("ACPS_GPU_LOCAL_NO_MODEL") else agents.build_provider()
+    provider = None if os.getenv("ACPS_GPU_LOCAL_NO_MODEL") else bootstrap.build_provider()
     agent = build_gpu_agent(provider)
     runtime = WitRuntime(agent, workspace=WORKSPACE, acps=cluster_common.build_acps_config(port))
     _ensure_local_acs(runtime)

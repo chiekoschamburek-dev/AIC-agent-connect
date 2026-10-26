@@ -1,4 +1,4 @@
-#!/bin/sh
+﻿#!/bin/sh
 # KB 重新注册（门面文案加宽后）：
 #   · 在**临时工作区**提交，避免动 ws-kb 的证书/终稿 → 在跑的 KB 服务不受影响
 #   · 沿用同一个 publicEndpoint（8599）避免 KB 上次"端口不一致"的坑
@@ -44,7 +44,7 @@ for ln in envfile.read_text(encoding='utf-8').splitlines():
 os.environ.setdefault('ACPS_PEP_MY_AIC', '1.2.156.3088.1.BUPT.VTF97R.PLACEHLD.PLACEH.PLC1')
 
 sys.path.insert(0, '/opt/wit/my-project'); sys.path.insert(0, '/opt/wit/my-project/acps_cluster')
-import agents, cluster_common, partner_kb
+import bootstrap, cluster_common, partner_kb
 from wit import WitAgent
 
 # version 提到 1.0.1：明确这是新版本（平台按 agentId+version 管理）
@@ -59,7 +59,7 @@ def build(provider):
 
 async def main():
     import wit as _wit
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     rt = _wit.WitRuntime(build(provider), workspace=ws,
                          acps=cluster_common.build_acps_config(port))
     try:

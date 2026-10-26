@@ -37,7 +37,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
 from delegation import demo_pep as dp  # noqa: E402  isort:skip
 from delegation import direct_fetch, issue_token, load_signing_context  # noqa: E402
 
-import agents  # noqa: E402
+import bootstrap  # noqa: E402
 import partner_scout  # noqa: E402
 from wit import WitRuntime  # noqa: E402
 
@@ -72,7 +72,7 @@ async def main() -> None:
     tmp = Path(tempfile.mkdtemp(prefix="pep-real-"))
     audit = out / "audit.jsonl"
 
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     print(f"[业务] 模型={_provider_name()} | 目标 skill={dp.PRIVATE_SKILL} | 任务={task[:60]}…")
     scout_rt = await _serve_scout(provider, tmp / "scout", audit)
     started = time.time()

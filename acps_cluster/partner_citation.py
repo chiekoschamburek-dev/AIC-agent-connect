@@ -151,10 +151,10 @@ def build_citation_agent(provider) -> WitAgent:
 
 async def _serve_local() -> None:
     """本地直连模式（不经 registry/CA）。必须有模型才能真正接活。"""
-    import agents  # 触发 .env 加载
+    import bootstrap  # 触发 .env 加载
 
     port = int(os.getenv(CITATION_PORT_ENV, str(CITATION_PORT_DEFAULT)))
-    provider = None if os.getenv("ACPS_CITATION_LOCAL_NO_MODEL") else agents.build_provider()
+    provider = None if os.getenv("ACPS_CITATION_LOCAL_NO_MODEL") else bootstrap.build_provider()
     agent = build_citation_agent(provider)
     runtime = WitRuntime(agent, workspace=WORKSPACE, acps=cluster_common.build_acps_config(port))
     cluster_common.ensure_local_acs(runtime, WORKSPACE)

@@ -51,7 +51,7 @@ from wit import (  # noqa: E402
 from wit.hooks.acps.amp import AmpAccessLoggingHooks  # noqa: E402
 from wit.hooks.acps.delegation import AipDelegationHooks  # noqa: E402
 
-import agents  # noqa: E402  (触发 .env 加载)
+import bootstrap  # noqa: E402  (触发 .env 加载)
 import cluster_common  # noqa: E402
 import cluster_roster  # noqa: E402
 import jobs_store  # noqa: E402  L2 作业化交路：jobs/<id>/ 目录台账
@@ -3708,7 +3708,7 @@ def _atomic_write_text(path: Path, text: str) -> None:
 
 async def main() -> dict:
     task = " ".join(sys.argv[1:]) or "调研 GNN 在知识图谱补全中的最新进展，写一篇带引用的 mini survey 初稿并送审"
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     port = int(os.getenv("ACPS_SUPERVISOR_PORT", "8444"))
     roster = cluster_roster.load_roster()
     runtime = WitRuntime(

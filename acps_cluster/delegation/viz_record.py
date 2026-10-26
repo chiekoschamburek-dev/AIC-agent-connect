@@ -47,7 +47,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import agents  # noqa: E402  加载 .env（真实 LLM）
+import bootstrap  # noqa: E402  加载 .env（真实 LLM）
 
 from wit import (  # noqa: E402
     AcpsConfig,
@@ -455,10 +455,10 @@ async def run_b(tmp: Path) -> dict:
         await rec.beat()
 
         scout_rt, scout_acs = await serve_partner(
-            partner_scout.build_scout_agent, agents.build_provider(), SCOUT_WS, 18730, tmp,
+            partner_scout.build_scout_agent, bootstrap.build_provider(), SCOUT_WS, 18730, tmp,
             label="scout", audit=scout_audit)
         writer_rt, writer_acs = await serve_partner(
-            partner_writer.build_writer_agent, agents.build_provider(), WRITER_WS, 18731, tmp,
+            partner_writer.build_writer_agent, bootstrap.build_provider(), WRITER_WS, 18731, tmp,
             label="writer", audit=writer_audit)
         runtimes = [scout_rt, writer_rt]
         sup_rt, sup_state = make_caller(SUPERVISOR_WS, 18732, tmp, "sup", [scout_acs, writer_acs])
@@ -544,13 +544,13 @@ async def run_c(tmp: Path) -> dict:
     try:
         rec.add({"type": "instruction", "text": "授权层实战：无凭据拦截 → 自签令牌拦截 → 域授权 → 配额烧尽 → 冻结急停 → 解冻恢复 → 双签对账。（真实 PEP 裁决）"})
         gpu_rt, gpu_acs = await serve_partner(
-            partner_gpu.build_gpu_agent, agents.build_provider(), GPU_WS, 18740, tmp,
+            partner_gpu.build_gpu_agent, bootstrap.build_provider(), GPU_WS, 18740, tmp,
             label="gpu", audit=gpu_audit, charters=[r1])
         gpu_frozen_rt, gpu_frozen_acs = await serve_partner(
-            partner_gpu.build_gpu_agent, agents.build_provider(), GPU_WS, 18741, tmp,
+            partner_gpu.build_gpu_agent, bootstrap.build_provider(), GPU_WS, 18741, tmp,
             label="gpu-frozen", audit=out / "gpu-frozen-audit.jsonl", charters=[r1, r2])
         gpu_r3_rt, gpu_r3_acs = await serve_partner(
-            partner_gpu.build_gpu_agent, agents.build_provider(), GPU_WS, 18742, tmp,
+            partner_gpu.build_gpu_agent, bootstrap.build_provider(), GPU_WS, 18742, tmp,
             label="gpu-r3", audit=out / "gpu-r3-audit.jsonl", charters=[r1, r2, r3])
         runtimes = [gpu_rt, gpu_frozen_rt, gpu_r3_rt]
         sup_rt, sup_state = make_caller(SUPERVISOR_WS, 18743, tmp, "sup", [gpu_acs])
@@ -741,13 +741,13 @@ async def run_a(tmp: Path) -> dict:
 
         # 起真实伙伴（每个都挂 PEP；gpu 带域章程 r1）
         r1 = dual_sign(charter_manifest(1))
-        scout_rt, scout_acs = await serve_partner(partner_scout.build_scout_agent, agents.build_provider(), SCOUT_WS, 18750, tmp, label="scout", audit=scout_audit)
-        writer_rt, writer_acs = await serve_partner(partner_writer.build_writer_agent, agents.build_provider(), WRITER_WS, 18751, tmp, label="writer", audit=writer_audit)
-        critic_rt, critic_acs = await serve_partner(partner_critic.build_critic_agent, agents.build_provider(), CRITIC_WS, 18752, tmp, label="critic", audit=critic_audit)
-        gpu_rt, gpu_acs = await serve_partner(partner_gpu.build_gpu_agent, agents.build_provider(), GPU_WS, 18753, tmp, label="gpu", audit=gpu_audit, charters=[r1])
+        scout_rt, scout_acs = await serve_partner(partner_scout.build_scout_agent, bootstrap.build_provider(), SCOUT_WS, 18750, tmp, label="scout", audit=scout_audit)
+        writer_rt, writer_acs = await serve_partner(partner_writer.build_writer_agent, bootstrap.build_provider(), WRITER_WS, 18751, tmp, label="writer", audit=writer_audit)
+        critic_rt, critic_acs = await serve_partner(partner_critic.build_critic_agent, bootstrap.build_provider(), CRITIC_WS, 18752, tmp, label="critic", audit=critic_audit)
+        gpu_rt, gpu_acs = await serve_partner(partner_gpu.build_gpu_agent, bootstrap.build_provider(), GPU_WS, 18753, tmp, label="gpu", audit=gpu_audit, charters=[r1])
         # DT 保持在 RFC 的 ≤600s；exp 侧代码生成超时就重签一枚新鲜令牌（下方 t3 循环）。
         os.environ["ACPS_PEP_MAX_TOKEN_TTL"] = "600"
-        exp_rt, exp_acs = await serve_partner(partner_experiment.build_experiment_agent, agents.build_provider(), EXP_WS, 18754, tmp, label="exp", audit=exp_audit, cache_acs=[gpu_acs])
+        exp_rt, exp_acs = await serve_partner(partner_experiment.build_experiment_agent, bootstrap.build_provider(), EXP_WS, 18754, tmp, label="exp", audit=exp_audit, cache_acs=[gpu_acs])
         runtimes = [scout_rt, writer_rt, critic_rt, gpu_rt, exp_rt]
         sup_rt, sup_state = make_caller(SUPERVISOR_WS, 18755, tmp, "sup", [scout_acs, writer_acs, critic_acs, exp_acs])
         runtimes.append(sup_rt)

@@ -34,7 +34,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import agents  # noqa: E402
+import bootstrap  # noqa: E402
 
 from wit import (  # noqa: E402
     AcpsDirect, AcpsConfig, AgentCertificateRequest, AgentProviderProfile, AgentState,
@@ -244,7 +244,7 @@ async def main() -> None:
         # frontier 服务端（真实 LLM：OpenAlex 真实数据统计新兴方向）
         ws_f = tmp / "ws-frontier"
         shutil.copytree(FRONTIER_WS / "acps", ws_f / "acps")
-        frontier_rt = WitRuntime(partner_frontier.build_frontier_agent(agents.build_provider()),
+        frontier_rt = WitRuntime(partner_frontier.build_frontier_agent(bootstrap.build_provider()),
                                  workspace=ws_f, acps=_acps_config(PORT_FRONTIER))
         await frontier_rt.serve_direct_partner(host="127.0.0.1", port=PORT_FRONTIER, amp=False)
         print(f"[ar] frontier :{PORT_FRONTIER} serving")
@@ -254,7 +254,7 @@ async def main() -> None:
         ws_e = tmp / "ws-exp"
         shutil.copytree(EXPERIMENT_WS / "acps", ws_e / "acps")
         prime_gpu_stub(ws_e / "acps" / "discovered")
-        exp_rt = WitRuntime(partner_experiment.build_experiment_agent(agents.build_provider()),
+        exp_rt = WitRuntime(partner_experiment.build_experiment_agent(bootstrap.build_provider()),
                             workspace=ws_e, acps=_acps_config(PORT_EXP))
         await exp_rt.serve_direct_partner(host="127.0.0.1", port=PORT_EXP, amp=False)
         print(f"[ar] experiment :{PORT_EXP} serving")
@@ -266,7 +266,7 @@ async def main() -> None:
         # gpu 必须带 provider：它的入站任务要靠自己的模型决定调 gpu.run。
         # 传 None 时远端在 8ms 内 `Agent execution failed.`（partner_gpu.py:220 的生产态是
         # 有 provider 的，None 只属于 ACPS_GPU_LOCAL_NO_MODEL 的显式降级模式）。
-        gpu_rt = WitRuntime(partner_gpu.build_gpu_agent(agents.build_provider()), workspace=ws_g,
+        gpu_rt = WitRuntime(partner_gpu.build_gpu_agent(bootstrap.build_provider()), workspace=ws_g,
                             acps=_acps_config(PORT_GPU))
         await gpu_rt.serve_direct_partner(host="127.0.0.1", port=PORT_GPU, amp=False)
         print(f"[ar] gpu :{PORT_GPU} serving")
@@ -276,7 +276,7 @@ async def main() -> None:
         # 有了它，leader 才能在打卡时带 host_score，让 verdict 由代码裁决而不是伙伴自述。
         ws_v = tmp / "ws-eval"
         shutil.copytree(EVAL_WS / "acps", ws_v / "acps")
-        eval_rt = WitRuntime(partner_eval.build_eval_agent(agents.build_provider()),
+        eval_rt = WitRuntime(partner_eval.build_eval_agent(bootstrap.build_provider()),
                              workspace=ws_v, acps=_acps_config(PORT_EVAL))
         await eval_rt.serve_direct_partner(host="127.0.0.1", port=PORT_EVAL, amp=False)
         print(f"[ar] eval :{PORT_EVAL} serving")
@@ -318,7 +318,7 @@ async def main() -> None:
                 id="yanshu.autoresearch-leader", display_name="研枢-AutoResearch-Leader",
                 version="1.0.0", description="自研模式 leader（真剧本）",
                 instructions=partner_experiment_note(roster_text),
-                model=agents.build_provider(), capabilities=[],
+                model=bootstrap.build_provider(), capabilities=[],
                 hooks=[AipDelegationHooks(), BridgeHooks(),
                        DelegationLeaderHooks(workspace=SUPERVISOR_WS)],
                 protocols=[AcpsDirect()],

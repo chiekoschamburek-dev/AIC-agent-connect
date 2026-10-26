@@ -32,7 +32,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
 os.environ.setdefault("ACPS_LLM_TIMEOUT", "600")
 os.environ.setdefault("ACPS_TASK_TOOL_TIMEOUT", "2700")
 
-import agents  # noqa: E402  导入即加载 .env
+import bootstrap  # noqa: E402  导入即加载 .env
 import partner_experiment  # noqa: E402
 import partner_gpu  # noqa: E402
 from delegation import demo_pep as dp  # noqa: E402  借用 _acps_config / SUPERVISOR_WS（自带 sys.path 卫生）
@@ -216,7 +216,7 @@ def _serve_partners(tmp: Path, gpu_aic: str):
             cache_discovered_agent(
                 cache_dir=cache_dir, summary=normalize_discovered_agent(acs, ranking=1), raw_acs=acs
             )
-        providers[kind] = agents.build_provider()
+        providers[kind] = bootstrap.build_provider()
         runtimes[kind] = WitRuntime(
             builders[kind](providers[kind]), workspace=root, acps=dp._acps_config(ports[kind])
         )

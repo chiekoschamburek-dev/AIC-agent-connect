@@ -32,7 +32,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
 os.environ.setdefault("ACPS_LLM_TIMEOUT", "600")
 os.environ.setdefault("ACPS_TASK_TOOL_TIMEOUT", "2700")
 
-import agents  # noqa: E402  导入即加载 .env
+import bootstrap  # noqa: E402  导入即加载 .env
 import cluster_common  # noqa: E402
 import cluster_roster  # noqa: E402
 import partner_critic  # noqa: E402
@@ -170,7 +170,7 @@ def _seed_discovered(root: Path, entries: list[tuple[str, str, list[str], int, s
 async def _prepare_experiment_acs() -> str:
     """给 ws-experiment 生成终稿 ACS（本地铸造身份没有注册表回填，名册靠它判可用）。"""
     ws = CLUSTER / "ws-experiment"
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     try:
         runtime = WitRuntime(
             partner_experiment.build_experiment_agent(provider), workspace=ws, acps=dp._acps_config(PORTS["experiment"])
@@ -213,7 +213,7 @@ async def _serve_partners(tmp: Path):
                 root,
                 [(aics["gpu"], "研枢-GPU-Partner", ["gpu.env", "gpu.run"], PORTS["gpu"], "gpu")],
             )
-        providers[kind] = agents.build_provider()
+        providers[kind] = bootstrap.build_provider()
         runtimes[kind] = WitRuntime(
             builders[kind](providers[kind]), workspace=root, acps=dp._acps_config(port)
         )
@@ -256,7 +256,7 @@ async def main() -> None:
         if not avail.get("experiment") or not avail.get("gpu"):
             raise SystemExit("名册里 gpu/experiment 不可调度，终止")
 
-        sup_provider = agents.build_provider()
+        sup_provider = bootstrap.build_provider()
         supervisor_rt = WitRuntime(
             supervisor_mod.build_supervisor_agent(sup_provider),
             workspace=sup_ws,

@@ -1,14 +1,25 @@
-"""三个科研 agent 的装配：查阅资料 / 综合资料 / 论文写作。"""
+"""集群启动引导：`.env` 加载、模型 provider 构建、LLM 调用硬闸。
+
+历史上这三件事放在仓库根的 `agents.py`（同时含早期单 agent 示例）。整合后示例已
+移除，只保留运行时必需的部分，供 supervisor、各 partner 与复现/演示脚本共用：
+
+- **导入即加载**仓库根 `.env`（已存在的环境变量优先、不覆盖；空值行跳过）；
+- `build_provider()` 统一模型路由（北邮网关 deepseek 主用、MiniMax 保底），
+  并给每次模型调用套上响应级硬闸；
+- `with_response_deadline()` 把"卡死"变成"可观测的失败"——`OPENAI_TIMEOUT`
+  传给 httpx 后只是**读间隔**超时，不是整次调用总时长。
+
+调用方约定：`import bootstrap` 即完成 `.env` 加载（与旧 `import agents` 等价），
+再按需调用 `build_provider()`。
+"""
+
+from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from wit import OpenAIChatProvider, WitAgent
-
-from capabilities.arxiv import fetch_paper, search_papers
-from hooks import MaterialContext, RunLogger, ToolRetry
-
-_ENV_PATH = Path(__file__).parent / ".env"
+# 仓库根（acps_cluster/ 的上一级），与旧 agents.py 使用同一个 `.env`。
+_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 
 
 def load_env_file(path: Path = _ENV_PATH) -> None:
@@ -32,6 +43,23 @@ def load_env_file(path: Path = _ENV_PATH) -> None:
 load_env_file()
 
 
+def _model_router():
+    """按当前 sys.path 形态取模型路由模块；取不到返回 None（退回单 provider）。
+
+    兼容两种导入姿势：扁平（集群目录在 sys.path，生产/脚本路径）与包式
+    （`acps_cluster.model_router`，测试路径）。
+    """
+    try:
+        from acps_cluster import model_router  # noqa: PLC0415
+        return model_router
+    except ImportError:
+        try:
+            import model_router  # noqa: PLC0415
+            return model_router
+        except ImportError:
+            return None
+
+
 def build_provider():
     """构造模型 provider：**北邮网关 deepseek 主用，MiniMax 保底**。
 
@@ -41,9 +69,11 @@ def build_provider():
 
     回退开关：`ACPS_MODEL_PRIMARY=none` 可临时禁用主用（例如网关维护期间）。
     """
-    try:
-        import model_router  # noqa: PLC0415
-    except ImportError:  # 集群目录不在 sys.path 时退回旧行为，不因路由缺失而不可用
+    router = _model_router()
+    if router is None:
+        # 集群目录不在 sys.path 时退回旧行为，不因路由缺失而不可用
+        from wit import OpenAIChatProvider  # noqa: PLC0415
+
         provider = OpenAIChatProvider(
             model=os.environ["OPENAI_MODEL"],
             api_key=os.environ["OPENAI_API_KEY"],
@@ -51,12 +81,12 @@ def build_provider():
             timeout=float(os.getenv("OPENAI_TIMEOUT", "300")),
             temperature=0,
         )
-        return _with_response_deadline(provider)
+        return with_response_deadline(provider)
 
-    provider = model_router.build_provider()
+    provider = router.build_provider()
     if os.getenv("ACPS_MODEL_LOG_ROUTE", "1").strip().lower() not in {"0", "false", "no", "off"}:
-        print(f"[model] 路由: {model_router.active_model()}", flush=True)
-    return _with_response_deadline(provider)
+        print(f"[model] 路由: {router.active_model()}", flush=True)
+    return with_response_deadline(provider)
 
 
 # ── 模型调用硬闸（响应级看门狗）─────────────────────────────────────────────
@@ -71,7 +101,7 @@ def build_provider():
 #   · 整次调用超过 ACPS_LLM_CALL_TIMEOUT（默认 600s）→ 中止并抛错。
 # 抛错后 wit 会按自己的错误路径处理（本次调用的工具/任务以失败收尾），
 # 于是「卡死」变成「失败」——失败是可观测、可重试、可如实上报的，卡死不是。
-def _with_response_deadline(provider):  # noqa: ANN001, ANN202
+def with_response_deadline(provider):  # noqa: ANN001, ANN202
     if os.getenv("ACPS_LLM_DEADLINE", "1").lower() in ("0", "false", "no", "off"):
         return provider
     # 幂等：重复包装会让 _stream 调到自己（无限递归），这里加标记挡住
@@ -127,80 +157,5 @@ def _with_response_deadline(provider):  # noqa: ANN001, ANN202
     return provider
 
 
-
-def build_search_agent(provider) -> WitAgent:
-    return WitAgent(
-        id="research.searcher",
-        display_name="资料查阅Agent",
-        instructions=(
-            "你是科研资料调研员。针对用户给定的研究问题，"
-            "先用 arxiv_search 从多个关键词角度检索（英文关键词效果更好），"
-            "对最相关的论文可用 arxiv_fetch_paper 补充细节。"
-            "最终输出一份资料清单：每篇论文包含 arXiv ID、标题、作者、年份，"
-            "以及 2-3 句与问题相关的要点概括。不要编造论文。"
-        ),
-        model=provider,
-        capabilities=[search_papers, fetch_paper],
-        hooks=[RunLogger(), ToolRetry()],
-    )
-
-
-def build_synthesizer_agent(provider) -> WitAgent:
-    return WitAgent(
-        id="research.synthesizer",
-        display_name="资料综合Agent",
-        instructions=(
-            "你是文献综合分析员。用户消息是研究问题，系统上下文中附有检索到的资料清单。"
-            "请综合这些资料：归纳研究主题与关键发现、比较不同论文的方法与结论、"
-            "指出现有研究的共识、分歧与空白，并给出论文结构建议。"
-            "只依据提供的资料，标注结论来自哪篇论文（用 arXiv ID）。"
-        ),
-        model=provider,
-        hooks=[RunLogger()],
-    )
-
-
-def build_writer_agent(provider, materials: str) -> WitAgent:
-    return WitAgent(
-        id="research.writer",
-        display_name="论文写作Agent",
-        instructions=(
-            "你是学术论文写作员。基于系统上下文中提供的研究资料与综合分析，"
-            "围绕用户给定的研究问题撰写结构完整的综述论文（Markdown 格式），"
-            "包含：标题、摘要、引言、相关工作、主体章节、讨论与展望、参考文献。"
-            "引用论文时使用 [arXiv ID] 形式，不得虚构文献。"
-            "如果用户消息中包含审稿意见，请逐条修改（标注【阻塞】的意见必须全部修复，"
-            "【建议】可酌情采纳），并输出修改后的完整论文（不要只给 diff 或修改说明）。"
-        ),
-        model=provider,
-        hooks=[RunLogger(), MaterialContext("研究资料与综合分析", materials)],
-    )
-
-
-def build_reviewer_agent(provider, source_list: str) -> WitAgent:
-    return WitAgent(
-        id="research.reviewer",
-        display_name="论文审批Agent",
-        instructions=(
-            "你是严格的论文审稿人。用户会提供一篇论文全文，并在系统上下文中提供"
-            "其依据的检索资料清单。请从以下方面审稿：\n"
-            "1. 引用真实性：论文中引用的每个 [arXiv ID] 是否都出现在资料清单中"
-            "（ID 比较时忽略 v1/v2 等版本后缀），"
-            "论点对论文的概括是否与资料摘要一致，有无虚构或张冠李戴；\n"
-            "2. 结构完整性：摘要/引言/相关工作/主体/讨论/参考文献是否齐全、层次清晰；\n"
-            "3. 内容质量：是否有明显逻辑错误、夸大结论、无依据断言；\n"
-            "4. 学术规范：术语、时态、客观表述。\n\n"
-            "输出格式（严格遵守）：\n"
-            "第一行只写 `VERDICT: APPROVE` 或 `VERDICT: REVISE`；\n"
-            "第二行只写 `BLOCKING: <阻塞意见条数>`（无阻塞意见时写 0）；\n"
-            "随后给出编号的审稿意见列表，每条正文以【阻塞】或【建议】标签开头，"
-            "标签只用于条目标注，不要出现在其它位置；每条指明位置、问题、修改建议。\n\n"
-            "分级标准：\n"
-            "【阻塞】——引用错误/虚构文献/论点与资料不符、章节缺失或结构混乱、"
-            "明显逻辑错误或无依据断言。存在任一【阻塞】意见时第一行必须为 REVISE；\n"
-            "【建议】——措辞润色、可选补充、出版信息等不影响结论可靠性的改进。"
-            "仅【建议】时才可以 APPROVE，并保留建议供作者参考。"
-        ),
-        model=provider,
-        hooks=[RunLogger(), MaterialContext("检索资料清单（引用核验依据）", source_list)],
-    )
+# 兼容旧调用名（脚本/测试曾用 `agents._with_response_deadline`）。
+_with_response_deadline = with_response_deadline

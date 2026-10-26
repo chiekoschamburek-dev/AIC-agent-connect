@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import agents  # noqa: E402
+import bootstrap  # noqa: E402
 import cluster_common  # noqa: E402
 import cluster_roster  # noqa: E402
 import supervisor  # noqa: E402
@@ -426,7 +426,7 @@ async def serve() -> None:
     # 启动收敛必须在 wit 接管账本之前：把上一进程遗留的非终态任务收敛掉，
     # 否则它们会以 awaiting-completion/working 永远挂着（见 _cleanup_stale_tasks）。
     _cleanup_stale_tasks()
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     port = int(os.getenv("ACPS_SUPERVISOR_PORT", "8444"))
     roster = cluster_roster.load_roster()
     runtime = WitRuntime(

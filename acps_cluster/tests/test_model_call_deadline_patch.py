@@ -1,6 +1,6 @@
 """模型调用总时长硬闸（打在 wit._call_model_stream 上）单测 —— 非破坏式。
 
-现场依据（2026-10-10）：provider 层包装（agents._with_response_deadline）已生效，
+现场依据（2026-10-10）：provider 层包装（bootstrap.with_response_deadline）已生效，
 但线上仍出现伙伴进程卡 9 小时、CPU 0.0%、主线程 select() 等 I/O（卡在 SDK 请求阶段）。
 因此把总闸打在最外层出口 `WitRuntime._call_model_stream`。
 

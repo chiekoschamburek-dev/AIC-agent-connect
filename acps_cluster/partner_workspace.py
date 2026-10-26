@@ -955,10 +955,10 @@ async def _serve_local() -> None:
 
     ws.* 是纯落盘能力，模型只负责"看懂任务→调对工具"，用主用网关的便宜档即可。
     """
-    import agents  # 触发 .env 加载
+    import bootstrap  # 触发 .env 加载
 
     port = _port()
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     agent = build_workspace_agent(provider)
     runtime = WitRuntime(agent, workspace=WORKSPACE, acps=cluster_common.build_local_acps_config(port))
     aic = cluster_common.ensure_local_acs(runtime, WORKSPACE) or "?"

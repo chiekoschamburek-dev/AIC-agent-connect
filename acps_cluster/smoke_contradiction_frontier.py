@@ -27,7 +27,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import agents  # noqa: E402  导入即加载 .env
+import bootstrap  # noqa: E402  导入即加载 .env
 import partner_contradiction  # noqa: E402
 import partner_frontier  # noqa: E402
 from delegation import demo_pep as dp  # noqa: E402  借用 _acps_config / CRITIC_WS（导入时自带 sys.path 卫生）
@@ -155,7 +155,7 @@ async def _run_once(kind: str) -> None:
     out.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix=f"smoke-{kind}-"))
 
-    provider = agents.build_provider()
+    provider = bootstrap.build_provider()
     started = time.time()
     print(f"[{kind}] AIC={aic} | 监听端口={port} | 工作区={ws.name}")
     partner_rt = WitRuntime(build(provider), workspace=ws, acps=dp._acps_config(port))

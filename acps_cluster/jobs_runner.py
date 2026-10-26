@@ -128,7 +128,7 @@ def main() -> int:
     question = (job_dir / "request.txt").read_text(encoding="utf-8")
     jobs_store.update_status(job_dir, state="running", started_at=jobs_store.now_iso(),
                              pid=os.getpid())
-    _load_production_env()  # 必须先于 import supervisor（agents.py 只补缺、不覆盖）
+    _load_production_env()  # 必须先于 import supervisor（bootstrap 只补缺、不覆盖）
     os.environ["ACPS_JOB_REPORT_OUT"] = str(job_dir / "report.md")
     os.environ["ACPS_SUPERVISOR_NO_SERVE"] = "1"  # 作业只做出站委派，不对外服务
     # 作业与常驻 supervisor 的 access journal 通过独立 workspace 隔离；
