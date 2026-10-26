@@ -4,7 +4,7 @@
 > 封装成**可发现、可授权、可计量、可撤销、可审计**的协作资源；在"连得上"之外，
 > 进一步回答"**谁有权用、用了什么、通信是否异常**"。
 
-本仓库是比赛的**最终整合作品**：由三方代码合并为一个可评审、可开源的单仓，
+本仓库是比赛的**最终作品**，已整理为可评审、可开源的单仓，
 remote 指向 `chiekoschamburek-dev/AIC-agent-connect`。协议依据
 GB/Z 185《人工智能 智能体互联》与 ACPs（Agent Collaboration Protocols），
 运行底座为 WIT Framework 2.1.0。
@@ -16,23 +16,7 @@ GB/Z 185《人工智能 智能体互联》与 ACPs（Agent Collaboration Protoco
 
 ---
 
-## 一、三方整合
-
-| 来源 | 角色 | 在本仓库的位置 | 引入方式 |
-|---|---|---|---|
-| 我的主项目（研枢集群） | 13 个 agent + PEP / 域 / workspace 互联机制 + 可视化 | `acps_cluster/`、`capabilities/`、`cluster-viz/` | 工作区状态按文件拷贝 |
-| 队友 A：Research Designer（研枢 Research Designer / design-partner） | 设计 agent（ACPs Direct 服务 + AMP→Kafka 转发） | `partners/designer/` | 纯拷贝 |
-| 队友 A：ACPS Event Channel Guard | 三维事件通信风险检测（Storage / Timing / Behavioral） | `acps_cluster/guard/` | 纯拷贝（已剥离其自带 `.git`） |
-| 队友 B：「问迹」wenji | 多模态可解释问答 agent（FastAPI + Vue3 + pgvector） | `partners/wenji/` | **git subtree**，保留上游联系 |
-
-**署名与边界**：队友代码**未做业务改动**。三方之间的接缝全部落在本仓库一侧的
-适配层（`acps_cluster/guard_adapter.py`、`acps_cluster/covert_event_guard.py` 兼容
-shim、`.gitignore` / CI 的路径适配）。唯一对队友文件所在目录的"改动"是**不拷贝**
-其 wheels/ 与真实 `.env`，详见 [NOTICE](NOTICE) 与交付报告。
-
----
-
-## 二、目录结构
+## 一、目录结构
 
 ```text
 yanshu-AIC/
@@ -74,7 +58,7 @@ yanshu-AIC/
 
 ---
 
-## 三、五部分导览
+## 二、五部分导览
 
 ### 1. Agents（15 个参赛 agent + 1 个编排器）
 
@@ -170,7 +154,7 @@ yanshu-AIC/
 
 ---
 
-## 四、guard 与 PEP：互补而非替代
+## 三、guard 与 PEP：互补而非替代
 
 | | PEP（准入） | Event Channel Guard（通信风险） |
 |---|---|---|
@@ -204,7 +188,7 @@ Supervisor / 人工复核
 
 ---
 
-## 五、快速开始
+## 四、快速开始
 
 环境：Python ≥ 3.12（开发验证用 3.13）、Node ≥ 20（仅前端）。
 
@@ -247,7 +231,7 @@ cat partners/designer/SUBMISSION_README.md
 
 ---
 
-## 六、安全与合规
+## 五、安全与合规
 
 **一律不入库**（`.gitignore` + 推送前人工核验）：
 
@@ -270,7 +254,7 @@ git subtree pull --prefix=partners/wenji wenji-upstream main --squash
 
 ---
 
-## 七、文档索引
+## 六、文档索引
 
 | 文档 | 内容 |
 |---|---|
@@ -290,7 +274,7 @@ git subtree pull --prefix=partners/wenji wenji-upstream main --squash
 
 ---
 
-## 八、已知限制
+## 七、已知限制
 
 - 干净克隆不含 dev CA 私钥、平台快照、评测私有数据与 `ws-*` 运行时状态，
   相关用例会 **skip**（不是 fail）；需要完整覆盖时按
