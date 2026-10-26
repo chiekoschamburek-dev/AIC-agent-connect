@@ -1,6 +1,6 @@
 """gpu-partner 离线单测：AIC 校验码（规范示例对拍）、沙盒输入校验、名册接线。
 
-Docker/GPU 相关的沙盒真实执行在 demo_gpu.py 的 G4 场景覆盖（需要 Docker Desktop），
+Docker/GPU 相关的沙盒真实执行需要 Docker Desktop，不在离线单测覆盖范围内，
 本文件全部离线可跑：
 
     python -m unittest acps_cluster.tests.test_gpu_partner -v

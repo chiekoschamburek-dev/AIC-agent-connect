@@ -239,12 +239,14 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 |---|---|
 | `acps_cluster/`（supervisor、partner_*、delegation、tests、deploy 运行组件） | 集群本体与互联机制 |
 | `capabilities/`、`hooks.py`、`agents.py` | 能力实现与官方扩展点 |
-| `acs.*.filled.json`、`registered_acs_overlay.json`、`policy-projections/` | ACS 公开声明与域策略投影（无密钥） |
+| `registered_acs_overlay.json`、`policy-projections/` | 发现层覆盖表与域策略投影（无密钥） |
 | `docs/` 精选 | 架构、协议、工作区、AMP、名册、新增 agent 手册 |
 
 | 剔除 | 理由 |
 |---|---|
 | `ws-*`、`tokens/`、`certs-backup-*`、`*.pem`、`.env`、`_dev-ca-chain.pem` | 运行时数据与凭据 |
+| `acs.*.filled.json` / `acs.*.resubmit.json` | 各 agent 的 ACS 声明稿快照；按需用 `deploy/make_acs.py` 生成，仓库只留发现层覆盖表与代码投影 |
+| `delegation/demo_*.py`（除 `demo_pep.py`、`demo_autoresearch.py`） | 演示脚本精简；保留的两个分别被复现脚本与测试引用 |
 | `datasets/`、`eval-private/`、`demo_run/`、`output/` | 大数据与评测私有标签 |
 | `_archive/`、`_audit/`、`__pycache__`、`.pytest_cache` | 中间产物 |
 | `vendor/wit_framework-*.whl`、`partners/designer/wheels/` | 二进制 wheel（WIT 只声明依赖） |

@@ -46,7 +46,7 @@ AAC 定义了委托语义,官方 SDK **零实现**。本项目零侵入 wit/acps
   (剥离钩子+防伪造标记);
 - **jti 句柄与授权隧道(remedy-3)**:签发工具只返回句柄(返回树断言不含 "token"),
   JWS 锁进程内保管库,`delegate_continue` 向**运行中任务**注入令牌,capability 桥接
-  ContextVar 供业务能力一行出站。量化(demo_fanout,真实 mTLS):较 leader 中转
+  ContextVar 供业务能力一行出站。量化(fanout 实验,真实 mTLS):较 leader 中转
   **2.94× 加速**、leader 上下文材料 **196KB→0**、并行度 1→3;
 - **修复真实越权漏洞**:初版实现允许任意社区成员自签 `iss=leader` 令牌通过全部校验
   (签名证"谁签的",没证"有权签")——补签发者授权检查并回归。

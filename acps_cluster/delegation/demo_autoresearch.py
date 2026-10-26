@@ -1,4 +1,4 @@
-"""AutoResearch 闭环真实业务（A 系列）：证据驱动的假设迭代环。
+﻿"""AutoResearch 闭环真实业务（A 系列）：证据驱动的假设迭代环。
 
 链路（真实 LLM + 真实沙盒执行）：leader（auto_research 激活 + 证据账本打卡）
   → frontier.detect 产方向 → 构造可证伪假设 → exp.run（持委托 token 沙盒执行）
@@ -56,7 +56,7 @@ from delegation.leader_tools import DelegationLeaderHooks  # noqa: E402
 SUPERVISOR_WS = CLUSTER / "ws-supervisor"
 FRONTIER_WS = CLUSTER / "ws-frontier"
 EXPERIMENT_WS = CLUSTER / "ws-experiment"
-EXP_WS = EXPERIMENT_WS  # 别名（demo_citation 同款命名）
+EXP_WS = EXPERIMENT_WS  # 别名（沿用 citation 脚本的命名）
 GPU_WS = CLUSTER / "ws-gpu"
 EVAL_WS = CLUSTER / "ws-eval"
 

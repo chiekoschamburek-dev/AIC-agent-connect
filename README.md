@@ -48,7 +48,6 @@ yanshu-AIC/
 │   ├── viz_live.py               # 前端数据后端：run → Scenario、ws_file/ws_zone、guard_alert
 │   ├── deploy/                   # 运行单元、AMP 上报组件、发布/预检脚本
 │   ├── policy-projections/       # 域授权的策略投影（公开声明）
-│   ├── acs.*.filled.json         # 各 agent 的 ACS 声明稿（公开字段）
 │   └── tests/                    # 集群测试（含 guard_adapter 测试）
 ├── capabilities/                 # 能力实现（arXiv、矛盾侦测、前沿、数据集、记忆等）
 ├── partners/
@@ -66,6 +65,12 @@ yanshu-AIC/
 
 > `partners/wenji/frontend/` 与 `cluster-viz/` **职责不同、不合并**：前者是问迹
 > agent 的内部界面（上传、问答、Trace），后者是全集群总览与任务回放。
+>
+> **ACS 声明稿不随仓库分发**：各 agent 的 `acs.*.filled.json` / `.resubmit.json`
+> 快照已移除，避免仓库堆积多版本公开声明；需要时用
+> `acps_cluster/deploy/make_acs.py` 按当前代码投影生成，再由
+> `deploy/validate_acs.py` 校验。仓库保留的 `registered_acs_overlay.json`
+> 是发现层覆盖表，`policy-projections/` 是域策略投影。
 
 ---
 
@@ -84,7 +89,7 @@ yanshu-AIC/
 | experiment | `acps_cluster/partner_experiment.py` | 复现实验、沙盒执行、结果回传 |
 | frontier | `acps_cluster/partner_frontier.py` | 速度前沿/趋势侦测 |
 | contradiction | `acps_cluster/partner_contradiction.py` | 跨文献矛盾侦测 |
-| arxiv | `capabilities/arxiv.py` + `acs.arxiv-partner.filled.json` | arXiv 检索/取论文能力与 ACS 声明稿 |
+| arxiv | `capabilities/arxiv.py` | arXiv 检索/取论文能力（ACS 由代码投影按需生成） |
 | citation-integrity | `acps_cluster/partner_citation.py`、`citation_verify.py` | 引用真实性与元数据核验 |
 
 **资源 agent（4）**
@@ -290,6 +295,10 @@ git subtree pull --prefix=partners/wenji wenji-upstream main --squash
 - 干净克隆不含 dev CA 私钥、平台快照、评测私有数据与 `ws-*` 运行时状态，
   相关用例会 **skip**（不是 fail）；需要完整覆盖时按
   [docs/runbook-add-new-agent.md](docs/runbook-add-new-agent.md) 铸造 dev 身份。
+- ACS 声明稿不在仓库内：`deploy/make_acs.py` 按当前代码投影生成，
+  再交 `deploy/validate_acs.py` 校验。
+- `delegation/` 仅保留被复现脚本与测试引用的两个 demo（`demo_pep.py`、
+  `demo_autoresearch.py`）；其余演示脚本已精简，验收以测试与真实链路复现为准。
 - guard 目前是规则型检测，阈值来自首轮真实任务基线，尚未在大规模标注数据集上
   统计 Precision / Recall；其结果只作异常筛查，不作攻击定论。
 - `wit_framework` 不随仓库分发，因此 CI 在缺少该 wheel 时会跳过测试并给出告警。

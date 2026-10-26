@@ -1,7 +1,7 @@
 """experiment-partner 离线单测：JSON 解析稳健性、能力可见性、名册注释态一致性。
 
-真实 LLM 链路（代码生成→持 token 直连 GPU→分析报告）由 demo_gpu.py 的 G6 场景
-覆盖（需 .env 的 LLM key 与 Docker Desktop）。本文件全部离线可跑：
+真实 LLM 链路（代码生成→持 token 直连 GPU→分析报告）需要 LLM key 与 Docker Desktop，
+不在离线单测覆盖范围内。本文件全部离线可跑：
 
     python -m unittest acps_cluster.tests.test_experiment_partner -v
 """

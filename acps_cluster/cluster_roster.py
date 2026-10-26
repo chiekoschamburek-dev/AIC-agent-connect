@@ -296,7 +296,7 @@ ROSTER: tuple[RosterMember, ...] = (
         ),
     ),
     # 2026-10-04 降级搁置：HPC 网关（外部调度器底座）代码与测试保留
-    # （partner_hpc.py + hpc_runner.py + demo_hpc.py，H 系列 8/8），但演示价值条件性
+    # （partner_hpc.py + hpc_runner.py，H 系列 8/8），但演示价值条件性
     # （需真实第二机构的 Slurm 才成立，本地为 mock 后端）——不进名册不进演示；
     # 需要时取消注释即恢复。    # RosterMember(    #     key="hpc",    #     name="研枢-HPC-Partner",    #     role="机构调度器网关：异步作业（提交→排队→沙盒执行→取结果），存量 HPC 不改造接入",    #     module="partner_hpc",    #     workspace="ws-hpc",    #     port_env="ACPS_HPC_PORT",    #     default_port=8466,    #     declared_capabilities=("hpc.submit", "hpc.result"),    # ),
     # 2026-10-07 入册(此前为孤儿:有代码+ACS 填报稿,未注册也未进名册)

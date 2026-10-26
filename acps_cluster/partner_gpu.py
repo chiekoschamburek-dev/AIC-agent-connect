@@ -205,7 +205,7 @@ def build_gpu_agent(provider) -> WitAgent:
 
 
 def _ensure_local_acs(runtime: WitRuntime) -> str | None:
-    """保留旧名（demo_gpu.py 仍在调）；实现已收敛到 cluster_common.ensure_local_acs。"""
+    """保留旧名（兼容旧调用方）；实现已收敛到 cluster_common.ensure_local_acs。"""
     return cluster_common.ensure_local_acs(runtime, WORKSPACE)
 
 

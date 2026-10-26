@@ -17,7 +17,7 @@
     acps_cluster/demo_run/viz/<sid>/    trace-events.jsonl · audit-*.jsonl · products/ · summary.json
     cluster-viz/public/scenarios/<sid>.json + manifest.json（前端启动时 fetch）
 
-编排说明（诚实口径）：leader 侧为代码侧确定性编排（与 demo_autoresearch_e2e 同款），
+编排说明（诚实口径）：leader 侧为代码侧确定性编排（与 AutoResearch 端到端脚本同款），
 伙伴侧为真实 LLM/真实沙盒执行；所有 PEP 裁决、令牌、审计、对账均为真实链路产物。
 """
 
@@ -289,7 +289,7 @@ def make_caller(src_ws: Path, port: int, tmp: Path, label: str, partner_acs: lis
 
 
 async def wait_products(rt, state, task_ref: str, *, timeout: float = WAIT) -> dict:
-    """等到**产物或终态**（与 demo_fanout 同语义：伙伴 aip_submit 产物即视为完成——
+    """等到**产物或终态**（与 fanout 实验同语义：伙伴 aip_submit 产物即视为完成——
     实测伙伴提交产物后任务态可能停在 awaiting-completion，只等终态会挂死）。"""
     deadline = time.monotonic() + timeout
     snapshot: dict = {}

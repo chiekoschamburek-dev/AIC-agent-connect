@@ -1,4 +1,4 @@
-"""P0-2 回归：skill-scope 必须进入 run 生命周期 hooks，而不是 aip_hooks。"""
+﻿"""P0-2 回归：skill-scope 必须进入 run 生命周期 hooks，而不是 aip_hooks。"""
 
 import asyncio
 import sys
@@ -12,19 +12,26 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
         sys.path.insert(0, _p)
 
 import partner_scout  # noqa: E402
-from wit import AcpsConfig  # noqa: E402
+from wit import AcpsConfig, AgentProviderProfile  # noqa: E402
 from wit.kernel.capabilities import ToolManager  # noqa: E402
+
+# 交付口径已删除仓库内的 ACS 声明稿（acs.*.filled.json）；这里用内联 provider
+# 让 wit 从 agent 能力现算 ACS，避免测试依赖已移除的数据文件。
+PROVIDER = AgentProviderProfile(
+    name="yanshu-test", organization="yanshu", email="test@example.com", country_code="CN",
+)
 
 
 class SkillScopeWiringTest(unittest.TestCase):
     def test_skill_scope在compiled_hooks而非aip_hooks(self):
         agent = partner_scout.build_scout_agent(None)
+        # 不再依赖仓库内的 ACS 声明稿（按交付口径已删除）；compile 只需要协议地址。
         cfg = AcpsConfig.custom(
             registry_url="https://localhost:9001",
             ca_url="https://localhost:9003",
             discovery_url="https://localhost:9005",
-            acs_path=CLUSTER_DIR / "acs.scout-partner.filled.json",
             public_endpoint="https://localhost:8460/rpc",
+            provider=PROVIDER,
         )
         compiled = agent.compile(acps=cfg)
         run_ids = [getattr(hook, "id", type(hook).__name__) for hook in compiled.hooks]
@@ -38,8 +45,8 @@ class SkillScopeWiringTest(unittest.TestCase):
             registry_url="https://localhost:9001",
             ca_url="https://localhost:9003",
             discovery_url="https://localhost:9005",
-            acs_path=CLUSTER_DIR / "acs.scout-partner.filled.json",
             public_endpoint="https://localhost:8460/rpc",
+            provider=PROVIDER,
         )
         compiled = agent.compile(acps=cfg)
         hook = next(h for h in compiled.hooks if getattr(h, "id", "") == "yanshu.skill-scope")
