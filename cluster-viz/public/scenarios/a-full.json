@@ -1,0 +1,467 @@
+{
+ "id": "a-full",
+ "title": "真实 · A 论文复现全链路",
+ "description": "检索→设计→域授权训练→审阅→终稿→对账（真实 arXiv + LLM + CUDA + PEP）",
+ "instruction": "复现一篇 GNN 引用网络论文：检索文献 → 实验设计 → 协作域授权调 GPU 训练 → 撰写并审阅复现报告。（真实 arXiv + 真实 LLM + 真实 CUDA）",
+ "regions": [
+  {
+   "id": "yanshu",
+   "name": "研枢集群（机构 A · 本机实测）",
+   "color": "#0ea5e9",
+   "x": 40,
+   "y": 40,
+   "w": 620,
+   "h": 620
+  },
+  {
+   "id": "edge",
+   "name": "算力沙盒（本地 dev 身份 · Docker CUDA）",
+   "color": "#f59e0b",
+   "x": 700,
+   "y": 40,
+   "w": 420,
+   "h": 300
+  }
+ ],
+ "agents": [
+  {
+   "id": "sup",
+   "name": "研枢 · 调度大脑",
+   "role": "supervisor",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "plan",
+    "grant.issue"
+   ]
+  },
+  {
+   "id": "scout",
+   "name": "文献检索 scout",
+   "role": "partner",
+   "org": "yanshu",
+   "source": "wutong",
+   "skills": [
+    "arxiv.search"
+   ]
+  },
+  {
+   "id": "writer",
+   "name": "综述撰写 writer",
+   "role": "partner",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "paper.write"
+   ]
+  },
+  {
+   "id": "critic",
+   "name": "审阅 critic",
+   "role": "partner",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "paper.review"
+   ]
+  },
+  {
+   "id": "exp",
+   "name": "实验员 experiment",
+   "role": "partner",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "exp.run"
+   ]
+  },
+  {
+   "id": "gpu",
+   "name": "GPU 算力节点（沙盒）",
+   "role": "partner",
+   "org": "edge",
+   "source": "domain",
+   "skills": [
+    "gpu.run"
+   ]
+  }
+ ],
+ "events": [
+  {
+   "type": "instruction",
+   "text": "复现一篇 GNN 引用网络论文：检索文献 → 实验设计 → 协作域授权调 GPU 训练 → 撰写并审阅复现报告。（真实 arXiv + 真实 LLM + 真实 CUDA）",
+   "t": 5.0
+  },
+  {
+   "type": "state",
+   "agent": "sup",
+   "state": "planning",
+   "t": 7.25
+  },
+  {
+   "type": "plan",
+   "subtasks": [
+    {
+     "id": "t1",
+     "title": "检索文献（arXiv 实检）"
+    },
+    {
+     "id": "t2",
+     "title": "实验设计（LLM）"
+    },
+    {
+     "id": "t3",
+     "title": "域授权 GPU 训练（真实 CUDA）"
+    },
+    {
+     "id": "t4",
+     "title": "审阅（LLM 审稿人）"
+    },
+    {
+     "id": "t5",
+     "title": "终稿（按审稿意见返工）"
+    },
+    {
+     "id": "t6",
+     "title": "双签对账"
+    }
+   ],
+   "t": 13.75
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "sup",
+    "name": "研枢 · 调度大脑",
+    "role": "supervisor",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "plan",
+     "grant.issue"
+    ]
+   },
+   "t": 15.0
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "scout",
+    "name": "文献检索 scout",
+    "role": "partner",
+    "org": "yanshu",
+    "source": "wutong",
+    "skills": [
+     "arxiv.search"
+    ]
+   },
+   "t": 16.25
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "writer",
+    "name": "综述撰写 writer",
+    "role": "partner",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "paper.write"
+    ]
+   },
+   "t": 17.5
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "critic",
+    "name": "审阅 critic",
+    "role": "partner",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "paper.review"
+    ]
+   },
+   "t": 18.75
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "exp",
+    "name": "实验员 experiment",
+    "role": "partner",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "exp.run"
+    ]
+   },
+   "t": 20.0
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "gpu",
+    "name": "GPU 算力节点（沙盒）",
+    "role": "partner",
+    "org": "edge",
+    "source": "domain",
+    "skills": [
+     "gpu.run"
+    ]
+   },
+   "t": 21.25
+  },
+  {
+   "type": "state",
+   "agent": "sup",
+   "state": "idle",
+   "note": "编排就绪",
+   "t": 23.5
+  },
+  {
+   "type": "domain",
+   "action": "create",
+   "domainId": "lab-x-y",
+   "revision": 1,
+   "t": 28.25
+  },
+  {
+   "type": "token",
+   "kind": "grant",
+   "issuer": "sup",
+   "holder": "exp",
+   "domain": "lab-x-y",
+   "maxUses": 3,
+   "label": "域级 Grant（双签章程 · 配额 3）",
+   "t": 32.5
+  },
+  {
+   "type": "token",
+   "kind": "delegation",
+   "issuer": "sup",
+   "holder": "exp",
+   "domain": "lab-x-y",
+   "skill": "gpu.run",
+   "label": "派生 Task Token（隧道用）",
+   "t": 36.75
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "scout",
+   "taskId": "t1",
+   "skill": "arxiv.search",
+   "label": "检索文献",
+   "t": 40.5
+  },
+  {
+   "type": "state",
+   "agent": "scout",
+   "taskId": "t1",
+   "state": "working",
+   "t": 42.75
+  },
+  {
+   "type": "pep",
+   "caller": "sup",
+   "target": "scout",
+   "skill": "arxiv.search",
+   "decision": "allow",
+   "rule": "public-skill · 公开技能免令牌",
+   "t": 47.5
+  },
+  {
+   "type": "product",
+   "agent": "scout",
+   "name": "资料清单.md",
+   "state": "final",
+   "t": 50.75
+  },
+  {
+   "type": "state",
+   "agent": "scout",
+   "taskId": "t1",
+   "state": "completed",
+   "t": 53.0
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "writer",
+   "taskId": "t2",
+   "skill": "paper.write",
+   "label": "实验设计",
+   "t": 56.75
+  },
+  {
+   "type": "state",
+   "agent": "writer",
+   "taskId": "t2",
+   "state": "working",
+   "t": 59.0
+  },
+  {
+   "type": "product",
+   "agent": "writer",
+   "name": "实验方案.md",
+   "state": "final",
+   "t": 62.25
+  },
+  {
+   "type": "state",
+   "agent": "writer",
+   "taskId": "t2",
+   "state": "completed",
+   "t": 64.5
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t3",
+   "skill": "exp.run",
+   "label": "执行训练（持派生 token）",
+   "t": 68.25
+  },
+  {
+   "type": "state",
+   "agent": "exp",
+   "taskId": "t3",
+   "state": "working",
+   "t": 70.5
+  },
+  {
+   "type": "metric",
+   "agent": "exp",
+   "key": "delegation",
+   "value": "第 2 次签发成功（前枚令牌在代码生成期间过期，重发即重签）",
+   "t": 77.25
+  },
+  {
+   "type": "product",
+   "agent": "exp",
+   "name": "实验报告.md",
+   "state": "final",
+   "t": 80.5
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "allow",
+   "rule": "domain-delegation · act≡对端 · 域资产许可",
+   "domain": "lab-x-y",
+   "t": 85.25
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t3",
+   "state": "working",
+   "note": "沙盒内真实执行",
+   "t": 87.5
+  },
+  {
+   "type": "metric",
+   "agent": "gpu",
+   "key": "sandbox",
+   "value": "job executed",
+   "t": 94.25
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t3",
+   "state": "completed",
+   "t": 96.5
+  },
+  {
+   "type": "state",
+   "agent": "exp",
+   "taskId": "t3",
+   "state": "completed",
+   "t": 98.75
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "critic",
+   "taskId": "t4",
+   "skill": "paper.review",
+   "label": "审阅复现报告",
+   "t": 102.5
+  },
+  {
+   "type": "state",
+   "agent": "critic",
+   "taskId": "t4",
+   "state": "working",
+   "t": 104.75
+  },
+  {
+   "type": "product",
+   "agent": "critic",
+   "name": "审稿意见.md · REVISE 8 分",
+   "state": "final",
+   "t": 108.0
+  },
+  {
+   "type": "state",
+   "agent": "critic",
+   "taskId": "t4",
+   "state": "completed",
+   "t": 110.25
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "writer",
+   "taskId": "t5",
+   "skill": "paper.write",
+   "label": "按审稿意见返工终稿",
+   "t": 114.0
+  },
+  {
+   "type": "state",
+   "agent": "writer",
+   "taskId": "t5",
+   "state": "working",
+   "t": 116.25
+  },
+  {
+   "type": "product",
+   "agent": "writer",
+   "name": "复现报告.md",
+   "state": "reviewing",
+   "t": 119.5
+  },
+  {
+   "type": "product",
+   "agent": "writer",
+   "name": "复现报告.md",
+   "state": "final",
+   "t": 122.75
+  },
+  {
+   "type": "state",
+   "agent": "writer",
+   "taskId": "t5",
+   "state": "completed",
+   "t": 125.0
+  },
+  {
+   "type": "reconcile",
+   "domain": "lab-x-y",
+   "totalUses": 2,
+   "t": 129.25
+  },
+  {
+   "type": "done",
+   "summary": "⚠ 复现完成：测试准确率 见报告，审稿裁决 REVISE；文献实检、方案/报告/审稿均为真实 LLM 产物，训练在 GPU 沙盒真实执行，全程域授权 + 双签对账。",
+   "t": 135.25
+  }
+ ]
+}

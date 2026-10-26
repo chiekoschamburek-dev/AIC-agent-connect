@@ -1,0 +1,34 @@
+[Unit]
+Description=Wit ACPs Yanshu Task Feeder (dispatch real AIP tasks to accumulate access counts)
+Documentation=file:///opt/wit/my-project/docs/task-feeder.md
+After=network-online.target wit-yanshu@scout.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wit
+Group=wit
+WorkingDirectory=/opt/wit/my-project/acps_cluster
+
+# 收尾批次（2026-10-19 14:xx 需求）：**再跑 10 个就结束**
+# - 5 个 deep research（4 步：designer → scout → synthesis → writer，模板里 designer 在第 1 步）
+# - 5 个 autoresearch（论文复现，真跑 GPU 沙盒）
+# 跑完这一轮进程退出（Restart=no），不会自己再起。
+# 想再来一轮：systemctl start wit-task-feeder
+# **只派给 supervisor**：平台排行榜按 caller 侧 span 计数，脚本直连伙伴
+# 只留被调方记录、平台不认。
+ExecStart=/opt/wit/venv/bin/python /opt/wit/my-project/acps_cluster/feed_tasks.py \
+    --targets supervisor \
+    --round-size 10 --rounds 1 --order random \
+    --include-heavy --heavy-per-round 5 --designer-per-round 0 \
+    --rate 5 --wait 1500
+Restart=no
+RestartSec=120
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/wit/my-project/acps_cluster
+
+[Install]
+WantedBy=multi-user.target

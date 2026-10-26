@@ -1,0 +1,19 @@
+[Unit]
+Description=SCINexus Research Designer (ACPs Direct partner, wt platform)
+Documentation=file:/home/gjw/research-designer/SERVER_DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/gjw/research-designer
+# 由 systemd 以 gjw 本人身份 source 他自己的 env 文件（本文件不含任何凭据）。
+# 末尾显式覆盖 WIT_WORKSPACE：指向已批准且有证书的 wt 工作区，
+# 而不是 .env.server 里那条仍 pending_review、无证书的官方工作区。
+ExecStart=/bin/sh -c 'cd /home/gjw/research-designer && set -a && . ./.env.server && . ./wt-platform.env && set +a && export WIT_WORKSPACE=.wit/scinexus-research-designer-wt && exec .venv/bin/python server_acps.py serve'
+Restart=always
+RestartSec=15
+TimeoutStartSec=600
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Yanshu 台账事件裁剪（全库 aip_task_events，keep-days=7 / 每任务 50，含 VACUUM）
+Documentation=https://github.com/AIP-PUB 项目内部; 见 docs/review-fixes 与 deploy/prune_task_events.py
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=wit
+Group=wit
+WorkingDirectory=/opt/wit/my-project/acps_cluster
+# 只裁事件流；aip_tasks 行与产物列不动（2026-10-15 审查 #2 排期）
+ExecStart=/bin/bash /opt/wit/my-project/acps_cluster/deploy/prune_task_events_all.sh
+Nice=10

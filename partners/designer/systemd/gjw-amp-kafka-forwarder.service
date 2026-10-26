@@ -1,0 +1,14 @@
+[Unit]
+Description=Forward Yanshu AMP journals to Kafka
+After=network-online.target gjw-designer.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/gjw/research-designer
+ExecStart=/home/gjw/research-designer/.venv/bin/python /home/gjw/research-designer/amp_kafka_forwarder.py --log-dir /home/gjw/research-designer/.wit/scinexus-research-designer-wt/logs --aic 1.2.156.3088.1.BUPT.145MB5.3IXQIN.RXO3OT.1AQ9 --state /home/gjw/research-designer/.wit/scinexus-research-designer-wt/amp-kafka-offsets.json --initial-position end
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

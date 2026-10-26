@@ -1,0 +1,475 @@
+{
+ "id": "c-auth",
+ "title": "真实 · C 授权实战：谁能用 · 谁不能用",
+ "description": "无凭据/自签拦截 → 域授权 → 配额 → 冻结 → 解冻 → 双签对账（真实 PEP）",
+ "instruction": "授权层实战：无凭据拦截 → 自签令牌拦截 → 域授权 → 配额烧尽 → 冻结急停 → 解冻恢复 → 双签对账。（真实 PEP 裁决）",
+ "regions": [
+  {
+   "id": "yanshu",
+   "name": "研枢集群（机构 A · 本机实测）",
+   "color": "#0ea5e9",
+   "x": 40,
+   "y": 40,
+   "w": 620,
+   "h": 430
+  },
+  {
+   "id": "edge",
+   "name": "算力沙盒（本地 dev 身份 · Docker CUDA）",
+   "color": "#f59e0b",
+   "x": 700,
+   "y": 40,
+   "w": 420,
+   "h": 300
+  },
+  {
+   "id": "outside",
+   "name": "外部持证 Agent（平台社区）",
+   "color": "#8b5cf6",
+   "x": 700,
+   "y": 380,
+   "w": 420,
+   "h": 220
+  }
+ ],
+ "agents": [
+  {
+   "id": "sup",
+   "name": "研枢 · 调度大脑",
+   "role": "supervisor",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "grant.issue"
+   ]
+  },
+  {
+   "id": "exp",
+   "name": "实验员（域内 consumer）",
+   "role": "partner",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "exp.run"
+   ]
+  },
+  {
+   "id": "gpu",
+   "name": "GPU 算力节点",
+   "role": "partner",
+   "org": "edge",
+   "source": "domain",
+   "skills": [
+    "gpu.run"
+   ]
+  },
+  {
+   "id": "outsider",
+   "name": "外部持证 Agent X",
+   "role": "partner",
+   "org": "outside",
+   "source": "wutong",
+   "skills": []
+  }
+ ],
+ "events": [
+  {
+   "type": "instruction",
+   "text": "授权层实战：无凭据拦截 → 自签令牌拦截 → 域授权 → 配额烧尽 → 冻结急停 → 解冻恢复 → 双签对账。（真实 PEP 裁决）",
+   "t": 5.0
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "sup",
+    "name": "研枢 · 调度大脑",
+    "role": "supervisor",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "grant.issue"
+    ]
+   },
+   "t": 6.25
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "gpu",
+    "name": "GPU 算力节点",
+    "role": "partner",
+    "org": "edge",
+    "source": "domain",
+    "skills": [
+     "gpu.run"
+    ]
+   },
+   "t": 7.5
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "exp",
+    "name": "实验员（付费客户/域内 consumer）",
+    "role": "partner",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "exp.run"
+    ]
+   },
+   "t": 8.75
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "outsider",
+    "name": "外部持证 Agent X（critic 证书）",
+    "role": "partner",
+    "org": "outside",
+    "source": "wutong",
+    "skills": []
+   },
+   "t": 10.0
+  },
+  {
+   "type": "delegate",
+   "from": "outsider",
+   "to": "gpu",
+   "taskId": "x1",
+   "skill": "gpu.run",
+   "label": "空手直调 gpu.run",
+   "t": 13.75
+  },
+  {
+   "type": "pep",
+   "caller": "outsider",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "deny",
+   "rule": "no-credential · 无凭据直连",
+   "t": 18.5
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "x1",
+   "state": "rejected",
+   "note": "task rejected（通用文案，细节只进审计）",
+   "t": 20.75
+  },
+  {
+   "type": "delegate",
+   "from": "outsider",
+   "to": "gpu",
+   "taskId": "x2",
+   "skill": "gpu.run",
+   "label": "持自签令牌重试",
+   "t": 24.5
+  },
+  {
+   "type": "pep",
+   "caller": "outsider",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "deny",
+   "rule": "issuer-not-authorized · 自签令牌：签名真、签发权无",
+   "t": 29.25
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "x2",
+   "state": "rejected",
+   "t": 31.5
+  },
+  {
+   "type": "domain",
+   "action": "create",
+   "domainId": "lab-x-y",
+   "revision": 1,
+   "t": 36.25
+  },
+  {
+   "type": "token",
+   "kind": "grant",
+   "issuer": "sup",
+   "holder": "exp",
+   "domain": "lab-x-y",
+   "maxUses": 2,
+   "label": "域级 Grant · 配额 2 · jti 一次性入库",
+   "t": 40.5
+  },
+  {
+   "type": "token",
+   "kind": "delegation",
+   "issuer": "sup",
+   "holder": "exp",
+   "domain": "lab-x-y",
+   "skill": "gpu.run",
+   "label": "派生 Task Token · ≤10min · 收窄 ⊆ GT",
+   "t": 44.75
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t1",
+   "skill": "exp.run",
+   "label": "GPU 冒烟 #1（持派生 token）",
+   "t": 48.5
+  },
+  {
+   "type": "state",
+   "agent": "exp",
+   "taskId": "t1",
+   "state": "working",
+   "t": 50.75
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "allow",
+   "rule": "domain-delegation · act≡对端 · 路由相邻",
+   "domain": "lab-x-y",
+   "t": 55.5
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t1",
+   "state": "working",
+   "note": "Docker 沙盒真实 CUDA",
+   "t": 57.75
+  },
+  {
+   "type": "metric",
+   "agent": "gpu",
+   "key": "sandbox",
+   "value": "GPU-OK",
+   "t": 64.5
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t1",
+   "state": "completed",
+   "t": 66.75
+  },
+  {
+   "type": "state",
+   "agent": "exp",
+   "taskId": "t1",
+   "state": "completed",
+   "t": 69.0
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t2",
+   "skill": "exp.run",
+   "label": "训练 #2（GT 1/2）",
+   "t": 72.75
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "allow",
+   "rule": "domain-grant · 配额 1/2",
+   "domain": "lab-x-y",
+   "t": 77.5
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t2",
+   "state": "completed",
+   "t": 79.75
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t2b",
+   "skill": "exp.run",
+   "label": "训练 #3（GT 2/2 · 派发）",
+   "t": 83.5
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "allow",
+   "rule": "domain-grant · 配额 2/2 · 沙盒执行中",
+   "domain": "lab-x-y",
+   "t": 88.25
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t2b",
+   "state": "working",
+   "note": "已派发，沙盒执行中",
+   "t": 90.5
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t3",
+   "skill": "exp.run",
+   "label": "训练 #4（配额已尽）",
+   "t": 94.25
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "deny",
+   "rule": "quota-exhausted · 配额烧尽（第 3 次准入即拒）",
+   "domain": "lab-x-y",
+   "t": 99.0
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t3",
+   "state": "rejected",
+   "t": 101.25
+  },
+  {
+   "type": "domain",
+   "action": "freeze",
+   "domainId": "lab-x-y",
+   "revision": 2,
+   "t": 106.0
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t4",
+   "skill": "exp.run",
+   "label": "冻结后持 GT 调用",
+   "t": 109.75
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "deny",
+   "rule": "domain-frozen · GT 同步死亡（⓪′ 验签前预检）",
+   "domain": "lab-x-y",
+   "t": 114.5
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t4",
+   "state": "rejected",
+   "t": 116.75
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t5",
+   "skill": "exp.run",
+   "label": "冻结后持派生 token 调用",
+   "t": 120.5
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "deny",
+   "rule": "domain-frozen · 派生 token 同步死亡",
+   "domain": "lab-x-y",
+   "t": 125.25
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t5",
+   "state": "rejected",
+   "t": 127.5
+  },
+  {
+   "type": "domain",
+   "action": "unfreeze",
+   "domainId": "lab-x-y",
+   "revision": 3,
+   "t": 132.25
+  },
+  {
+   "type": "token",
+   "kind": "grant",
+   "issuer": "sup",
+   "holder": "exp",
+   "domain": "lab-x-y",
+   "maxUses": 1,
+   "label": "r3 解冻后新 Grant",
+   "t": 136.5
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "exp",
+   "taskId": "t6",
+   "skill": "exp.run",
+   "label": "解冻后训练（恢复放行）",
+   "t": 140.25
+  },
+  {
+   "type": "state",
+   "agent": "exp",
+   "taskId": "t6",
+   "state": "working",
+   "t": 142.5
+  },
+  {
+   "type": "pep",
+   "caller": "exp",
+   "target": "gpu",
+   "skill": "gpu.run",
+   "decision": "allow",
+   "rule": "domain-grant · 解冻恢复",
+   "domain": "lab-x-y",
+   "t": 147.25
+  },
+  {
+   "type": "state",
+   "agent": "gpu",
+   "taskId": "t6",
+   "state": "completed",
+   "t": 149.5
+  },
+  {
+   "type": "state",
+   "agent": "exp",
+   "taskId": "t6",
+   "state": "completed",
+   "t": 151.75
+  },
+  {
+   "type": "reconcile",
+   "domain": "lab-x-y",
+   "totalUses": 3,
+   "t": 156.0
+  },
+  {
+   "type": "done",
+   "summary": "✅ 拦截有据（无凭据/自签令牌）、域授权真实放行（沙盒 CUDA 实跑）、配额烧尽即拒、冻结令 GT 与派生 token 同步死亡、解冻恢复、用量双签对账——全部真实 PEP 裁决与审计。",
+   "t": 162.0
+  }
+ ]
+}

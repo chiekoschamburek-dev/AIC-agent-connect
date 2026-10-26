@@ -1,0 +1,27 @@
+[Unit]
+Description=Wit ACPs arXiv Partner (8443/rpc)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wit
+Group=wit
+WorkingDirectory=/opt/wit/my-project/acps_cluster
+EnvironmentFile=/opt/wit/my-project/acps_cluster/deploy/.env.production
+# AMP 心跳 journal 在重启时会触发 AmpPersistenceError（wit 的 Windows/POSIX 通病），启动前清掉
+ExecStartPre=/bin/sh -c 'rm -f /opt/wit/my-project/acps_cluster/ws-partner/logs/*.jsonl; sleep $(/opt/wit/venv/bin/python -c "import random;print(random.randint(0,45))")'
+# 2026-10-06:partner_arxiv.py 已退役并移至 archive/(commit 9310e7e)——本单元停用。
+# 勿 enable:启动即以下面的提示退出。恢复 arXiv 伙伴需从 archive 移回并重写本单元。
+ExecStart=/bin/sh -c 'echo "wit-partner: arXiv 伙伴已退役(archive/partner_arxiv.py),本单元停用"; exit 1'
+Restart=no
+RestartSec=300
+TimeoutStopSec=30
+
+# 最小权限：只允许写自己的 workspace/logs
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/wit/my-project/acps_cluster
+
+[Install]
+WantedBy=multi-user.target

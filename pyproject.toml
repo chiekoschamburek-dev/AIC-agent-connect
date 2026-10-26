@@ -1,0 +1,34 @@
+[project]
+name = "yanshu-acps-cluster"
+version = "1.2.0"
+description = "研枢：智能体互联的受治资源协作网络（基于 GB/Z 185 与 ACPs）"
+requires-python = ">=3.12"
+license = { text = "MulanPSL-2.0" }
+readme = "README.md"
+
+[tool.pytest.ini_options]
+testpaths = ["acps_cluster/tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+# 说明：干净克隆不携带 dev CA 私钥，签名相关用例会 skip（不是 fail）。
+# 需要完整覆盖时先按 docs/runbook-add-new-agent.md 铸造 dev 身份。
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+exclude = [
+    "acps_cluster/demo_run",
+    "acps_cluster/archive",
+    "acps_cluster/_platform_snapshot",
+    "acps_cluster/ws-*",
+    "acps_cluster/certs-backup-*",
+    "_archive",
+]
+
+[tool.ruff.lint]
+# 第一阶段只拦"一定错"的规则（语法错误、未定义名、f-string 错误）。
+# 全量规则（E/F/BLE/S/ASYNC/RUF100）需要先清理 923 条历史 noqa，见审查报告 P1。
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.ruff.lint.per-file-ignores]
+"acps_cluster/tests/*" = ["F401"]

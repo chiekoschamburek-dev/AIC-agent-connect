@@ -1,0 +1,20 @@
+{
+  "domainId": "yanshu-eval",
+  "revision": 1,
+  "status": "active",
+  "members": {
+    "1.2.156.3088.1.1.EVAL01.AGENT01.RUN01.0ZBR": "provider",
+    "1.2.156.3088.1.1.EXPRMT.LABEXE01.RUN01.1207": "consumer",
+    "1.2.156.3088.1.1.ZV8ZLB.RJ5XH2.GOA7Q6.1672": "auditor"
+  },
+  "assets": [
+    {
+      "providerAic": "1.2.156.3088.1.1.EVAL01.AGENT01.RUN01.0ZBR",
+      "skill": "eval.submit",
+      "allowedMembers": [
+        "consumer"
+      ]
+    }
+  ],
+  "exportedFrom": "dual-signed charter (verify_manifest)"
+}

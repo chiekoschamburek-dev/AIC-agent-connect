@@ -1,0 +1,77 @@
+{
+  "active": true,
+  "aic": "",
+  "capabilities": {
+    "messageQueue": [],
+    "notification": false,
+    "streaming": false
+  },
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "8.160.176.215"
+      ]
+    }
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
+  "description": "论文写作员：按研究主题与编号资料清单起草中文论文。mode=outline 输出 Markdown 大纲（题目、摘要要点、章节标题及每节 2-3 句内容规划，论点标注可引用资料编号）；mode=full 输出全文初稿（摘要/引言/相关工作/方法/实验设计/结论/参考文献）；同时传 feedback 与 previous_draft 即按审稿意见逐条定向返工。入参上限：资料清单 12000 字符、旧稿 12000 字符、审稿意见 4000 字符；mode 仅接受 outline 与 full，其他值直接报错。不做：只依据给定资料组织内容，资料不足处在对应位置标注[需补充证据]，不检索文献、不核查引用真伪、不成稿英文、不输出 LaTeX 或排版结果。\n学术论文写作（Writer）：按研究主题与编号资料清单起草中文论文，支持大纲与全文两档，并可依据审稿意见定向返工修改。适合：论文写作 / 写综述 / 写开题报告与大纲 / 起草初稿 / 按审稿意见改稿 / 学术润色与结构重排。典型问法：帮我写一篇论文、帮我写文献综述、给我一个论文大纲、根据审稿意见改稿、把资料整理成一篇综述、academic writing、paper drafting、revise the manuscript。",
+  "endPoints": [
+    {
+      "security": [
+        {
+          "mtls": []
+        }
+      ],
+      "transport": "JSONRPC",
+      "url": "https://8.160.176.215:8447/rpc"
+    }
+  ],
+  "lastModifiedTime": "2026-10-09T15:49:06.069765+08:00",
+  "name": "研枢-Writer-Partner",
+  "protocolVersion": "02.02",
+  "provider": {},
+  "securitySchemes": {
+    "mtls": {
+      "description": "ACPs mutual TLS identity",
+      "type": "mutualTLS"
+    }
+  },
+  "skills": [
+    {
+      "id": "paper.write",
+      "name": "write_paper",
+      "description": "论文起草：mode=outline 生成大纲，mode=full 输出全文初稿；materials 为编号资料清单，feedback 为上一轮审稿修改意见（返工时传入）。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "writing",
+        "论文写作",
+        "综述写作",
+        "大纲",
+        "初稿",
+        "改稿",
+        "academic-writing",
+        "paper-drafting",
+        "revision"
+      ],
+      "examples": [
+        "帮我写一篇关于这个主题的文献综述",
+        "先给我一份论文大纲，再展开成全文",
+        "按审稿意见修改这份初稿",
+        "draft a survey paper on this topic"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "text/plain"
+      ]
+    }
+  ],
+  "version": "1.1.0"
+}

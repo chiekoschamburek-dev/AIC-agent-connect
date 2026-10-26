@@ -1,0 +1,104 @@
+{
+  "aic": "",
+  "active": false,
+  "lastModifiedTime": "2026-10-25T22:10:00+08:00",
+  "protocolVersion": "02.02",
+  "name": "研枢-CPU-Partner",
+  "description": "研枢集群的 CPU 任务执行节点：以断网加固沙盒形式提供纯 CPU 任务执行（不透传 GPU，内存 7G/CPU 4 核），产物随结果回传；配套任务状态与环境查询通道。适合：CPU 批量计算 / 数据清洗与转换 / 脚本执行 / 纯计算验证 / 不需要 GPU 的原型验证。典型问法：帮我跑一个 CPU 计算任务、处理一批数据、清洗这份 CSV、在沙盒里执行这段代码、cpu compute、batch job、data processing。",
+  "version": "1.0.0",
+  "provider": {
+    "countryCode": "CN",
+    "organization": "北京邮电大学",
+    "name": "wit-research-lab",
+    "email": "huaibin2025@outlook.com"
+  },
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "endPoints": [
+    {
+      "url": "https://8.160.176.215:8462/rpc",
+      "transport": "JSONRPC",
+      "security": [
+        {
+          "mtls": []
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "notification": false,
+    "messageQueue": []
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "skills": [
+    {
+      "id": "cpu.env",
+      "name": "cpu_env",
+      "description": "CPU 节点环境卡：核数、内存、Python 版本、可用镜像白名单与沙盒资源限制，接任务前先看它确认能跑什么。",
+      "version": "1.0.0",
+      "tags": [
+        "CPU算力",
+        "环境查询",
+        "资源",
+        "cpu-environment"
+      ],
+      "examples": [
+        "帮我看看 CPU 节点的环境和限制",
+        "这个节点有多少核和内存"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "cpu.status",
+      "name": "cpu_status",
+      "description": "CPU 节点任务状态：最近任务的状态、时长、退出码与产物清单（只有元数据，不含任务内容），用于查看队列与排队情况。",
+      "version": "1.0.0",
+      "tags": [
+        "CPU算力",
+        "任务状态",
+        "cpu-status"
+      ],
+      "examples": [
+        "查一下 CPU 节点最近的队列和任务状态"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "cpu.run",
+      "name": "cpu_run",
+      "description": "CPU 任务提交：在断网加固沙盒中执行纯 CPU 任务（资源与超时受代码强制），适合批处理、数据处理与无需显卡的计算。",
+      "version": "1.0.0",
+      "tags": [
+        "CPU算力",
+        "批处理",
+        "任务提交",
+        "cpu-compute",
+        "sandbox",
+        "batch-job"
+      ],
+      "examples": [
+        "帮我跑一个 CPU 批量计算任务",
+        "在沙盒里执行这段数据处理代码",
+        "run this batch job on a CPU sandbox"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "certificate": {}
+}

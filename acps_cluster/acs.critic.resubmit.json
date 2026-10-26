@@ -1,0 +1,108 @@
+{
+  "active": true,
+  "aic": "",
+  "capabilities": {
+    "messageQueue": [],
+    "notification": false,
+    "streaming": false
+  },
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "8.160.176.215"
+      ]
+    }
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "description": "模拟审稿人：科学性/逻辑性/合规性审查 + 引用核验（独立于审稿判断的机械流水线）。\n论文评审与引用核验（Critic）：以审稿人视角做科学性、逻辑性与合规性审查，输出 APPROVE / REVISE 裁决、评分与逐条问题清单（含位置、问题、建议与可复核原文证据）；引用核验独立于审稿判断，逐条判定 supported / misrepresented / fabricated / unverifiable。适合：论文审稿 / 同行评审 / 稿件质量检查 / 引用与事实核验 / 查引用是否造假 / 投稿前自检。典型问法：帮我审一篇论文、帮我检查这篇稿子的问题、帮我核对引用是否真实、这篇论文能不能投、给我一份审稿意见、peer review、citation verification、fact checking。",
+  "endPoints": [
+    {
+      "security": [
+        {
+          "mtls": []
+        }
+      ],
+      "transport": "JSONRPC",
+      "url": "https://8.160.176.215:8448/rpc"
+    }
+  ],
+  "lastModifiedTime": "2026-10-09T15:49:04.993851+08:00",
+  "name": "研枢-Critic-Partner",
+  "protocolVersion": "02.02",
+  "provider": {
+    "countryCode": "CN",
+    "email": "huaibin2025@outlook.com",
+    "name": "wit-research-lab",
+    "organization": "北京邮电大学"
+  },
+  "securitySchemes": {
+    "mtls": {
+      "description": "ACPs mutual TLS identity",
+      "type": "mutualTLS"
+    }
+  },
+  "skills": [
+    {
+      "id": "paper.review",
+      "name": "review_paper",
+      "description": "模拟审稿人审查论文：输出 APPROVE/REVISE 裁决、0-100 分与逐条问题清单（含位置、问题、建议与可复核的原文证据）。",
+      "version": "1.0.0",
+      "tags": [
+        "research",
+        "review",
+        "论文评审",
+        "审稿",
+        "同行评审",
+        "质量检查",
+        "peer-review",
+        "manuscript-review",
+        "quality-check"
+      ],
+      "examples": [
+        "帮我审这篇论文，给出审稿意见",
+        "这篇稿子有哪些问题，能不能投",
+        "帮我做一次投稿前的质量自检",
+        "review this manuscript and list the issues"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    },
+    {
+      "id": "citation.verify",
+      "name": "citation_verify_capability",
+      "description": "引用核验（机械流水线，独立于审稿判断）：解析草稿的 [n] 引用，经桥持令牌取源（scout.arxiv.fetch），逐条小调用比对论断与原文，输出 verdict 表（supported/misrepresented/fabricated/unverifiable）。供 review_gate 与审稿者的 evidence_check 交叉对账。",
+      "version": "1.0.0",
+      "tags": [
+        "review",
+        "citation",
+        "verify",
+        "引用核验",
+        "参考文献",
+        "事实核验",
+        "citation-verification",
+        "reference-check"
+      ],
+      "examples": [
+        "帮我核验这份综述的全部引用",
+        "这些参考文献是真的存在吗",
+        "verify all references in this survey"
+      ],
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
+    }
+  ],
+  "version": "1.11.0"
+}

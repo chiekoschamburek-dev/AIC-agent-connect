@@ -1,0 +1,30 @@
+[Unit]
+Description=Wit ACPs Yanshu Workspace Partner (registered/platform identity)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wit
+Group=wit
+WorkingDirectory=/opt/wit/my-project/acps_cluster
+EnvironmentFile=/opt/wit/my-project/acps_cluster/deploy/.env.production
+# workspace 专属项（provider/端口/限额）单独放，避免改共享 env 影响其他伙伴的
+# acpsConfig 指纹；文件不存在时下面的 Environment= 仍保证 provider/监听地址正确。
+EnvironmentFile=-/opt/wit/my-project/acps_cluster/deploy/.env.workspace
+Environment=ACPS_PROVIDER_NAME=wit-research-lab
+Environment=ACPS_SERVE_HOST=0.0.0.0
+# 平台同账号单会话：重启/重新登录会踢掉其他 agent 的会话。沿用 yanshu 模板的
+# 0-300s 抖动和 300s 重试间隔，避免 workspace 抖动把 scout/supervisor 踢下线。
+ExecStartPre=/bin/sh -c 'sleep $(/opt/wit/venv/bin/python -c "import random;print(random.randint(0,300))")'
+ExecStart=/opt/wit/venv/bin/python partner_workspace.py
+Restart=always
+RestartSec=300
+TimeoutStartSec=400
+TimeoutStopSec=30
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/wit/my-project/acps_cluster
+
+[Install]
+WantedBy=multi-user.target

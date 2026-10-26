@@ -1,0 +1,31 @@
+[Unit]
+Description=Wit ACPs Yanshu %i Partner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wit
+Group=wit
+WorkingDirectory=/opt/wit/my-project/acps_cluster
+EnvironmentFile=/opt/wit/my-project/acps_cluster/deploy/.env.production
+# AMP 心跳 journal 在重启时会触发 AmpPersistenceError（wit 的 Windows/POSIX 通病），启动前清掉
+# %i = 实例名（scout/synthesis/writer/critic/contradiction/frontier），同时映射到 partner_%i.py 与 ws-%i/
+# 末尾随机 0-300s 抖动：平台同账号单会话（重复登录会踢掉旧 token），错开可避免集体启动互相踢。
+# 实例从 4 个增到 6 个后，原 0-45s 窗口内碰撞概率过高（多实例同时抢同一账号会话），故放宽到 0-300s。
+# !! TimeoutStartSec 必须大于抖动上限，否则睡过 90s 的实例会在 start-pre 阶段被判超时杀掉
+#    （2026-09-27 实测踩过：contradiction 抽到 >90s 的值，start-pre operation timed out）。
+ExecStartPre=/bin/sh -c 'rm -f /opt/wit/my-project/acps_cluster/ws-%i/logs/*.jsonl; sleep $(/opt/wit/venv/bin/python -c "import random;print(random.randint(0,300))")'
+ExecStart=/opt/wit/venv/bin/python partner_%i.py
+Restart=always
+RestartSec=300
+TimeoutStartSec=400
+TimeoutStopSec=30
+
+# 最小权限：只允许写自己的 workspace/logs
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/wit/my-project/acps_cluster
+
+[Install]
+WantedBy=multi-user.target

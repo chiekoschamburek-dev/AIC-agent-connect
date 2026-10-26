@@ -1,0 +1,161 @@
+{
+ "aic": "",
+ "name": "研枢-Workspace-Partner",
+ "active": false,
+ "skills": [
+  {
+   "id": "ws.create",
+   "name": "开辟任务工作区",
+   "tags": [
+    "workspace",
+    "storage",
+    "task"
+   ],
+   "version": "1.0.0",
+   "examples": [
+    "为任务 task-20261101 开一个工作区",
+    "给这轮协作建个工作目录"
+   ],
+   "description": "按 task_id 开辟服务器端任务工作区目录，返回绝对路径与配额（默认 512MB）。已存在则直接复用并报当前用量。任务级隔离，互不干扰。",
+   "outputModes": [
+    "application/json"
+   ]
+  },
+  {
+   "id": "ws.write",
+   "name": "写入文件到任务工作区",
+   "tags": [
+    "workspace",
+    "storage",
+    "file"
+   ],
+   "version": "1.0.0",
+   "examples": [
+    "把这份实验报告存进工作区",
+    "将数据集清单写到 task-20261101 的 data/ 目录"
+   ],
+   "description": "向任务工作区写文件：content 为文本，或 encoding=base64 的二进制；原子写，写前复核每任务配额（默认 512MB），超额拒绝并如实报已用量。",
+   "outputModes": [
+    "application/json"
+   ]
+  },
+  {
+   "id": "ws.read",
+   "name": "读取任务工作区文件",
+   "tags": [
+    "workspace",
+    "storage",
+    "file"
+   ],
+   "version": "1.0.0",
+   "examples": [
+    "读一下工作区里 README 的内容",
+    "把 task-20261101 的实验结果发我"
+   ],
+   "description": "读取任务工作区内文件，默认 ≤64KB，超限截断并如实标注 truncated；二进制自动转 base64 并标注编码。只读，不执行内容。",
+   "outputModes": [
+    "application/json"
+   ]
+  },
+  {
+   "id": "ws.list",
+   "name": "列出任务工作区目录树",
+   "tags": [
+    "workspace",
+    "storage",
+    "list"
+   ],
+   "version": "1.0.0",
+   "examples": [
+    "这个任务的工作区里有什么文件",
+    "列一下 data 目录下的大小"
+   ],
+   "description": "输出任务工作区的目录树（posix 相对路径、类型、字节，≤200 项，可限深度），附工作区总用量。用于让伙伴在读写前先看清有什么。",
+   "outputModes": [
+    "application/json"
+   ]
+  },
+  {
+   "id": "ws.clone_repo",
+   "name": "克隆公开 GitHub 仓库到任务工作区",
+   "tags": [
+    "git",
+    "github",
+    "repo",
+    "clone"
+   ],
+   "version": "1.0.0",
+   "examples": [
+    "把 github.com/MKC-ShenZhi/SimpleAutoResearch 克隆进这个任务的工作区",
+    "帮我拉取这个开源仓库的代码用于复现实验"
+   ],
+   "description": "浅克隆公开 https 仓库（--depth 1，限 120 秒）到任务工作区 repo/<name>/，返回文件树与 README 头部摘要；克隆后复核配额，失败自动清理。不支持私有仓库与凭据。",
+   "outputModes": [
+    "application/json"
+   ]
+  },
+  {
+   "id": "ws.gc",
+   "name": "回收任务工作区",
+   "tags": [
+    "workspace",
+    "gc",
+    "cleanup"
+   ],
+   "version": "1.0.0",
+   "examples": [
+    "把 task-20261001 的工作区回收掉",
+    "清理七天前所有过期工作区"
+   ],
+   "description": "按 task_id 精确删除，或 older_than_days 按 mtime 批量回收过期工作区，返回已删除清单。防止服务器被任务残留填满。",
+   "outputModes": [
+    "application/json"
+   ]
+  }
+ ],
+ "version": "1.1.0",
+ "provider": {
+  "name": "wit-research-lab",
+  "email": "huaibin2025@outlook.com",
+  "countryCode": "CN",
+  "organization": "北京邮电大学"
+ },
+ "endPoints": [
+  {
+   "url": "https://8.160.176.215:8470/rpc",
+   "security": [
+    {
+     "mtls": []
+    }
+   ],
+   "transport": "JSONRPC"
+  }
+ ],
+ "certificate": {
+  "altNames": {
+   "ip": [
+    "8.160.176.215"
+   ]
+  }
+ },
+ "description": "研枢集群的任务工作区管理员：为多智能体协作按任务开辟服务器端工作区目录，让伙伴之间以文件交换代替上下文传话——文件不进模型上下文，只有路径和摘要进上下文。能力六项：ws.create 按任务开辟工作区；ws.write 写入文本或 base64 二进制（原子写）；ws.read 读取文件（默认 ≤64KB，超限截断并如实标注 truncated）；ws.list 输出目录树（posix 相对路径、类型、字节，≤200 项）；ws.clone_repo 浅克隆公开 https 仓库（--depth 1，返回文件树与 README 摘要）；ws.gc 按 task_id 或按 mtime 天数批量回收。安全边界：task_id 白名单校验；相对路径 resolve 后必须落在任务目录内，绝对路径与目录逃逸显式拒绝；每任务配额 512MB，写前与克隆后复核；克隆仅接受 https 公开仓库、禁用户凭据、限时 120 秒。典型场景：任务涉及 GitHub 仓库或大数据集时，编排第一步先建工作区并克隆仓库，后续检索/实验/写作伙伴按路径取用，交付物也落在同一工作区。适合作为多智能体系统的共享工作面/文件总线使用。",
+ "capabilities": {
+  "streaming": false,
+  "messageQueue": [],
+  "notification": false
+ },
+ "protocolVersion": "02.02",
+ "securitySchemes": {
+  "mtls": {
+   "type": "mutualTLS",
+   "description": "ACPs mutual TLS identity"
+  }
+ },
+ "lastModifiedTime": "2026-10-25T23:32:55.543784+08:00",
+ "defaultInputModes": [
+  "application/json"
+ ],
+ "defaultOutputModes": [
+  "application/json"
+ ]
+}

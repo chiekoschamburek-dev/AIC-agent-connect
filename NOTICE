@@ -1,0 +1,43 @@
+研枢（Yanshu）— 第三方组件与修改说明
+====================================
+
+本项目基于 ACPs-community（Agent Collaboration Protocols）二次开发，遵循
+木兰宽松许可证第 2 版（MulanPSL-2.0），许可证全文见同目录 LICENSE。
+
+一、上游组件
+
+1. ACPs-community
+   来源：https://github.com/AIP-PUB/ACPs-community
+   许可证：MulanPSL-2.0
+   使用方式：作为协议与服务端基础设施（registry / discovery / CA / monitor /
+   mq-auth 等）运行，未修改其源码文件。
+
+2. acps-sdk 2.2.0
+   来源：随仓库分发于 vendor/acps_sdk-2.2.0-py3-none-any.whl
+   许可证：MulanPSL-2.0
+
+3. wit-framework 2.1.0
+   来源：官方发行渠道（本仓库不分发，原因见 README「第三方组件与许可」）
+   许可证：上游未提供许可证元数据
+
+二、本项目的修改与新增
+
+本项目的应用层代码（acps_cluster/、capabilities/）为新增实现，未 fork 上游源码。
+对上游运行时的影响仅限两处幂等 monkeypatch（discovery filter 兼容、ACS 字段透传），
+均在 acps_cluster/cluster_common.py 内有注释说明，不修改上游包文件。
+
+对 ACPs-community 的修改位于其本地分支 `cdap-domain-visibility`（截至 2026-10-21：
+48 个文件，+1272 / −170），主要内容为：
+- discovery-server 的域可见性过滤（visibility / domains 谓词与响应脱敏）；
+- registry-server ACS schema 接受 visibility / domains 字段；
+- 通知回调域名允许列表；
+- 若干安全与健壮性修复（R4–R10）。
+
+该分支尚未合并到上游 main，也未向上游发起 PR；按 MulanPSL-2.0 要求在此标注修改。
+上游原始代码可从 https://github.com/AIP-PUB/ACPs-community 获取。
+
+三、分发注意事项
+
+- 再分发本项目时请保留本 NOTICE 与 LICENSE。
+- 不得分发 wit_framework wheel（上游未授予明确许可）。
+- 仓库不包含任何真实凭据、私钥或平台账号；部署前请自行生成身份。

@@ -1,0 +1,78 @@
+# =============================================================================
+# 研枢（yanshu-AIC）忽略规则
+#
+# 基线来自 my-project/.gitignore（开源合规与忽略语义不变），按整合后的新结构
+# 做了三处必要的路径化调整，原因写在对应小节：
+#   1. 不再全局忽略 *.json / *.jsonl —— 新仓库同时收纳两个前端的源码 JSON
+#      （cluster-viz/package.json、partners/wenji/**），全局忽略会让它们无法入库；
+#      凭据与运行时状态改为按目录/后缀精确忽略，覆盖面不放宽。
+#   2. ws-* 运行时目录同时出现在 acps_cluster/ 与 partners/ 下，改为任意层级忽略。
+#   3. vendor/ 下只放行 acps-sdk（MulanPSL-2.0，随仓库分发），
+#      wit_framework wheel 一律不入库（上游未提供许可证元数据，见 NOTICE）。
+# =============================================================================
+
+# ---- 密钥、凭据、证书 ------------------------------------------------------
+.env
+.env.*
+!.env.example
+!**/.env.example
+!**/*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.token
+**/.campus_key
+**/secrets/
+tokens/
+**/tokens/
+**/certs-backup-*/
+**/ws-*/acps/grants/
+**/grants/*.json
+
+# ---- 运行时数据与中间产物 --------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+node_modules/
+dist/
+build/
+output/
+datasets/
+demo_run/
+_archive/
+_audit/
+eval-private/
+.wit/
+.zcode/
+**/ws-*/
+**/certs-backup-*
+*.log
+*.tsbuildinfo
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.db
+*.zip
+*.tar.gz
+*.tgz
+*.bak-*
+*.pre-*
+frontend-check*.png
+
+# ---- 二进制依赖：只声明依赖，不分发 wheel --------------------------------
+*.whl
+!vendor/acps_sdk-*.whl
+vendor/wit_framework-*.whl
+wheels/
+
+# ---- 本地编辑器 / 系统 ------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

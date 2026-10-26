@@ -1,0 +1,9 @@
+[Unit]
+Description=Yanshu 台账日报（只读：非终态任务 + 年龄 + 超龄⚠；政策=按设计驻留不自动 expire）
+
+[Service]
+Type=oneshot
+User=wit
+Group=wit
+WorkingDirectory=/opt/wit/my-project/acps_cluster
+ExecStart=/opt/wit/venv/bin/python /opt/wit/my-project/acps_cluster/deploy/task_ledger_report.py --warn-days 14

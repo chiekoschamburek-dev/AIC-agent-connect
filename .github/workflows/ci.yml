@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  static:
+    name: 静态检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 语法编译（不导入依赖）
+        run: python -m compileall -q acps_cluster capabilities
+      - name: ruff 致命规则
+        run: |
+          python -m pip install --quiet ruff
+          ruff check --select E9,F63,F7,F82 acps_cluster capabilities
+
+  tests:
+    name: 单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest httpx "cryptography>=42" "pydantic>=2.10" "openai>=2.32,<3" jcs
+          if ls vendor/*.whl >/dev/null 2>&1; then
+            python -m pip install vendor/*.whl
+          fi
+      - name: 运行测试（缺 wit_framework 时跳过）
+        run: |
+          if ! python -c "import wit" 2>/dev/null; then
+            echo "::warning::wit_framework 未分发，跳过测试。请从官方渠道获取后放入 vendor/ 再跑。"
+            exit 0
+          fi
+          python -m pytest acps_cluster/tests -q

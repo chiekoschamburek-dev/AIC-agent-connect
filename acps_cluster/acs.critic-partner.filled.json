@@ -1,0 +1,87 @@
+{
+ "aic": "",
+ "active": false,
+ "lastModifiedTime": "2026-10-07T12:00:00.000000+08:00",
+ "protocolVersion": "02.02",
+ "name": "研枢-Critic-Partner",
+ "description": "模拟审稿人：科学性/逻辑性/合规性审查 + 引用核验（独立于审稿判断的机械流水线）。",
+ "version": "1.10.0",
+ "provider": {
+  "countryCode": "CN",
+  "organization": "北京邮电大学",
+  "name": "wit-research-lab",
+  "email": "huaibin2025@outlook.com"
+ },
+ "securitySchemes": {
+  "mtls": {
+   "type": "mutualTLS",
+   "description": "ACPs mutual TLS identity"
+  }
+ },
+ "endPoints": [
+  {
+   "url": "https://192.0.2.10:8448/rpc",
+   "transport": "JSONRPC",
+   "security": [
+    {
+     "mtls": []
+    }
+   ]
+  }
+ ],
+ "capabilities": {
+  "streaming": false,
+  "notification": false,
+  "messageQueue": []
+ },
+ "defaultInputModes": [
+  "application/json"
+ ],
+ "defaultOutputModes": [
+  "application/json"
+ ],
+ "skills": [
+  {
+   "id": "paper.review",
+   "name": "review_paper",
+   "description": "模拟审稿人审查论文：输出 APPROVE/REVISE 裁决、0-100 分与逐条问题清单（含位置、问题、建议与可复核的原文证据）。",
+   "version": "1.0.0",
+   "tags": [
+    "research",
+    "review"
+   ],
+   "examples": [],
+   "inputModes": [
+    "application/json"
+   ],
+   "outputModes": [
+    "application/json"
+   ]
+  },
+  {
+   "id": "citation.verify",
+   "name": "citation_verify_capability",
+   "description": "引用核验（机械流水线，独立于审稿判断）：解析草稿的 [n] 引用，经桥持令牌取源（scout.arxiv.fetch），逐条小调用比对论断与原文，输出 verdict 表（supported/misrepresented/fabricated/unverifiable）。供 review_gate 与审稿者的 evidence_check 交叉对账。",
+   "version": "1.0.0",
+   "tags": [
+    "review",
+    "citation",
+    "verify"
+   ],
+   "examples": [],
+   "inputModes": [
+    "application/json"
+   ],
+   "outputModes": [
+    "application/json"
+   ]
+  }
+ ],
+ "certificate": {
+  "altNames": {
+   "ip": [
+    "192.0.2.10"
+   ]
+  }
+ }
+}

@@ -1,0 +1,29 @@
+# 一次发布的文件清单（路径相对 my-project 根）
+# 用法：backup_deploy.sh --files deploy_files.txt
+# 说明：新增文件也写在这里——服务器上不存在时脚本会记入 absent.txt 再复制。
+acps_cluster/supervisor.py
+acps_cluster/cluster_common.py
+acps_cluster/discovery_metadata.py
+acps_cluster/partner_workspace.py
+acps_cluster/partner_workspace_client.py
+acps_cluster/workspace_access.py
+acps_cluster/partner_scout.py
+acps_cluster/partner_experiment.py
+acps_cluster/partner_synthesis.py
+acps_cluster/partner_writer.py
+acps_cluster/partner_critic.py
+acps_cluster/partner_contradiction.py
+acps_cluster/partner_frontier.py
+acps_cluster/delegation/__init__.py
+acps_cluster/delegation/bridge.py
+acps_cluster/delegation/client.py
+acps_cluster/delegation/pep.py
+acps_cluster/delegation/skill_scope.py
+acps_cluster/delegation/token.py
+acps_cluster/tests/test_delegation.py
+acps_cluster/tests/test_resource_dispatch_auth.py
+acps_cluster/tests/test_skill_scope.py
+acps_cluster/tests/test_supervisor_tools.py
+acps_cluster/tests/test_partner_workspace_client.py
+acps_cluster/tests/test_partner_workspace_acs.py
+acps_cluster/tests/test_inbound_product_fallback.py

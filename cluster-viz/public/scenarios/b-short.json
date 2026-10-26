@@ -1,0 +1,217 @@
+{
+ "id": "b-short",
+ "title": "真实 · B 短链路：检索即成文",
+ "description": "arXiv 实检 + 真实 LLM 两页综述（L0/L1 双路 PEP 审计）",
+ "instruction": "查一下图注意力网络近一年的进展，直接写成两页综述。（真实任务：arXiv 实检 + 真实 LLM 成文）",
+ "regions": [
+  {
+   "id": "yanshu",
+   "name": "研枢集群（机构 A · 本机实测）",
+   "color": "#0ea5e9",
+   "x": 40,
+   "y": 40,
+   "w": 760,
+   "h": 620
+  }
+ ],
+ "agents": [
+  {
+   "id": "sup",
+   "name": "研枢 · 调度大脑",
+   "role": "supervisor",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "plan",
+    "orchestrate"
+   ]
+  },
+  {
+   "id": "scout",
+   "name": "文献检索 scout",
+   "role": "partner",
+   "org": "yanshu",
+   "source": "wutong",
+   "skills": [
+    "arxiv.search"
+   ]
+  },
+  {
+   "id": "writer",
+   "name": "综述撰写 writer",
+   "role": "partner",
+   "org": "yanshu",
+   "source": "roster",
+   "skills": [
+    "paper.write"
+   ]
+  }
+ ],
+ "events": [
+  {
+   "type": "instruction",
+   "text": "查一下图注意力网络近一年的进展，直接写成两页综述。（真实任务：arXiv 实检 + 真实 LLM 成文）",
+   "t": 5.0
+  },
+  {
+   "type": "state",
+   "agent": "sup",
+   "state": "planning",
+   "t": 7.25
+  },
+  {
+   "type": "plan",
+   "subtasks": [
+    {
+     "id": "t1",
+     "title": "检索 arXiv（真实网络）"
+    },
+    {
+     "id": "t2",
+     "title": "撰写综述（真实 LLM）"
+    }
+   ],
+   "t": 13.75
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "sup",
+    "name": "研枢 · 调度大脑",
+    "role": "supervisor",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "plan",
+     "orchestrate"
+    ]
+   },
+   "t": 15.0
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "scout",
+    "name": "文献检索 scout",
+    "role": "partner",
+    "org": "yanshu",
+    "source": "wutong",
+    "skills": [
+     "arxiv.search"
+    ]
+   },
+   "t": 16.25
+  },
+  {
+   "type": "agent_up",
+   "agent": {
+    "id": "writer",
+    "name": "综述撰写 writer",
+    "role": "partner",
+    "org": "yanshu",
+    "source": "roster",
+    "skills": [
+     "paper.write"
+    ]
+   },
+   "t": 17.5
+  },
+  {
+   "type": "state",
+   "agent": "sup",
+   "state": "idle",
+   "note": "编排就绪（代码侧确定性编排）",
+   "t": 19.75
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "scout",
+   "taskId": "t1",
+   "skill": "arxiv.search",
+   "label": "检索 arXiv：graph attention network",
+   "t": 23.5
+  },
+  {
+   "type": "state",
+   "agent": "scout",
+   "taskId": "t1",
+   "state": "working",
+   "t": 25.75
+  },
+  {
+   "type": "pep",
+   "caller": "sup",
+   "target": "scout",
+   "skill": "arxiv.search",
+   "decision": "allow",
+   "rule": "public-skill · 公开技能免令牌",
+   "t": 30.5
+  },
+  {
+   "type": "product",
+   "agent": "scout",
+   "name": "资料清单.md",
+   "state": "final",
+   "t": 33.75
+  },
+  {
+   "type": "state",
+   "agent": "scout",
+   "taskId": "t1",
+   "state": "completed",
+   "t": 36.0
+  },
+  {
+   "type": "delegate",
+   "from": "sup",
+   "to": "writer",
+   "taskId": "t2",
+   "skill": "paper.write",
+   "label": "撰写两页综述",
+   "t": 39.75
+  },
+  {
+   "type": "state",
+   "agent": "writer",
+   "taskId": "t2",
+   "state": "working",
+   "t": 42.0
+  },
+  {
+   "type": "pep",
+   "caller": "sup",
+   "target": "writer",
+   "skill": "paper.write",
+   "decision": "allow",
+   "rule": "public-skill · leader 白名单直调",
+   "t": 46.75
+  },
+  {
+   "type": "product",
+   "agent": "writer",
+   "name": "GAT综述.md",
+   "state": "draft",
+   "t": 50.0
+  },
+  {
+   "type": "product",
+   "agent": "writer",
+   "name": "GAT综述.md",
+   "state": "final",
+   "t": 53.25
+  },
+  {
+   "type": "state",
+   "agent": "writer",
+   "taskId": "t2",
+   "state": "completed",
+   "t": 55.5
+  },
+  {
+   "type": "done",
+   "summary": "✅ 检索 2803 字真实 arXiv 资料 → 综述 4282 字真实 LLM 成稿；scout L0 公开技能、writer 白名单直调，双侧 PEP 审计留痕。",
+   "t": 61.5
+  }
+ ]
+}

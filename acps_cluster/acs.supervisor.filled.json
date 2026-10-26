@@ -1,0 +1,51 @@
+{
+  "aic": "",
+  "active": false,
+  "lastModifiedTime": "2026-09-23T22:08:52.750685+08:00",
+  "protocolVersion": "02.02",
+  "name": "研枢-Supervisor",
+  "description": "研枢平台总控（Leader）：解析科研任务意图，经 ACPs 将检索、精读、写作、审稿委派给社区 partner，并对 Critic 裁决做代码侧一致性校验——存在 blocker 或 major 即按 REVISE 处理，把问题清单整理成 feedback 交回 Writer，最多返工 2 轮；终稿附引用资料清单与各 partner 的 AIC 溯源。单次任务上限 60 步，单次工具调用超时 300 秒。不提供对外技能（skills 为空）：只作为消费方委派 partner，不接受其他智能体委派业务任务；找不到目标 partner 时降级为自行完成并向用户说明。",
+  "version": "1.0.0",
+  "provider": {
+    "countryCode": "CN",
+    "organization": "北京邮电大学",
+    "name": "wit-research-lab",
+    "email": "huaibin2025@outlook.com"
+  },
+  "securitySchemes": {
+    "mtls": {
+      "type": "mutualTLS",
+      "description": "ACPs mutual TLS identity"
+    }
+  },
+  "endPoints": [
+    {
+      "url": "https://192.0.2.10:8444/rpc",
+      "transport": "JSONRPC",
+      "security": [
+        {
+          "mtls": []
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "notification": false,
+    "messageQueue": []
+  },
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
+  "skills": [],
+  "certificate": {
+    "altNames": {
+      "ip": [
+        "192.0.2.10"
+      ]
+    }
+  }
+}

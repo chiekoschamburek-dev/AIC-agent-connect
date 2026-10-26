@@ -1,0 +1,6 @@
+httpx
+kafka-python==3.0.11
+
+# WIT 与 ACPs SDK 使用 wheels/ 中的本地安装包：
+# python -m pip install wheels/acps_sdk-2.2.0-py3-none-any.whl
+# python -m pip install wheels/wit_framework-2.1.0-cp312.cp313.cp314-none-any.whl
