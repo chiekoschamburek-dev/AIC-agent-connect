@@ -8,7 +8,7 @@
 拓扑：leader(supervisor) ──DT──► consumer(critic 身份，能力 probe.fetch 走桥)
                                      └──直连──► target(scout 身份，能力 mat.echo)
 
-    cd my-project && python acps_cluster/delegation/demo_bridge.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_bridge.py
 """
 
 import os as _os

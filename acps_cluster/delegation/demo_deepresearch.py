@@ -8,7 +8,7 @@
 "深度模式最小闭环"：激活深度模式 → 阶段打卡 → 走完检索→萃取→矛盾→成稿→审稿。
 预算闸门的行为由 test_deep_research 覆盖（离线）；此处验证的是剧本在真实栈上的可执行性。
 
-    cd my-project && python acps_cluster/delegation/demo_deepresearch.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_deepresearch.py
 """
 
 import os as _os

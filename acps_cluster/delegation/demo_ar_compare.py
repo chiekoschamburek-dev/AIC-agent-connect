@@ -8,7 +8,7 @@
 
 采集：墙钟时延 / LLM 回合 / 峰值上下文 / 是否真的训练出分类器 / 独立评估准确率。
 
-    cd my-project && python acps_cluster/delegation/demo_ar_compare.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_ar_compare.py
 """
 
 import os as _os

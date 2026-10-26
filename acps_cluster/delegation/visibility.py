@@ -9,7 +9,7 @@
   发现服务端不重复实现密码学。
 
 与 ACPs-community/discovery-server 的 `app/discovery/domain_policy.py` 保持同一套
-纯谓词语义；本模块让 my-project 侧可以离线验证/导出/演示，不依赖兄弟仓路径。
+纯谓词语义；本模块让 yanshu-AIC 侧可以离线验证/导出/演示，不依赖兄弟仓路径。
 """
 
 from __future__ import annotations

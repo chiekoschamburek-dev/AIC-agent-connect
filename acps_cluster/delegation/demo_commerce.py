@@ -16,7 +16,7 @@
   C6 集群 leader（supervisor）无票直调 → 拒——"集群自己也得买"
   C7 发卡日限额（章程 maxGrantsPerDay=3，滑动 24h）：第 3 张放行、第 4 张拒发
 
-    cd my-project && python acps_cluster/delegation/demo_commerce.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_commerce.py
 """
 
 import os as _os

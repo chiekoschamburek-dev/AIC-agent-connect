@@ -7,7 +7,7 @@
 控制成本：迭代 2 轮、每轮一次 exp.run（实验员内部走真 GPU 沙盒，实验本身是
 确定性规则验证——数字可信且不烧 GPU 时长）。
 
-    cd my-project && python acps_cluster/delegation/demo_autoresearch.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_autoresearch.py
 """
 
 import os as _os

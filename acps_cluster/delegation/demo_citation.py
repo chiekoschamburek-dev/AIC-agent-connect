@@ -5,7 +5,7 @@
   C2 citation.verify 全流水线（真实 LLM 逐条小调用）→ verdict 表
   C3 review_gate 交叉对账：审稿者 APPROVE 而核验表发现 fabricated → 对账 blocker
 
-    cd my-project && python acps_cluster/delegation/demo_citation.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_citation.py
 """
 
 import os as _os

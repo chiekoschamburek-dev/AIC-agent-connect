@@ -13,7 +13,7 @@
   S4 experiment 第 3 次调 gpu.run     → 拒（quota-exhausted）
   S5 章程 r2 冻结（双签驱替）→ 新 grant 也被拒（domain-frozen，验签前）
 
-用法（在 my-project 下）：python acps_cluster/delegation/demo_two_org_domain.py
+用法（在 yanshu-AIC 下）：python acps_cluster/delegation/demo_two_org_domain.py
 """
 
 import os as _os

@@ -11,7 +11,7 @@
 admission 路径（协议身份验证 → AipPartnerAdmissionHooks → 任务状态机）。
 出站方向靠手工把 `acps/discovered/` 缓存指向本地端点来替代 ADP 发现（生产由 seed_discovery.py 填）。
 
-    cd my-project && python acps_cluster/delegation/demo_pep.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_pep.py
 
 输出：控制台对比表 + `<out>/report.json` + `<out>/pep-audit.jsonl`
 默认输出目录 `acps_cluster/demo_run/pep/`（可用 PEP_DEMO_OUT 覆盖）。

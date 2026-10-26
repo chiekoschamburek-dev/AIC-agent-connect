@@ -4,7 +4,7 @@
 采集四类指标：墙钟时延 / 模型调用次数 / 上下文搬运字节 / 产物规模。
 全部真实 LLM（DeepSeek），无脚本化桩。
 
-    cd my-project && python acps_cluster/delegation/demo_compare_modes.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_compare_modes.py
 """
 
 import os as _os

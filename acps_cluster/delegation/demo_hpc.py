@@ -8,7 +8,7 @@
   H5 队列深度背压：灌满后第 9 个拒绝
   H6 配额：max_uses 的 grant 第 N+1 次 wire 提交 → quota-exhausted
 
-    cd my-project && python acps_cluster/delegation/demo_hpc.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_hpc.py
 """
 
 import os as _os

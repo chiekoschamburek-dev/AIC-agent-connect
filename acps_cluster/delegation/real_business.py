@@ -6,7 +6,7 @@
 - 调用方以 critic 身份持 supervisor 签发的 token，经 `runtime.aip_delegate` 走真实 mTLS 直连；
 - 全程不启 registry/CA：靠 enrollment 本地状态 + 手工 seed 的 discovery 缓存（见 PEP-result.md §4.4）。
 
-    cd my-project && python acps_cluster/delegation/real_business.py "查询词"
+    cd yanshu-AIC && python acps_cluster/delegation/real_business.py "查询词"
 """
 
 import os as _os

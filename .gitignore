@@ -65,6 +65,9 @@ eval-private/
 *.pre-*
 frontend-check*.png
 
+# ---- viz 运行时告警快照（由 guard_adapter 发布，属运行产物） -----------------
+cluster-viz/public/scenarios/guard-alerts.json
+
 # ---- 二进制依赖：只声明依赖，不分发 wheel --------------------------------
 *.whl
 !vendor/acps_sdk-*.whl

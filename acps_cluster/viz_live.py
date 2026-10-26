@@ -30,8 +30,10 @@ from urllib.parse import quote
 
 BASE_ENV = "ACPS_VIZ_BASE_URL"
 DIR_ENV = "ACPS_VIZ_SCENARIO_DIR"
+# 整合后 cluster-viz 已移入仓库根（yanshu-AIC/cluster-viz），
+# 不再像 my-project 时期那样位于仓库的上一级，故 parents[2] -> parents[1]。
 DEFAULT_SCENARIO_DIR = (
-    Path(__file__).resolve().parents[2] / "cluster-viz" / "public" / "scenarios"
+    Path(__file__).resolve().parents[1] / "cluster-viz" / "public" / "scenarios"
 )
 
 DELEGATE_TOOLS = frozenset({
@@ -304,6 +306,18 @@ class Recorder:
     def ws_zone(self, *, task: str, zones: list[str]) -> None:
         """任务工作区开辟事件（四分区布局声明）。"""
         self._emit("ws_zone", task=task, zones=zones)
+
+    def guard_alert(self, *, channel: str, level: str, score: int, subject: str,
+                    rules: list[str] | None = None, detail: str = "",
+                    suggested_action: str = "") -> None:
+        """通信风险告警事件（由 acps_cluster.guard_adapter 在收尾时写入）。
+
+        与 PEP 事件并列但语义不同：PEP 是"准入判定"，guard_alert 是"过程异常提示"，
+        只提示人工复核，不代表任务被拒绝或令牌被撤销。
+        """
+        self._emit("guard_alert", channel=channel, level=level, score=int(score),
+                   subject=subject, rules=list(rules or []), detail=detail,
+                   suggested_action=suggested_action)
 
     def _write(self) -> None:
         if not self.available:

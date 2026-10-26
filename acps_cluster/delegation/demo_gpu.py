@@ -17,7 +17,7 @@
 2. Docker Desktop 已启动（G4 需要；G1-G3 只需身份材料）
 3. 镜像 pytorch:cu128 已在本地（第五轮已拉好；缺失时见 gpu_runner.ALLOWED_IMAGES）
 
-    cd my-project && python acps_cluster/delegation/demo_gpu.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_gpu.py
 """
 
 import os as _os

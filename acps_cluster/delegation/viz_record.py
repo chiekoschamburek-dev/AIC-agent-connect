@@ -5,7 +5,7 @@
 全程录制任务轨迹（VizEvent 契约事件 + pep-audit 原始行 + 真实产物），
 装配成 Scenario JSON 交给前端时间轴回放（与手写剧本同一契约，见 cluster-viz/src/types.ts）。
 
-用法（在 my-project 下）：
+用法（在 yanshu-AIC 下）：
     python acps_cluster/delegation/viz_record.py            # 依次跑 A、B、C
     python acps_cluster/delegation/viz_record.py b          # 只跑 B（最轻，先冒烟）
     python acps_cluster/delegation/viz_record.py a c
@@ -41,7 +41,8 @@ from pathlib import Path  # noqa: E402
 
 PROJECT = Path(__file__).resolve().parents[2]
 CLUSTER = PROJECT / "acps_cluster"
-VIZ_PUBLIC = PROJECT.parent / "cluster-viz" / "public" / "scenarios"
+# 整合后 cluster-viz 在仓库根内（PROJECT/cluster-viz），不再位于仓库上一级。
+VIZ_PUBLIC = PROJECT / "cluster-viz" / "public" / "scenarios"
 for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)

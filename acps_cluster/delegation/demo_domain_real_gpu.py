@@ -11,7 +11,7 @@
   G3 同枚 grant 第 3 次 → 拒（使用侧配额耗尽，不触 GPU）
   G4 章程 r2 冻结（双签 revision 驱替）→ 新 grant 也被拒（验签前 domain-frozen）
 
-用法（在 my-project 下）：python acps_cluster/delegation/demo_domain_real_gpu.py
+用法（在 yanshu-AIC 下）：python acps_cluster/delegation/demo_domain_real_gpu.py
 """
 
 import os as _os

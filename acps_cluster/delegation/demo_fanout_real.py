@@ -15,7 +15,7 @@
 回答逐字保留三份材料；隧道=leader 调 issue_delegation_token 一次签三枚（真实工具闭环，
 JWS 入 vault），消费方（critic 身份）持令牌并发直连取回并做真实汇总。
 
-    cd my-project && python acps_cluster/delegation/demo_fanout_real.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_fanout_real.py
 """
 
 import os as _os

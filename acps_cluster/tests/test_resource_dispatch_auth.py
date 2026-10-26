@@ -225,6 +225,7 @@ class HookProtocolGuardTest(unittest.TestCase):
         self.assertTrue(hasattr(type(h), "wrap_run"))
 
 
+@unittest.skipUnless(DEV_KEYS, SKIP)
 class KeyToAicNormalizationTest(unittest.TestCase):
     """模型填名册 key 时也必须补上令牌（2026-10-17 审查）。
 

@@ -6,7 +6,7 @@
 difflib 相似度 + 长度比 = 中转复述的保真度。隧道模式材料走协议层直达消费方
 （不经任何模型转写），保真度构造性为 1.0，无需实测。
 
-    cd my-project && python acps_cluster/delegation/probe_relay_fidelity.py
+    cd yanshu-AIC && python acps_cluster/delegation/probe_relay_fidelity.py
 """
 
 import os as _os

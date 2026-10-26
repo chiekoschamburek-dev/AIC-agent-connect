@@ -13,7 +13,7 @@
   V3 域内成员（experiment）查询 → 见域资产
   V4 兼容性 → 无 visibility 字段的存量资产对所有人可见（含匿名）
 
-    cd my-project && python acps_cluster/delegation/demo_visibility.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_visibility.py
 """
 
 import os as _os

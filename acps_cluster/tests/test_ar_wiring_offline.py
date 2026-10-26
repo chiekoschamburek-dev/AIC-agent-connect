@@ -76,6 +76,9 @@ class GpuAddressingStubTest(unittest.TestCase):
     """③ 实验员能不能把 GPU_AIC 解析到本次 demo 的实例端点。"""
 
     def test_桩解析出demo端点且声明gpu_run(self):
+        # 寻址桩从 ws-gpu 的 dev 身份/ACS 投影生成；dev 工作区按禁入清单不入库。
+        if not (CLUSTER_DIR / "ws-gpu" / "acps" / "acs.final.json").is_file():
+            self.skipTest("ws-gpu 未铸造（dev 工作区不入库）；干净克隆跳过寻址桩检查")
         with tempfile.TemporaryDirectory() as td:
             cache = Path(td) / "discovered"
             written = demo.prime_gpu_stub(cache)
@@ -156,6 +159,12 @@ class BenchmarkLockTest(unittest.TestCase):
         self.assertIn("缺失", info)
 
     def test_当前仓库里的demo_cls两侧一致(self):
+        # datasets/ 与 eval-private/ 按禁入清单不入库（评测私有标签不出域亦不出库）；
+        # 干净克隆没有基准文件时跳过，而不是把"文件缺失"误报成"两侧不一致"。
+        published = demo.CLUSTER / "datasets" / demo.BENCH_ID / "input.csv"
+        gold = demo.CLUSTER / "eval-private" / demo.BENCH_ID / "input.csv"
+        if not published.is_file() or not gold.is_file():
+            self.skipTest("datasets/eval-private 不入库；干净克隆跳过基准一致性检查")
         ok, info = demo.benchmark_pair_ok()
         self.assertTrue(ok, f"datasets 与 eval-private 的 demo-cls 已不一致：{info}")
 

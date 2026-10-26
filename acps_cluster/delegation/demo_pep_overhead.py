@@ -14,7 +14,7 @@ B1 vs B2 → 令牌+准入在隧道模式下的开销
 A2 vs B2 → 委托隧道相对于直接委派的额外开销（令牌签发+continue 一步）
 B2 vs A1 → 生产完整链路 vs 原生（这是用户真正关心的对比）
 
-    cd my-project && python acps_cluster/delegation/demo_pep_overhead.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_pep_overhead.py
 """
 
 import os as _os

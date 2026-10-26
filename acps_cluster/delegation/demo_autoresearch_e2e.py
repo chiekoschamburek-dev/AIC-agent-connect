@@ -10,7 +10,7 @@
 产物：训练出的分类器参数（weights.json）+ 独立评估报告 + 证据账本——
 即"小型分类器"这一真实成果，以及支撑它的完整证据链。
 
-    cd my-project && python acps_cluster/delegation/demo_autoresearch_e2e.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_autoresearch_e2e.py
 """
 
 import os as _os

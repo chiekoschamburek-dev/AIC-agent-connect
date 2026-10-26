@@ -41,4 +41,20 @@ jobs:
             echo "::warning::wit_framework 未分发，跳过测试。请从官方渠道获取后放入 vendor/ 再跑。"
             exit 0
           fi
-          python -m pytest acps_cluster/tests -q
+          python -m pytest acps_cluster/tests acps_cluster/guard/tests -q
+
+  frontend:
+    name: 前端构建（cluster-viz）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cluster-viz
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: cluster-viz/package-lock.json
+      - run: npm ci
+      - run: npm run build

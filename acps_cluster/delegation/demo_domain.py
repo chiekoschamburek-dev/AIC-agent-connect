@@ -18,7 +18,7 @@
   D7  对账：gpu 审计聚合用量报表 → gpu+leader 双签 → 验签通过
   D8  revision=2 移除 experiment → r1 时代签发的旧 grant → 拒（裁决按本地最高版本）
 
-    cd my-project && python acps_cluster/delegation/demo_domain.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_domain.py
 """
 
 import os as _os

@@ -19,6 +19,12 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
 import gpu_runner  # noqa: E402
 from deploy.mint_gpu_identity import aic_checksum, base36_4, crc16_ccitt_false  # noqa: E402
 
+# dev 工作区（ws-*）是本机运行时状态，按仓库禁入清单不入库；干净克隆没有它们。
+# 依赖这些文件的两组用例显式跳过，而不是以 FileNotFoundError / 断言失败收场。
+GPU_ACS = CLUSTER_DIR / "ws-gpu" / "acps" / "acs.final.json"
+GPU_ENROLLMENT = CLUSTER_DIR / "ws-gpu" / "acps" / "enrollment.json"
+NO_GPU_DEV = "ws-gpu 未铸造（dev 工作区不入库）；干净克隆跳过"
+
 
 class AicChecksumTest(unittest.TestCase):
     """AIC 校验码实现必须通过规范 §4.1 的示例对拍。"""
@@ -43,10 +49,11 @@ class AicChecksumTest(unittest.TestCase):
     def test_铸造出的gpu_AIC可自校验(self):
         import json
 
-        enrollment = json.loads((CLUSTER_DIR / "ws-gpu" / "acps" / "enrollment.json").read_text(encoding="utf-8"))
+        enrollment = json.loads(
+            GPU_ENROLLMENT.read_text(encoding="utf-8")) if GPU_ENROLLMENT.is_file() else {}
         aic = str(((enrollment.get("identity") or {}).get("ref") or {}).get("aic") or "")
-        if not aic:  # 未铸造身份的环境（如 CI）跳过
-            self.skipTest("ws-gpu 未铸造")
+        if not aic:  # 未铸造身份的环境（如 CI / 干净克隆）跳过
+            self.skipTest(NO_GPU_DEV)
         data_code, checksum = aic.rsplit(".", 1)
         self.assertEqual(aic_checksum(data_code), checksum)
         self.assertRegex(aic, r"^1\.2\.156\.3088\.1\.1\.[0-9A-Z]+\.[0-9A-Z]+\.[0-9A-Z]+\.[0-9A-Z]{4}$")
@@ -139,6 +146,10 @@ class GpuWiringTest(unittest.TestCase):
         """
         import cluster_roster
 
+        if not GPU_ACS.is_file():
+            # 名册的 gpu 条目能力来自 ws-gpu 的 ACS 投影；干净克隆没有 dev 工作区，
+            # 能力列表会退化为声明子集，此时该断言没有意义。
+            self.skipTest(NO_GPU_DEV)
         roster = cluster_roster.load_roster()
         gpu = [m for m in roster if m.key == "gpu"]
         self.assertEqual(len(gpu), 1)

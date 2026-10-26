@@ -24,6 +24,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 TESTS = ROOT / "acps_cluster" / "tests"
+# 队友 guard 组件自带测试（经 acps_cluster/covert_event_guard.py shim 原样导入）。
+GUARD_TESTS = ROOT / "acps_cluster" / "guard" / "tests"
+TEST_DIRS = [TESTS, GUARD_TESTS]
 
 # 无副作用子集：不启动 Docker、不发外部网络请求；仍然需要 dev 私钥才能跑签名用例，
 # 缺私钥时这些用例会 skip（不是 fail）。
@@ -73,7 +76,7 @@ def main() -> int:
 
     if _has_pytest():
         command = [sys.executable, "-m", "pytest"]
-        command += QUICK_MODULES if args.quick else [str(TESTS)]
+        command += QUICK_MODULES if args.quick else [str(path) for path in TEST_DIRS]
         command += ["-q"]
         if args.collect:
             command += ["--collect-only"]
@@ -84,7 +87,8 @@ def main() -> int:
         return 2
     modules = QUICK_MODULES if args.quick else sorted(
         str(path.relative_to(ROOT)).replace("/", ".")[:-3]
-        for path in TESTS.glob("test_*.py")
+        for directory in TEST_DIRS
+        for path in directory.glob("test_*.py")
     )
     return _run([sys.executable, "-m", "unittest", "-v", *modules])
 

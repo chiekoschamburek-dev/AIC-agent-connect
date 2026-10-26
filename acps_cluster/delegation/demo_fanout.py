@@ -16,7 +16,7 @@
 （用一个**脚本化 provider** 驱动它的业务能力，因此不需要任何 LLM/网络）。
 聚合出「材料搬运字节 / 墙钟时延 / 实测目标侧并行度」，并读目标侧审计核对准入路径。
 
-    cd my-project && python acps_cluster/delegation/demo_fanout.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_fanout.py
 
 输出：控制台对比表 + `<out>/fanout-report.json` + `<out>/audit-*.jsonl`。
 默认输出目录 `acps_cluster/demo_run/fanout/`（可用 FANOUT_DEMO_OUT 覆盖）。

@@ -10,7 +10,7 @@
   E6 配额：max_uses=3 的 grant 第 4 次提交 → quota-exhausted
   E7 榜单公开可查
 
-    cd my-project && python acps_cluster/delegation/demo_eval.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_eval.py
 """
 
 import os as _os

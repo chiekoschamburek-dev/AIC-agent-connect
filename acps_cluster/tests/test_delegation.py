@@ -837,6 +837,10 @@ class PepConfigEnvTest(unittest.TestCase):
         self.assertTrue(cfg.require_session_binding)
 
     def test_默认值(self):
+        # my_aic 的默认值来自 ws-scout 的 enrollment.json（dev 工作区，按禁入清单不入库）；
+        # 干净克隆无法自动解析，跳过该断言而不是把它判成默认值错误。
+        if not (CLUSTER_DIR / "ws-scout" / "acps" / "enrollment.json").is_file():
+            self.skipTest("ws-scout 未铸造（dev 工作区不入库）；干净克隆无法自动解析 my_aic")
         cfg = load_pep_config(CLUSTER_DIR / "ws-scout", env={})
         self.assertFalse(cfg.enabled)
         self.assertEqual(cfg.my_aic, SCOUT_AIC)  # 从 enrollment.json 自动解析

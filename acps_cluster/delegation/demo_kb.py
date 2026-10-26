@@ -13,7 +13,7 @@
   K10 检索面按档位分索引：同一个越权词 consumer 0 命中、provider 才命中
   K11 资源方自主授权（B3）：章程 issuers 只含 KB → leader 自签 grant 被拒
 
-    cd my-project && python acps_cluster/delegation/demo_kb.py
+    cd yanshu-AIC && python acps_cluster/delegation/demo_kb.py
 """
 
 import os as _os
