@@ -15,7 +15,7 @@ open 目录 / members 摘要 / curator 全文与内部笔记）。
 KB0001.AGENT01.RUN01.012I 为早前本地桩身份，已废弃）。
 端口：默认 8599（可用 ACPS_KB_PORT 覆盖；与注册端点、firewalld 放行口径一致）。
 库路径：ACPS_KB_PATH 可覆盖（演示与单测指向独立库，不碰现网数据）。
-运行：python acps_cluster/partner_kb.py --local
+运行：python acps_cluster/agents/partner_kb.py --local
 """
 
 from __future__ import annotations

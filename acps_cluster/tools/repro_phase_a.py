@@ -11,7 +11,7 @@ writer.paper.write(复现方案) → critic.paper.review → (REVISE 则返工�
   scout/gpu 开启 PEP，审计落 demo_run/repro-phaseA/audit-*.jsonl。
 - Phase A 不执行训练：experiment/gpu.run 留给 Phase B。
 
-用法（在 my-project 下）：python acps_cluster/repro_phase_a.py
+用法（在 my-project 下）：python acps_cluster/tools/repro_phase_a.py
 """
 
 import asyncio

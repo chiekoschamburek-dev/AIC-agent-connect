@@ -59,7 +59,7 @@ def _model_router():
 def build_provider():
     """构造模型 provider：**北邮网关 deepseek 主用，MiniMax 保底**。
 
-    路由逻辑收在 `acps_cluster/model_router.py`（`llm_tools.chat` 那条直连路径
+    路由逻辑收在 `acps_cluster/core/model_router.py`（`llm_tools.chat` 那条直连路径
     也复用它的配置解析，保证两条路径口径一致）。这里只在外面再包一层
     响应级看门狗——它管的是"单次流挂死"，与"换模型"是两件事，互不替代。
 

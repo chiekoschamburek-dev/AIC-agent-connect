@@ -10,8 +10,8 @@
 （ws-cpu/runs），域章程与配额账本也独立（ws-cpu/acps/domains、grant-quota.sqlite3）。
 
 运行：
-  本地演示：python acps_cluster/partner_cpu.py --local
-  生产：    python acps_cluster/partner_cpu.py
+  本地演示：python acps_cluster/agents/partner_cpu.py --local
+  生产：    python acps_cluster/agents/partner_cpu.py
 身份由 deploy/mint_identity.py 一次性铸造（开发 Agent Intermediate CA 签发）。
 """
 

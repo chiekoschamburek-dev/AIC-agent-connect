@@ -9,7 +9,7 @@
 - model.predict 非公开（保险柜）：批量预测，输入校验（行数/数值域），按次配额（max_uses）
 
 身份：ws-model（MODEL1.AGENT01.RUN01.05G4，端口 8467，mint_identity.py 铸造）。
-运行：python acps_cluster/partner_model.py --local
+运行：python acps_cluster/agents/partner_model.py --local
 """
 
 from __future__ import annotations

@@ -9,9 +9,9 @@
 
 运行：
   本地演示（不起 registry/CA，直连 mTLS）：
-    python acps_cluster/partner_gpu.py --local
+    python acps_cluster/agents/partner_gpu.py --local
   生产（走 up_until_ready，需 ACPS_GPU_USERNAME/PASSWORD）：
-    python acps_cluster/partner_gpu.py
+    python acps_cluster/agents/partner_gpu.py
 
 身份由 deploy/mint_gpu_identity.py 一次性铸造（开发 Agent Intermediate CA 签发，
 AIC=1.2.156.3088.1.1.GP5060.SANDBOX1.RUN01.0IGR）。首次启动会在 ws-gpu 生成

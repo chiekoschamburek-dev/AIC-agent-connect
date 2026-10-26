@@ -4,7 +4,7 @@
 现在进场晚不晚"。做法是用 OpenAlex 引用图谱算 citation velocity（总引用 / 月龄），
 在近 6-12 个月的窗口里找增速最高的新工作，再聚合成方向清单。
 
-运行：python acps_cluster/partner_frontier.py   （常驻，端口默认 8450）
+运行：python acps_cluster/agents/partner_frontier.py   （常驻，端口默认 8450）
 """
 
 import asyncio

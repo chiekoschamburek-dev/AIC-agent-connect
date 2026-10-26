@@ -9,8 +9,8 @@
 前置：ws-contradiction / ws-frontier 已由 deploy/mint_identity.py 铸造身份。
 
 用法（在 my-project 下）：
-    python acps_cluster/smoke_contradiction_frontier.py contradiction
-    python acps_cluster/smoke_contradiction_frontier.py frontier
+    python acps_cluster/tools/smoke_contradiction_frontier.py contradiction
+    python acps_cluster/tools/smoke_contradiction_frontier.py frontier
 """
 
 import asyncio
@@ -203,7 +203,7 @@ def main() -> None:
     kind = sys.argv[1] if len(sys.argv) > 1 else ""
     if kind not in {"contradiction", "frontier"}:
         raise SystemExit(
-            "用法: python acps_cluster/smoke_contradiction_frontier.py contradiction|frontier"
+            "用法: python acps_cluster/tools/smoke_contradiction_frontier.py contradiction|frontier"
         )
     asyncio.run(_run_once(kind))
 

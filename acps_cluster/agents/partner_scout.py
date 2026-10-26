@@ -1,7 +1,7 @@
 """研枢-Scout-Partner：多源学术信息收集（arXiv + OpenAlex + Semantic Scholar）。
 
 与 arxiv-parnter（演示版，保留不动）的区别：三大数据源、统一 ScholarRecord 结构。
-运行：python acps_cluster/partner_scout.py   （常驻，端口默认 8445）
+运行：python acps_cluster/agents/partner_scout.py   （常驻，端口默认 8445）
 
 PEP（PEP_design.md 阶段一 1.3）：本 partner 是第一个启用准入策略的伙伴。
 - `scholar.deep_fetch` 声明 public=False ⇒ 不在 ACS 里出现（实测 2026-09-28 校验 ACS 草稿

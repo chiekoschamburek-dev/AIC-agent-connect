@@ -21,7 +21,7 @@ scout）→ 每条一次小上下文 LLM 比对 → 四档裁决
   完整取源需 leader 按来源数批量签发（RFC §5.3 扇出形态，待文件通道支持多枚）。
 
 身份：ws-citation（端口 8468）。注册（平台）：配 ACPS_CITATION_USERNAME/PASSWORD 后
-`python acps_cluster/partner_citation.py`；本地演示：`--local`。
+`python acps_cluster/agents/partner_citation.py`；本地演示：`--local`。
 """
 
 from __future__ import annotations

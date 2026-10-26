@@ -3,7 +3,7 @@
 对应申请书"Critic Agent"。铁律：verdict 必须与 issues 联动（有 blocker 必 REVISE），
 且引用类问题必须给出可本地复核的 evidence_check 原文片段——Supervisor 侧不信任口头结论，
 会用代码校验这两条后才采纳裁决。
-运行：python acps_cluster/partner_critic.py   （常驻，端口默认 8448）
+运行：python acps_cluster/agents/partner_critic.py   （常驻，端口默认 8448）
 """
 
 import asyncio

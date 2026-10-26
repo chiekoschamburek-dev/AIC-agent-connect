@@ -10,7 +10,7 @@
   与取结果（stdout 截选 + 产物元信息；产物全文留在网关本机，不搬运）
 
 身份：ws-hpc（HPC001.AGENT01.RUN01.16Q7，端口 8466，mint_identity.py 铸造）。
-运行：python acps_cluster/partner_hpc.py --local
+运行：python acps_cluster/agents/partner_hpc.py --local
 """
 
 from __future__ import annotations

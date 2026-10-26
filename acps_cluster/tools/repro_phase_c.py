@@ -10,7 +10,7 @@ remedy-3 签发委托令牌（exp.run 返回 awaiting 时）、review_gate 审�
 - ws-experiment 用 cluster_common.ensure_local_acs 生成终稿 ACS（否则名册
   available=False，plan_gate 拒绝 exp.run）。
 
-用法（在 my-project 下）：python acps_cluster/repro_phase_c.py
+用法（在 my-project 下）：python acps_cluster/tools/repro_phase_c.py
 """
 
 import asyncio

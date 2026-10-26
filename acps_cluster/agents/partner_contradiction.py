@@ -5,7 +5,7 @@
 
 不做的事：不检索、不下载全文、不评价单篇质量（那是 Scout / Synthesis / Critic 的职责）。
 
-运行：python acps_cluster/partner_contradiction.py   （常驻，端口默认 8449）
+运行：python acps_cluster/agents/partner_contradiction.py   （常驻，端口默认 8449）
 """
 
 import asyncio

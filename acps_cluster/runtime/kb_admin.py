@@ -7,13 +7,13 @@
 本库是**独立机构的馆藏**：`owner_aic` 写本馆自己的身份（读 ws-kb/acps/enrollment.json，
 或 ACPS_KB_HOLDER_AIC / --holder 覆盖），`source` 写元数据来源，`source_uri` 写原文出处。
 
-    python acps_cluster/kb_admin.py stats
-    python acps_cluster/kb_admin.py migrate acps_cluster/ws-kb/kb.json
-    python acps_cluster/kb_admin.py import --source openalex --query "graph neural network knowledge graph" --limit 200
-    python acps_cluster/kb_admin.py import --source arxiv   --query "abs:attention AND abs:long context" --limit 100
-    python acps_cluster/kb_admin.py fix-owner      # 历史记录的持有方归位（幂等）
-    python acps_cluster/kb_admin.py reindex        # 绕过 ingest 直接改过库之后跑
-    python acps_cluster/kb_admin.py grant --subject <消费方 AIC> --skill kb.query   # 本馆自签授权
+    python acps_cluster/runtime/kb_admin.py stats
+    python acps_cluster/runtime/kb_admin.py migrate acps_cluster/ws-kb/kb.json
+    python acps_cluster/runtime/kb_admin.py import --source openalex --query "graph neural network knowledge graph" --limit 200
+    python acps_cluster/runtime/kb_admin.py import --source arxiv   --query "abs:attention AND abs:long context" --limit 100
+    python acps_cluster/runtime/kb_admin.py fix-owner      # 历史记录的持有方归位（幂等）
+    python acps_cluster/runtime/kb_admin.py reindex        # 绕过 ingest 直接改过库之后跑
+    python acps_cluster/runtime/kb_admin.py grant --subject <消费方 AIC> --skill kb.query   # 本馆自签授权
 """
 
 from __future__ import annotations

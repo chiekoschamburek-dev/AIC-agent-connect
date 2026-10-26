@@ -19,7 +19,7 @@ token 来源（阶段三前的两级形态）：
 - 阶段三：token 经 continue dataItems 到达 → 剥离钩子落 local_context（host-only）→
   capability 从 local_context 取，全程不进模型上下文（与 delegation token 卫生同款）。
 
-运行：python acps_cluster/partner_experiment.py --local   （本地直连演示，端口默认 8461）
+运行：python acps_cluster/agents/partner_experiment.py --local   （本地直连演示，端口默认 8461）
 """
 
 from __future__ import annotations

@@ -27,9 +27,9 @@
 certificate 为空），`WorkspaceRuntime` 会把代码投影里的 certificate.altNames
 裁掉，使投影与注册版逐字一致（否则重启会撞 wit 的 ACS 指纹保护）。
 
-运行（平台注册模式）：python acps_cluster/partner_workspace.py
-运行（本地直连）：    python acps_cluster/partner_workspace.py --local
-运维回收：            python acps_cluster/partner_workspace.py --gc-older-than-days 7
+运行（平台注册模式）：python acps_cluster/agents/partner_workspace.py
+运行（本地直连）：    python acps_cluster/agents/partner_workspace.py --local
+运维回收：            python acps_cluster/agents/partner_workspace.py --gc-older-than-days 7
 """
 
 from __future__ import annotations

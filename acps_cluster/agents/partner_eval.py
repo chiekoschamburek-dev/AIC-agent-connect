@@ -9,7 +9,7 @@
                  stdout/产物不回传（防泄题三闸门，见 eval_runner）
 
 身份：ws-eval（EVAL01.AGENT01.RUN01.0ZBR，端口 8464，mint_identity.py 铸造）。
-运行：python acps_cluster/partner_eval.py --local
+运行：python acps_cluster/agents/partner_eval.py --local
 """
 
 from __future__ import annotations

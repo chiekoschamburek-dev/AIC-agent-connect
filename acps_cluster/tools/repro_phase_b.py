@@ -7,7 +7,7 @@ exp.run 生成训练代码 → 持令牌直连 gpu.run（PEP L2）→ Docker 沙
 选型依据（Phase A S5）：ENTR 假设（arXiv 2018）"先用低分辨率训练再渐进放大更高效"——
 合成数据即可机制性验证（两臂对比：渐进分辨率 vs 固定分辨率），完全契合沙盒断网约束。
 
-用法（在 my-project 下）：python acps_cluster/repro_phase_b.py
+用法（在 my-project 下）：python acps_cluster/tools/repro_phase_b.py
 """
 
 import asyncio

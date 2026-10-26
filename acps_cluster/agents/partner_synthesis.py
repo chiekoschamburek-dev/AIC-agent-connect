@@ -2,7 +2,7 @@
 
 对应申请书"Knowledge Synthesis Agent"：突破粗粒度摘要，按学术 Schema 抽取
 核心创新点 / 研究缺口 / 方法论 / 实验配置 四类结构化字段。
-运行：python acps_cluster/partner_synthesis.py   （常驻，端口默认 8446）
+运行：python acps_cluster/agents/partner_synthesis.py   （常驻，端口默认 8446）
 """
 
 import asyncio

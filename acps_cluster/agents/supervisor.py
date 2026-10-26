@@ -14,7 +14,7 @@
 名册（含 AIC）由 cluster_roster 在运行时从各伙伴的 ACS 解析，未注册的伙伴会被标为
 不可调用，因此新增 agent 不需要改本文件的提示词。
 
-运行：python acps_cluster/supervisor.py "研究任务"
+运行：python acps_cluster/agents/supervisor.py "研究任务"
 前置：本 leader 需已完成官方/本地集群注册（同 partner 的注册流程）。
 """
 

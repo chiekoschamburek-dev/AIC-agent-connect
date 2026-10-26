@@ -11,7 +11,7 @@
 （用文件而不是新起 HTTP 端口：不引入新依赖、不与 AIP 的 8444/mTLS 端口打架、
 systemd 的 `ProtectSystem=full` 下只写 workspace 即可。）
 
-运行：`python acps_cluster/partner_supervisor.py`（systemd 模板 `wit-yanshu@supervisor`
+运行：`python acps_cluster/agents/partner_supervisor.py`（systemd 模板 `wit-yanshu@supervisor`
 直接可用：`ExecStart=python partner_%i.py`）。一次性跑法仍在 `deploy/run_supervisor.sh`。
 """
 

@@ -1,7 +1,7 @@
 """研枢-Writer-Partner：论文起草（大纲/全文双模式 + 审稿意见返工）。
 
 对应申请书"Writer Agent"。返工接口：把 Critic 的修改意见放进 feedback 参数重新调用。
-运行：python acps_cluster/partner_writer.py   （常驻，端口默认 8447）
+运行：python acps_cluster/agents/partner_writer.py   （常驻，端口默认 8447）
 """
 
 import asyncio
