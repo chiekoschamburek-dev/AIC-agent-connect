@@ -22,12 +22,12 @@ GB/Z 185《人工智能 智能体互联》与 ACPs（Agent Collaboration Protoco
 yanshu-AIC/
 ├── acps_cluster/                 # 集群核心（supervisor + 13 agent + 互联机制）
 │   ├── delegation/               # ★ 互联机制：PEP 准入、委托令牌、协作域、工作区令牌
-│   ├── guard/                    # ★ 队友 A：事件通信风险检测器（纯拷贝，剥 .git）
+│   ├── guard/                    # ★ 事件通信风险检测器（纯拷贝，剥 .git）
 │   ├── guard_adapter.py          # ★ 新代码：guard → supervisor 旁路适配层
-│   ├── covert_event_guard.py     # 兼容 shim（让队友原模块路径继续可用）
+│   ├── covert_event_guard.py     # 兼容 shim（让原模块路径继续可用）
 │   ├── partner_*.py              # 各研究 / 资源 agent 与 workspace 存储实例
 │   ├── supervisor.py             # 编排器：发现 → 计划 → 委派 → 汇总
-│   ├── cluster_roster.py         # 名册（本地 + 队友外部成员）
+│   ├── cluster_roster.py         # 名册（本地 + 外部成员）
 │   ├── discovery_metadata.py     # 能力分层、可见范围与发现层元数据
 │   ├── viz_live.py               # 前端数据后端：run → Scenario、ws_file/ws_zone、guard_alert
 │   ├── deploy/                   # 运行单元、AMP 上报组件、发布/预检脚本
@@ -35,8 +35,8 @@ yanshu-AIC/
 │   └── tests/                    # 集群测试（含 guard_adapter 测试）
 ├── capabilities/                 # 能力实现（arXiv、矛盾侦测、前沿、数据集、记忆等）
 ├── partners/
-│   ├── designer/                 # 队友 A：设计 agent（src / tests / config.examples / systemd）
-│   └── wenji/                    # 队友 B：问迹（subtree，含其自有 frontend/）
+│   ├── designer/                 # 设计 agent（src / tests / config.examples / systemd）
+│   └── wenji/                    # 问迹（subtree，含其自有 frontend/）
 ├── cluster-viz/                  # 集群总览前端（React + Vite + ReactFlow）
 ├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、运行手册
 ├── hooks.py                      # WIT 官方扩展点（运行日志 / 工具重试 / 资料注入）
@@ -87,9 +87,9 @@ yanshu-AIC/
 
 **编排器**：`acps_cluster/supervisor.py`（入口 `partner_supervisor.py`），负责发现 →
 计划 → 委派 → 等待产物 → 汇总。名册另含 `eval` / `model` 两个早期资源节点
-（`partner_eval.py`、`partner_model.py`），以及队友的 `designer` / `wenji` 外部成员条目。
+（`partner_eval.py`、`partner_model.py`），以及 `designer` / `wenji` 外部成员条目。
 
-**队友 agent（2）**：`partners/designer/`（Research Designer）、`partners/wenji/`（问迹）。
+**外部 agent（2）**：`partners/designer/`（Research Designer）、`partners/wenji/`（问迹）。
 
 ### 2. 互联机制（创新点）
 
@@ -137,7 +137,7 @@ yanshu-AIC/
 - **AMP 上报**：heartbeat → `amp.heartbeat`、access → `amp.access` 的
   sender / mirror / forwarder 组件：
   `acps_cluster/deploy/amp_heartbeat_sender.py`、`amp_heartbeat_mirror.py`、
-  `amp_access_sender.py`，以及队友的 `partners/designer/src/amp_kafka_forwarder.py`
+  `amp_access_sender.py`，以及 `partners/designer/src/amp_kafka_forwarder.py`
   （JSONL → Kafka，断点续传）。见 [docs/amp-compliance-and-gaps.md](docs/amp-compliance-and-gaps.md)。
 - **hooks.py 官方扩展点**：`RunLogger`、`ToolRetry`、`MaterialContext` 三个 `WitHooks`
   实现；AIP 入参外壳化在 `acps_cluster/aip_guard.py`。
@@ -209,7 +209,7 @@ python -m acps_cluster.guard_adapter --db /path/to/aip-tasks.sqlite3
 # 周期模式（常驻，类似 systemd）：
 python -m acps_cluster.guard_adapter --db /path/to/aip-tasks.sqlite3 --interval 300
 
-# 4) 队友组件自带测试
+# 4) 扩展组件自带测试
 python -m pytest acps_cluster/guard/tests -q          # 12 项
 ```
 
@@ -219,7 +219,7 @@ cd cluster-viz
 npm ci && npm run dev        # http://localhost:5178
 ```
 
-队友组件：
+扩展组件：
 
 ```bash
 # 问迹（subtree）：按上游 README 启动（Docker + FastAPI + Vue3）
@@ -239,11 +239,11 @@ cat partners/designer/SUBMISSION_README.md
   `ws-*/acps/grants/`、`.campus_key`；
 - 中间/运行产物：`__pycache__`、`.venv`、`node_modules`、`dist`、`*.log`、`output/`、
   `datasets/`、`demo_run/`、`ws-*` 运行时数据、`_archive/`、`_audit/`、`eval-private/`；
-- 二进制 wheel：`wit_framework`、队友交付包里的 `wheels/`（`acps_sdk` 例外，随仓库分发）；
+- 二进制 wheel：`wit_framework`、交付包里的 `wheels/`（`acps_sdk` 例外，随仓库分发）；
 - 嵌入 git 目录：`partners/wenji` 以 subtree 引入（无 `.git`），guard 的 `.git` 已剥离。
 
 **许可证**：本仓库代码以 **MulanPSL-2.0** 发布，全文见 [LICENSE](LICENSE)；
-上游组件、队友组件的来源与许可状态见 [NOTICE](NOTICE)。
+上游组件、扩展组件的来源与许可状态见 [NOTICE](NOTICE)。
 
 **问迹 subtree 同步**（保持与上游联系）：
 
@@ -268,9 +268,9 @@ git subtree pull --prefix=partners/wenji wenji-upstream main --squash
 | [docs/amp-compliance-and-gaps.md](docs/amp-compliance-and-gaps.md) | AMP 上报合规与差距 |
 | [docs/third-party-compute.md](docs/third-party-compute.md) | 第三方算力 / 商业域 |
 | [docs/runbook-add-new-agent.md](docs/runbook-add-new-agent.md) | 新增 agent 的铸造/注册/验收 |
-| [acps_cluster/guard/README.md](acps_cluster/guard/README.md) | 队友 A：三维事件通信风险检测器 |
-| [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md) | 队友 A：设计 agent 提交说明 |
-| [partners/wenji/README.md](partners/wenji/README.md) | 队友 B：问迹 |
+| [acps_cluster/guard/README.md](acps_cluster/guard/README.md) | 三维事件通信风险检测器 |
+| [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md) | 设计 agent 提交说明 |
+| [partners/wenji/README.md](partners/wenji/README.md) | 问迹（多模态可解释问答 agent） |
 
 ---
 
@@ -286,4 +286,4 @@ git subtree pull --prefix=partners/wenji wenji-upstream main --squash
 - guard 目前是规则型检测，阈值来自首轮真实任务基线，尚未在大规模标注数据集上
   统计 Precision / Recall；其结果只作异常筛查，不作攻击定论。
 - `wit_framework` 不随仓库分发，因此 CI 在缺少该 wheel 时会跳过测试并给出告警。
-- 三方组件各自的运行依赖（PostgreSQL/pgvector、Docker、Kafka）需按各自 README 准备。
+- 各组件各自的运行依赖（PostgreSQL/pgvector、Docker、Kafka）需按各自 README 准备。
