@@ -7,9 +7,9 @@
 
 | 文档 | 用途 |
 |---|---|
-| [../README.md](../README.md) | 项目定位、三方整合、五部分导览、快速开始、安全约定 |
+| [../README.md](../README.md) | 项目定位、目录结构、五部分导览、快速开始、安全约定 |
 | [architecture.md](architecture.md) | 架构、三项互联创新、模块职责、guard 适配层、整合接缝 |
-| [../NOTICE](../NOTICE) | 上游组件、队友组件、修改范围与许可证说明 |
+| [../NOTICE](../NOTICE) | 上游组件、外部组件、修改范围与许可证说明 |
 
 ## 协议与互联机制
 
@@ -32,7 +32,7 @@
 | [l2-job-pipeline.md](l2-job-pipeline.md) | L2 令牌作业流水线 |
 | [runbook-add-new-agent.md](runbook-add-new-agent.md) | 新增 agent：铸造身份、注册、发现、验收 |
 
-## 队友组件
+## 外部组件
 
 | 文档 | 用途 |
 |---|---|

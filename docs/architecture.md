@@ -1,6 +1,6 @@
 # 架构说明
 
-本文说明整合后的研枢集群：设计目标、模块职责、三项互联创新、队友组件的接入方式，
+本文说明整合后的研枢集群：设计目标、模块职责、三项互联创新、外部组件的接入方式，
 以及本次新增的 **guard → supervisor 适配层**。协议细节见
 [PEP_design.md](PEP_design.md) 与 [RFC_delegation_domain_draft.md](RFC_delegation_domain_draft.md)；
 项目证据见 [../project.md](../project.md)。
@@ -30,7 +30,7 @@
   ├─ scout / synthesis / writer / critic
   ├─ experiment（域内 consumer）
   ├─ frontier / contradiction / citation
-  └─ 外部成员：designer（队友 A）、wenji（队友 B）
+  └─ 外部成员：designer、wenji
           │
           │  双签域章程（合同对象）+ 域内 grant
           ▼
@@ -42,7 +42,7 @@
 
 - 编排器：`acps_cluster/supervisor.py`（入口 `partner_supervisor.py`）。
 - 名册：`acps_cluster/cluster_roster.py`（17 条：1 supervisor + 16 partner，
-  含队友两个外部成员）。
+  含两个外部成员）。
 - 发现层元数据：`acps_cluster/discovery_metadata.py`。
 
 ---
@@ -133,7 +133,7 @@ ws-<task>/
 ### 6.2 组件
 
 ```text
-acps_cluster/guard/covert_event_guard.py   队友检测器（纯拷贝，零改动）
+acps_cluster/guard/covert_event_guard.py   外部检测器（纯拷贝，零改动）
         ▲ load_sqlite / analyze_events
         ▲ load_peer_tasks_sqlite / analyze_peer_timing
         │
@@ -189,18 +189,18 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 
 ---
 
-## 7. 三方整合的接缝
+## 7. 组件接入的接缝
 
-原则：**队友代码零改动，接缝全部做在本仓库一侧**。
+原则：**外部组件代码零改动，接缝全部做在本仓库一侧**。
 
 | 接缝 | 做法 | 影响面 |
 |---|---|---|
 | 问迹 | `git subtree add --prefix=partners/wenji ... --squash` | 无改动；保留 `wenji-upstream` remote 可 `subtree pull` |
 | guard | 纯拷贝到 `acps_cluster/guard/`，剥离其 `.git` | 无改动 |
-| guard 模块路径 | 新增 `acps_cluster/covert_event_guard.py` 一行转发 shim | 队友测试/CLI 命令原样可用 |
+| guard 模块路径 | 新增 `acps_cluster/covert_event_guard.py` 一行转发 shim | 原测试/CLI 命令原样可用 |
 | guard → supervisor | 新增 `acps_cluster/guard_adapter.py` | 新增旁路，不触碰 PEP |
 | designer | 纯拷贝到 `partners/designer/`（去 `wheels/`、无真实 `.env`） | 无改动 |
-| `cluster-viz` 入仓 | 仅修正两处"仓库外路径"默认值：`viz_live.DEFAULT_SCENARIO_DIR`、`viz_record.VIZ_PUBLIC` | 属**我的**代码，非队友代码 |
+| `cluster-viz` 入仓 | 仅修正两处"仓库外路径"默认值：`viz_live.DEFAULT_SCENARIO_DIR`、`viz_record.VIZ_PUBLIC` | 属本仓库自有代码，非外部组件 |
 | 忽略规则 | `my-project/.gitignore` 为基线，改为路径化规则 | 见下 |
 
 **`viz_live.py` / `viz_record.py` 的两处改动**：`cluster-viz` 原先在仓库外
@@ -224,7 +224,7 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 | 项 | 结果 |
 |---|---|
 | 集群测试 `acps_cluster/tests` | 见交付报告与 CI 输出（0 failed） |
-| 队友 guard 自带测试 | 12 passed |
+| 外部 guard 自带测试 | 12 passed |
 | guard 适配层测试 | 12 passed（只读、告警、报告、viz、CLI） |
 | 最小链路 | `2 任务 / 1 peer → HIGH 73/100`，报告与 viz 告警均落盘 |
 | 嵌入 git 目录 | `partners/` 与 `acps_cluster/guard/` 均无 `.git` |

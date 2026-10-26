@@ -42,33 +42,33 @@
 - 不得分发 wit_framework wheel（上游未授予明确许可）。
 - 仓库不包含任何真实凭据、私钥或平台账号；部署前请自行生成身份。
 
-四、队友组件（本次整合新增）
+四、外部组件（本次整合新增）
 
 1. 「问迹」wenji（多模态可解释问答 agent）
    来源：https://github.com/Hakrin-dev/multimodal-explainable-qa-agent
    引入方式：git subtree（--squash），位于 partners/wenji/
    上游提交：bf186dae260dbc63f95577a471697e34528ae21f（main）
    许可证：上游仓库未附 LICENSE 文件；本仓库不改变其许可状态，
-           再分发前请与作者（队友 B）确认授权。
+           再分发前请与上游作者确认授权。
    说明：保留 wenji-upstream remote，后续可用 subtree pull 同步。
 
 2. ACPS Event Channel Guard（三维事件通信风险检测器）
-   来源：队友 A 交付包 acps-event-channel-guard（非 git 仓库）
+   来源：外部交付包 acps-event-channel-guard（非 git 仓库）
    引入方式：纯拷贝，位于 acps_cluster/guard/（其自带 .git 已剥离，未形成嵌入仓库）
    许可证：交付包未附 LICENSE；本仓库不改变其许可状态，
-           再分发前请与作者（队友 A）确认授权。
+           再分发前请与组件作者确认授权。
    说明：源码零改动；原模块路径 acps_cluster.covert_event_guard 由
          acps_cluster/covert_event_guard.py 一行 shim 保持可用。
 
 3. Research Designer（研枢 Research Designer / design-partner）
-   来源：队友 A 交付包 research-designer-20261026-085921
+   来源：外部交付包 research-designer-20261026-085921
    引入方式：纯拷贝，位于 partners/designer/（不含 wheels/ 与任何真实 .env）
    许可证：交付包未附 LICENSE；本仓库不改变其许可状态，
-           再分发前请与作者（队友 A）确认授权。
+           再分发前请与组件作者确认授权。
 
 五、本次整合的改动范围
 
-- 队友代码：**零业务改动**。问迹以 subtree 原样引入；guard 与 designer 纯拷贝。
+- 外部组件代码：**零业务改动**。问迹以 subtree 原样引入；guard 与 designer 纯拷贝。
 - 本仓库新增（我方）：
     acps_cluster/guard_adapter.py           guard → supervisor 只读旁路适配层
     acps_cluster/covert_event_guard.py      兼容 shim（一行转发）
