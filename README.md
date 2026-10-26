@@ -136,8 +136,8 @@ yanshu-AIC/
   （JSONL → Kafka，断点续传）。见 [docs/amp-compliance-and-gaps.md](docs/amp-compliance-and-gaps.md)。
 - **WIT 官方扩展点**：集群的日志、重试、上下文注入与 AIP 入参外壳化全部通过
   `WitHooks` 实现（见 `acps_cluster/agents/supervisor.py`、`acps_cluster/core/aip_guard.py`），
-  未修改框架源码；启动引导（`.env`、模型路由、LLM 调用硬闸）在
-  `acps_cluster/core/bootstrap.py`。
+  未修改框架源码；最小示例见 `acps_cluster/hooks_example.py`（纯示例，不接入主链路），
+  启动引导（`.env`、模型路由、LLM 调用硬闸）在 `acps_cluster/core/bootstrap.py`。
 
 ### 5. 前端 viz
 
