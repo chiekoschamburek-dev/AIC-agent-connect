@@ -21,7 +21,7 @@ sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 os.environ["ACPS_WAIT_MAX_ROUNDS"] = "3"      # 3 轮就该 give_up
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 
 class _FakeRuntime:

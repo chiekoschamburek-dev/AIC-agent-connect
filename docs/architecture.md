@@ -40,10 +40,10 @@
   └─────────────────────────────────────────────┘
 ```
 
-- 编排器：`acps_cluster/supervisor.py`（入口 `partner_supervisor.py`）。
-- 名册：`acps_cluster/cluster_roster.py`（17 条：1 supervisor + 16 partner，
+- 编排器：`acps_cluster/agents/supervisor.py`（入口 `acps_cluster/agents/partner_supervisor.py`）。
+- 名册：`acps_cluster/core/cluster_roster.py`（17 条：1 supervisor + 16 partner，
   含两个外部成员）。
-- 发现层元数据：`acps_cluster/discovery_metadata.py`。
+- 发现层元数据：`acps_cluster/core/discovery_metadata.py`。
 
 ---
 
@@ -51,11 +51,11 @@
 
 | 部分 | 关键实现 |
 |---|---|
-| agents | `acps_cluster/partner_*.py`（工作流 9 + 资源 4 + eval/model）、`capabilities/*.py`、`partners/designer/`、`partners/wenji/` |
+| agents | `acps_cluster/agents/partner_*.py`（工作流 9 + 资源 4 + eval/model）、`capabilities/*.py`、`partners/designer/`、`partners/wenji/` |
 | 互联机制 | `acps_cluster/delegation/`（pep.py / token.py / client.py / bridge.py / domain_manifest.py / grant.py / visibility.py / reconciliation.py / quota.py） |
-| 衍生机制 | 三级能力边界（各 partner 的 `capability_visibility`）、`discovery_metadata.py`、`arg_shapes.py` |
-| 框架与运行时 | `acps_cluster/bootstrap.py`（.env / 模型路由 / LLM 硬闸）、`acps_cluster/deploy/amp_*.py`、`partners/designer/src/amp_kafka_forwarder.py`、`requirements.txt`（WIT 只声明依赖） |
-| 前端 viz | `cluster-viz/`、`acps_cluster/viz_live.py`、`acps_cluster/delegation/viz_record.py` |
+| 衍生机制 | 三级能力边界（各 partner 的 `capability_visibility`）、`acps_cluster/core/discovery_metadata.py`、`acps_cluster/core/arg_shapes.py` |
+| 框架与运行时 | `acps_cluster/core/bootstrap.py`（.env / 模型路由 / LLM 硬闸）、`acps_cluster/deploy/amp_*.py`、`partners/designer/src/amp_kafka_forwarder.py`、`requirements.txt`（WIT 只声明依赖） |
+| 前端 viz | `cluster-viz/`、`acps_cluster/core/viz_live.py`、`acps_cluster/delegation/viz_record.py` |
 
 ---
 
@@ -94,7 +94,7 @@ ws-<task>/
 └── manifest.jsonl   # 每次写入的 actor / sha256 / 时间
 ```
 
-- 资源实例：`partner_workspace.py` 以平台注册的资源 agent 身份运行，四 skill
+- 资源实例：`acps_cluster/agents/partner_workspace.py` 以平台注册的资源 agent 身份运行，四 skill
   （`ws.create/list/read/write`）全部非公开，准入与 task_id 作用域都依赖 PEP。
 - 审计与保留：写入必须持令牌，`actor` 由 token 的 `act.aic` 派生；`ws-*` 目录结构
   本身即"有规律组织"的规范，**仓库只保留规范与代码，不保留运行时数据**。
@@ -112,7 +112,7 @@ ws-<task>/
 | L1 白名单 | 仅名单内 AIC 可调 | PEP `leader-direct` / `whitelist` |
 | L2 令牌 | 必须持有效委托令牌 | PEP `delegation-token` |
 
-- 能力声明自带 `visibility`，`discovery_metadata.py` 据此生成发现层投影。
+- 能力声明自带 `visibility`，`acps_cluster/core/discovery_metadata.py` 据此生成发现层投影。
 - 资源伙伴默认 `ACPS_PEP_LEADER_DIRECT=0`：即使是 leader，走 L2 也要令牌。
 
 ---
@@ -203,10 +203,10 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 | `cluster-viz` 入仓 | 仅修正两处"仓库外路径"默认值：`viz_live.DEFAULT_SCENARIO_DIR`、`viz_record.VIZ_PUBLIC` | 属本仓库自有代码，非外部组件 |
 | 忽略规则 | `my-project/.gitignore` 为基线，改为路径化规则 | 见下 |
 
-**`viz_live.py` / `viz_record.py` 的两处改动**：`cluster-viz` 原先在仓库外
-（`../cluster-viz`），整合后位于仓库根（`./cluster-viz`）。只把默认目录的
-`parents[2]` 改为 `parents[1]`（`viz_live.py`）与 `PROJECT.parent` 改为 `PROJECT`
-（`viz_record.py`），其余逻辑不动；两处均可用 `ACPS_VIZ_SCENARIO_DIR` 覆盖，
+**`core/viz_live.py` / `delegation/viz_record.py` 的两处改动**：`cluster-viz` 原先在仓库外
+（`../cluster-viz`），整合后位于仓库根（`./cluster-viz`）。标准包化后稳定为
+`core/viz_live.py` 的 `parents[2]` 与 `delegation/viz_record.py` 的 `PROJECT / "cluster-viz"`，
+其余逻辑不动；两处均可用 `ACPS_VIZ_SCENARIO_DIR` 覆盖，
 单元测试用临时目录，故不影响既有行为。
 
 **`.gitignore` 为什么不沿用全局 `*.json`**：原基线用 `*.json` + 白名单挡住运行时状态，
@@ -238,7 +238,7 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 | 保留 | 理由 |
 |---|---|
 | `acps_cluster/`（supervisor、partner_*、delegation、tests、deploy 运行组件） | 集群本体与互联机制 |
-| `capabilities/`、`acps_cluster/bootstrap.py` | 能力实现、启动引导与官方扩展点 |
+| `capabilities/`、`acps_cluster/core/bootstrap.py` | 能力实现、启动引导与官方扩展点 |
 | `registered_acs_overlay.json`、`policy-projections/` | 发现层覆盖表与域策略投影（无密钥） |
 | `docs/` 精选 | 架构、协议、工作区、AMP、名册、新增 agent 手册 |
 

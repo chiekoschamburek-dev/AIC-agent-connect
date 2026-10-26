@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -13,20 +14,20 @@ CL = Path(__file__).resolve().parents[2]          # acps_cluster
 sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 
-import discovery_metadata as dm  # noqa: E402
+from acps_cluster.core import discovery_metadata as dm  # noqa: E402
 
 SNAP = CL / "_platform_snapshot"
 BUILDERS = {
-    "scout": ("acs.live.scout.json", "partner_scout", "build_scout_agent"),
-    "supervisor": ("acs.live.supervisor.json", "supervisor", "build_supervisor_agent"),
-    "critic": ("acs.live.critic.json", "partner_critic", "build_critic_agent"),
-    "writer": ("acs.live.writer.json", "partner_writer", "build_writer_agent"),
-    "synthesis": ("acs.live.synthesis.json", "partner_synthesis", "build_synthesis_agent"),
-    "experiment": ("acs.live.experiment.json", "partner_experiment", "build_experiment_agent"),
-    "frontier": ("acs.live.frontier.json", "partner_frontier", "build_frontier_agent"),
-    "contradiction": ("acs.live.contradiction.json", "partner_contradiction", "build_contradiction_agent"),
-    "citation": ("acs.live.citation.json", "partner_citation", "build_citation_agent"),
-    "workspace": ("acs.live.workspace.json", "partner_workspace", "build_workspace_agent"),
+    "scout": ("acs.live.scout.json", "acps_cluster.agents.partner_scout", "build_scout_agent"),
+    "supervisor": ("acs.live.supervisor.json", "acps_cluster.agents.supervisor", "build_supervisor_agent"),
+    "critic": ("acs.live.critic.json", "acps_cluster.agents.partner_critic", "build_critic_agent"),
+    "writer": ("acs.live.writer.json", "acps_cluster.agents.partner_writer", "build_writer_agent"),
+    "synthesis": ("acs.live.synthesis.json", "acps_cluster.agents.partner_synthesis", "build_synthesis_agent"),
+    "experiment": ("acs.live.experiment.json", "acps_cluster.agents.partner_experiment", "build_experiment_agent"),
+    "frontier": ("acs.live.frontier.json", "acps_cluster.agents.partner_frontier", "build_frontier_agent"),
+    "contradiction": ("acs.live.contradiction.json", "acps_cluster.agents.partner_contradiction", "build_contradiction_agent"),
+    "citation": ("acs.live.citation.json", "acps_cluster.agents.partner_citation", "build_citation_agent"),
+    "workspace": ("acs.live.workspace.json", "acps_cluster.agents.partner_workspace", "build_workspace_agent"),
 }
 
 # 注册版 skill 的**覆盖表管辖字段**都要对齐，不能只看 desc/tags/examples：
@@ -44,7 +45,7 @@ print("-" * 84)
 bad = 0
 for key, (snap, mod_name, builder) in BUILDERS.items():
     reg = json.loads((SNAP / snap).read_text(encoding="utf-8"))
-    mod = __import__(mod_name)
+    mod = importlib.import_module(mod_name)
     agent = getattr(mod, builder)(None)
 
     # agent 级

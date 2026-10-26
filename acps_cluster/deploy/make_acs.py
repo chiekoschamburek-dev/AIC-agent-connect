@@ -22,6 +22,7 @@ skill 的 `visibility` / `domains` 会原样进入填报稿（registry schema �
 from __future__ import annotations
 
 import argparse
+import importlib
 import datetime as dt
 import json
 import re
@@ -34,22 +35,22 @@ SCHEMA = REPO / "ACPs-community/registry-server/app/agent/acsSchema.json"
 
 # key → (模块名, 构建函数名, 显示名)
 AGENTS: dict[str, tuple[str, str]] = {
-    "supervisor": ("supervisor", "build_supervisor_agent"),
-    "scout": ("partner_scout", "build_scout_agent"),
-    "writer": ("partner_writer", "build_writer_agent"),
-    "synthesis": ("partner_synthesis", "build_synthesis_agent"),
-    "critic": ("partner_critic", "build_critic_agent"),
-    "frontier": ("partner_frontier", "build_frontier_agent"),
-    "contradiction": ("partner_contradiction", "build_contradiction_agent"),
-    "experiment": ("partner_experiment", "build_experiment_agent"),
-    "gpu": ("partner_gpu", "build_gpu_agent"),
-    "cpu": ("partner_cpu", "build_cpu_agent"),
-    "model": ("partner_model", "build_model_agent"),
-    "eval": ("partner_eval", "build_eval_agent"),
-    "kb": ("partner_kb", "build_kb_agent"),
-    "hpc": ("partner_hpc", "build_hpc_agent"),
-    "citation": ("partner_citation", "build_citation_agent"),
-    "workspace": ("partner_workspace", "build_workspace_agent"),
+    "supervisor": ("acps_cluster.agents.supervisor", "build_supervisor_agent"),
+    "scout": ("acps_cluster.agents.partner_scout", "build_scout_agent"),
+    "writer": ("acps_cluster.agents.partner_writer", "build_writer_agent"),
+    "synthesis": ("acps_cluster.agents.partner_synthesis", "build_synthesis_agent"),
+    "critic": ("acps_cluster.agents.partner_critic", "build_critic_agent"),
+    "frontier": ("acps_cluster.agents.partner_frontier", "build_frontier_agent"),
+    "contradiction": ("acps_cluster.agents.partner_contradiction", "build_contradiction_agent"),
+    "experiment": ("acps_cluster.agents.partner_experiment", "build_experiment_agent"),
+    "gpu": ("acps_cluster.agents.partner_gpu", "build_gpu_agent"),
+    "cpu": ("acps_cluster.agents.partner_cpu", "build_cpu_agent"),
+    "model": ("acps_cluster.agents.partner_model", "build_model_agent"),
+    "eval": ("acps_cluster.agents.partner_eval", "build_eval_agent"),
+    "kb": ("acps_cluster.agents.partner_kb", "build_kb_agent"),
+    "hpc": ("acps_cluster.agents.partner_hpc", "build_hpc_agent"),
+    "citation": ("acps_cluster.agents.partner_citation", "build_citation_agent"),
+    "workspace": ("acps_cluster.agents.partner_workspace", "build_workspace_agent"),
 }
 
 INVISIBLE = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u00a0", "\u2060")
@@ -154,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(CLUSTER))
     sys.path.insert(0, str(CLUSTER.parent))
     module_name, builder_name = AGENTS[args.key]
-    module = __import__(module_name)
+    module = importlib.import_module(module_name)
     agent = getattr(module, builder_name)(None)
 
     carrier = json.loads(Path(args.like).read_text(encoding="utf-8"))

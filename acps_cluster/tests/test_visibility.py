@@ -29,7 +29,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from acps_cluster.agent_profile import make_agent_info  # noqa: E402
+from acps_cluster.core.agent_profile import make_agent_info  # noqa: E402
 from acps_cluster.delegation.pep import capability_domain_scopes  # noqa: E402
 from acps_cluster.delegation.visibility import (  # noqa: E402
     filter_rows,
@@ -161,7 +161,7 @@ class AcsVisibilityTest(unittest.TestCase):
             self.make_acs.build_skills(agent, carrier, "1.0.0")
 
     def test_partner_eval声明能被代码侧解析且进入scopes(self):
-        import partner_eval
+        from acps_cluster.agents import partner_eval
 
         declared = self.validate_acs.domain_visibility_from_module("partner_eval")
         self.assertEqual(declared.get("eval.submit"), ["yanshu-eval"])
@@ -280,7 +280,7 @@ class AgentDiscoverabilityGuardTest(unittest.TestCase):
 
         missing: list[str] = []
         for module_name in self.AGENT_MODULES:
-            module = importlib.import_module(module_name)
+            module = importlib.import_module(f"acps_cluster.agents.{module_name}")
             capabilities = self._module_capabilities(module)
             public, _ = capability_visibility(capabilities)
             domain = set(capability_domain_scopes(capabilities))

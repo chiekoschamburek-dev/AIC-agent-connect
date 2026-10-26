@@ -18,17 +18,15 @@
 
 ```text
 yanshu-AIC/
-├── acps_cluster/                 # 集群核心（supervisor + 13 agent + 互联机制）
+├── acps_cluster/                 # 集群核心（agent + 互联机制 + 运行时）
+│   ├── agents/                   # supervisor 编排器、partner_*（研究/资源）、workspace 客户端
+│   ├── core/                     # bootstrap、名册、发现元数据、模型路由、扩展点、viz_live
+│   ├── runtime/                  # GPU/HPC/评测执行、知识库、作业台账、任务派发
+│   ├── tools/                    # 复现/冒烟脚本（非常驻服务）
 │   ├── delegation/               # ★ 互联机制：PEP 准入、委托令牌、协作域、工作区令牌
 │   ├── guard/                    # ★ 事件通信风险检测器（纯拷贝，剥 .git）
 │   ├── guard_adapter.py          # ★ 新代码：guard → supervisor 旁路适配层
-│   ├── covert_event_guard.py     # 兼容 shim（让原模块路径继续可用）
-│   ├── partner_*.py              # 各研究 / 资源 agent 与 workspace 存储实例
-│   ├── supervisor.py             # 编排器：发现 → 计划 → 委派 → 汇总
-│   ├── bootstrap.py              # 启动引导：.env 加载、模型路由、LLM 调用硬闸
-│   ├── cluster_roster.py         # 名册（本地 + 外部成员）
-│   ├── discovery_metadata.py     # 能力分层、可见范围与发现层元数据
-│   ├── viz_live.py               # 前端数据后端：run → Scenario、ws_file/ws_zone、guard_alert
+│   ├── covert_event_guard.py     # 兼容 shim（让队友原模块路径继续可用）
 │   ├── deploy/                   # 运行单元、AMP 上报组件、发布/预检脚本
 │   ├── policy-projections/       # 域授权的策略投影（公开声明）
 │   └── tests/                    # 集群测试（含 guard_adapter 测试）
@@ -63,28 +61,28 @@ yanshu-AIC/
 
 | agent | 模块 | 职责 |
 |---|---|---|
-| scout | `acps_cluster/partner_scout.py` | 文献检索、arXiv 取源、检索记忆 |
-| synthesis | `acps_cluster/partner_synthesis.py` | 多来源资料综合与去重 |
-| writer | `acps_cluster/partner_writer.py` | 综述/报告写作 |
-| critic | `acps_cluster/partner_critic.py` | 审查、证伪、质量闸门 |
-| experiment | `acps_cluster/partner_experiment.py` | 复现实验、沙盒执行、结果回传 |
-| frontier | `acps_cluster/partner_frontier.py` | 速度前沿/趋势侦测 |
-| contradiction | `acps_cluster/partner_contradiction.py` | 跨文献矛盾侦测 |
+| scout | `acps_cluster/agents/partner_scout.py` | 文献检索、arXiv 取源、检索记忆 |
+| synthesis | `acps_cluster/agents/partner_synthesis.py` | 多来源资料综合与去重 |
+| writer | `acps_cluster/agents/partner_writer.py` | 综述/报告写作 |
+| critic | `acps_cluster/agents/partner_critic.py` | 审查、证伪、质量闸门 |
+| experiment | `acps_cluster/agents/partner_experiment.py` | 复现实验、沙盒执行、结果回传 |
+| frontier | `acps_cluster/agents/partner_frontier.py` | 速度前沿/趋势侦测 |
+| contradiction | `acps_cluster/agents/partner_contradiction.py` | 跨文献矛盾侦测 |
 | arxiv | `capabilities/arxiv.py` | arXiv 检索/取论文能力（ACS 由代码投影按需生成） |
-| citation-integrity | `acps_cluster/partner_citation.py`、`citation_verify.py` | 引用真实性与元数据核验 |
+| citation-integrity | `acps_cluster/agents/partner_citation.py`、`citation_verify.py` | 引用真实性与元数据核验 |
 
 **资源 agent（4）**
 
 | agent | 模块 | 资源语义 |
 |---|---|---|
-| kb | `partner_kb.py`、`kb_store.py`、`kb_runner.py` | 知识库：受限查询 DSL、行级/字段级脱敏 |
-| cpu | `partner_cpu.py` | CPU 算力：同沙盒、无 GPU |
-| gpu | `partner_gpu.py`、`gpu_runner.py` | GPU 算力：Docker 八条硬边界、SSRF 防线 |
-| workspace-partner | `partner_workspace.py`、`partner_workspace_client.py` | 任务工作区：四分区存储资源实例化 + task_id 作用域 |
+| kb | `agents/partner_kb.py`、`runtime/kb_store.py`、`runtime/kb_runner.py` | 知识库：受限查询 DSL、行级/字段级脱敏 |
+| cpu | `agents/partner_cpu.py` | CPU 算力：同沙盒、无 GPU |
+| gpu | `agents/partner_gpu.py`、`runtime/gpu_runner.py` | GPU 算力：Docker 八条硬边界、SSRF 防线 |
+| workspace-partner | `agents/partner_workspace.py`、`agents/partner_workspace_client.py` | 任务工作区：四分区存储资源实例化 + task_id 作用域 |
 
-**编排器**：`acps_cluster/supervisor.py`（入口 `partner_supervisor.py`），负责发现 →
+**编排器**：`acps_cluster/agents/supervisor.py`（入口 `partner_supervisor.py`），负责发现 →
 计划 → 委派 → 等待产物 → 汇总。名册另含 `eval` / `model` 两个早期资源节点
-（`partner_eval.py`、`partner_model.py`），以及 `designer` / `wenji` 外部成员条目。
+（`agents/partner_eval.py`、`agents/partner_model.py`），以及 `designer` / `wenji` 外部成员条目。
 
 **外部 agent（2）**：`partners/designer/`（Research Designer）、`partners/wenji/`（问迹）。
 
@@ -109,7 +107,7 @@ yanshu-AIC/
 **③ workspace** —— 双重身份：
 
 - **存储资源实例化**：workspace partner 作为平台注册的资源 agent
-  （`partner_workspace.py`），按任务开辟服务器端工作区；
+  （`agents/partner_workspace.py`），按任务开辟服务器端工作区；
 - **任务可审计、可保留、有规律组织**：`ws-<task>/` 四分区（`repo/ products/
   scratch/ shared/`）+ `manifest.jsonl`，写操作经 `ws.write`（持令牌、actor 由
   token 的 `act.aic` 派生），文件不进模型上下文。
@@ -122,9 +120,9 @@ yanshu-AIC/
 ### 3. 衍生机制：能力边界与可见范围
 
 - **三级能力边界**：`L0 public`（公开可发现）/ `L1 白名单`（名单内可调）/
-  `L2 令牌`（必须持委托令牌）——见 `acps_cluster/arg_shapes.py` 与各 `partner_*.py`
+  `L2 令牌`（必须持委托令牌）——见 `acps_cluster/core/arg_shapes.py` 与各 `partner_*.py`
   的 `capability_visibility` 接线。
-- **能力分层与可见范围**：`acps_cluster/discovery_metadata.py` 生成发现层元数据，
+- **能力分层与可见范围**：`acps_cluster/core/discovery_metadata.py` 生成发现层元数据，
   按域/成员过滤；`capabilities/` 提供能力实现（arXiv、矛盾、前沿、数据集、记忆等）。
 
 ### 4. 框架与运行时组件
@@ -137,16 +135,16 @@ yanshu-AIC/
   `amp_access_sender.py`，以及 `partners/designer/src/amp_kafka_forwarder.py`
   （JSONL → Kafka，断点续传）。见 [docs/amp-compliance-and-gaps.md](docs/amp-compliance-and-gaps.md)。
 - **WIT 官方扩展点**：集群的日志、重试、上下文注入与 AIP 入参外壳化全部通过
-  `WitHooks` 实现（见 `acps_cluster/supervisor.py`、`acps_cluster/aip_guard.py`），
+  `WitHooks` 实现（见 `acps_cluster/agents/supervisor.py`、`acps_cluster/core/aip_guard.py`），
   未修改框架源码；启动引导（`.env`、模型路由、LLM 调用硬闸）在
-  `acps_cluster/bootstrap.py`。
+  `acps_cluster/core/bootstrap.py`。
 
 ### 5. 前端 viz
 
 - **集群总览**：`cluster-viz/`（React + Vite + ReactFlow），启动时读取
   `public/scenarios/manifest.json`，回放真实 run；工作区四分区面板消费
   `ws_zone` / `ws_file` 事件。
-- **数据后端**：`acps_cluster/viz_live.py` 把 supervisor run 记录成 Scenario
+- **数据后端**：`acps_cluster/core/viz_live.py` 把 supervisor run 记录成 Scenario
   （`ACPS_VIZ_BASE_URL` / `ACPS_VIZ_SCENARIO_DIR`，默认关闭）。
 - **安全告警栏位**：`viz_live.Recorder.guard_alert()` 把通信风险告警写进事件流；
   `guard_adapter` 另发布 `cluster-viz/public/scenarios/guard-alerts.json` 快照。

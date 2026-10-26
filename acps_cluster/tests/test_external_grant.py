@@ -14,7 +14,7 @@ for _p in (str(CLUSTER.parent), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import partner_experiment  # noqa: E402
+from acps_cluster.agents import partner_experiment  # noqa: E402
 
 
 class ExternalGrantTest(unittest.TestCase):

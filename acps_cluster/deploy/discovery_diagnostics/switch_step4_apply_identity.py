@@ -220,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"      registrationId={args.registration_id or remote_reg_id or '（未取到）'}")
 
     print("[2/4] 计算平台配置与指纹 …")
-    from cluster_common import build_acps_config
+    from acps_cluster.core.cluster_common import build_acps_config
     from wit.acps.provisioner import (
         _fingerprint,
         _safe_acps_config,

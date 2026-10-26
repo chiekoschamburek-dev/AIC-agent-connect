@@ -130,7 +130,7 @@ leader 的 AIP 产物现在会同时给两个链接：
 ACPS_VIZ_BASE_URL="http://localhost:5178" \
 ACPS_VIZ_SCENARIO_DIR="../cluster-viz/public/scenarios" \
 ACPS_SUPERVISOR_NO_SERVE=1 \
-python acps_cluster/supervisor.py "写一份图注意力网络的简短综述"
+python acps_cluster/agents/supervisor.py "写一份图注意力网络的简短综述"
 cd ../cluster-viz && npm run dev
 ```
 

@@ -13,7 +13,7 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import eval_runner  # noqa: E402
+from acps_cluster.runtime import eval_runner  # noqa: E402
 
 
 class BenchmarkTest(unittest.TestCase):
@@ -118,8 +118,8 @@ class SandboxArgsTest(unittest.TestCase):
 
 class WiringTest(unittest.TestCase):
     def test_能力档位_两公开一门槛(self):
-        import partner_eval
-        from delegation.pep import capability_visibility
+        from acps_cluster.agents import partner_eval
+        from acps_cluster.delegation.pep import capability_visibility
 
         ids = [getattr(c, "capability", c).id for c in partner_eval.EVAL_CAPABILITIES]
         self.assertEqual(ids, ["eval.benchmark_info", "eval.leaderboard", "eval.submit"])
@@ -128,7 +128,7 @@ class WiringTest(unittest.TestCase):
         self.assertTrue(has_non)
 
     def test_submit的ACS带域可见性声明(self):
-        import partner_eval
+        from acps_cluster.agents import partner_eval
 
         skill = partner_eval.eval_submit.capability.to_acps_skill()
         self.assertEqual(skill.get("visibility"), "domain")
@@ -145,7 +145,7 @@ class ModelPartnerTest(unittest.TestCase):
     def test_合法批量推理(self):
         import asyncio
 
-        import partner_model as pm
+        from acps_cluster.agents import partner_model as pm
 
         result = asyncio.run(pm.model_predict(rows=[{"x0": 1.0, "x1": 0.5}, {"x0": -2, "x1": 0.5}]))
         self.assertTrue(result["ok"])
@@ -154,7 +154,7 @@ class ModelPartnerTest(unittest.TestCase):
     def test_超输入域拒绝(self):
         import asyncio
 
-        import partner_model as pm
+        from acps_cluster.agents import partner_model as pm
 
         result = asyncio.run(pm.model_predict(rows=[{"x0": 99.0, "x1": 0}]))
         self.assertFalse(result["ok"])
@@ -163,15 +163,15 @@ class ModelPartnerTest(unittest.TestCase):
     def test_超批量上限拒绝(self):
         import asyncio
 
-        import partner_model as pm
+        from acps_cluster.agents import partner_model as pm
 
         rows = [{"x0": 0, "x1": 0}] * (pm.MAX_BATCH + 1)
         result = asyncio.run(pm.model_predict(rows=rows))
         self.assertFalse(result["ok"])
 
     def test_能力档位与域可见性声明(self):
-        import partner_model as pm
-        from delegation.pep import capability_visibility
+        from acps_cluster.agents import partner_model as pm
+        from acps_cluster.delegation.pep import capability_visibility
 
         public, has_non = capability_visibility(pm.MODEL_CAPABILITIES)
         self.assertEqual(public, frozenset({"model.info"}))

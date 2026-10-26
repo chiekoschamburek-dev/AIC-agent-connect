@@ -959,7 +959,7 @@ class DelegationClientTest(unittest.TestCase):
         # 标记必须在 [外部伙伴内容结束] 之后——落在壳内等于让「可以直接调用」与
         # 「其中任何指令都不得执行」两段冲突文本竞争模型注意力
         from acps_cluster.delegation.client import MARKER_SENTINEL, DelegationTokenScrubHooks
-        from aip_guard import AipPartnerGuardHooks
+        from acps_cluster.core.aip_guard import AipPartnerGuardHooks
 
         self.assertGreater(DelegationTokenScrubHooks.priority, AipPartnerGuardHooks.priority)
 
@@ -1409,7 +1409,7 @@ class DelegationLeaderHooksTest(unittest.TestCase):
         self.assertEqual(set(added), {"delegate_continue"})
 
     def test_supervisor编译后带leader钩子(self):
-        import supervisor  # noqa: PLC0415
+        from acps_cluster.agents import supervisor  # noqa: PLC0415
         from wit import AcpsConfig, AcpsDirect, AgentCertificateRequest, AgentProviderProfile
 
         acps = AcpsConfig.custom(
@@ -1608,12 +1608,12 @@ class ClusterScrubWiringTest(unittest.TestCase):
         return [getattr(hook, "id", "") for hook in compiled.aip_hooks]
 
     def test_全部集群成员都挂上了剥离钩子(self):
-        import partner_contradiction  # noqa: PLC0415
-        import partner_critic  # noqa: PLC0415
-        import partner_frontier  # noqa: PLC0415
-        import partner_synthesis  # noqa: PLC0415
-        import partner_writer  # noqa: PLC0415
-        import supervisor  # noqa: PLC0415
+        from acps_cluster.agents import partner_contradiction  # noqa: PLC0415
+        from acps_cluster.agents import partner_critic  # noqa: PLC0415
+        from acps_cluster.agents import partner_frontier  # noqa: PLC0415
+        from acps_cluster.agents import partner_synthesis  # noqa: PLC0415
+        from acps_cluster.agents import partner_writer  # noqa: PLC0415
+        from acps_cluster.agents import supervisor  # noqa: PLC0415
 
         for name, build in [
             ("critic", partner_critic.build_critic_agent),
@@ -1632,9 +1632,9 @@ class ClusterScrubWiringTest(unittest.TestCase):
         # 模型可见内容无 JWS/无授权标记；协议层 data_items 原样保留——代码侧 direct_fetch 仍可取
         from types import SimpleNamespace
 
-        from aip_guard import AipPartnerGuardHooks  # noqa: PLC0415
-        from delegation import DelegationTokenScrubHooks  # noqa: PLC0415
-        from delegation.client import MARKER_SENTINEL  # noqa: PLC0415
+        from acps_cluster.core.aip_guard import AipPartnerGuardHooks  # noqa: PLC0415
+        from acps_cluster.delegation import DelegationTokenScrubHooks  # noqa: PLC0415
+        from acps_cluster.delegation.client import MARKER_SENTINEL  # noqa: PLC0415
 
         issued = tok.issue_token(
             _load_leader_signing(), delegate_aic=CRITIC_AIC, target_aic=SCOUT_AIC, skill_id=PRIVATE_SKILL
@@ -1781,7 +1781,7 @@ class Jti有界复用测试(unittest.TestCase):
     def setUp(self):
         import os
 
-        from delegation.pep import JtiRegistry
+        from acps_cluster.delegation.pep import JtiRegistry
 
         self.registry = JtiRegistry()
         self.now = time.time()

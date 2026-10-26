@@ -28,9 +28,9 @@ PY
 
 echo
 echo "=== 2) 把 partner_kb.py 的 version 提到 1.0.1（与草案对齐）==="
-cp -p "$CL/partner_kb.py" "$CL/partner_kb.py.pre-version-bump-$stamp"
+cp -p "$CL/agents/partner_kb.py" "$CL/agents/partner_kb.py.pre-version-bump-$stamp"
 echo "  已备份 partner_kb.py.pre-version-bump-$stamp"
-$PY - "$CL/partner_kb.py" <<'PY'
+$PY - "$CL/agents/partner_kb.py" <<'PY'
 import sys
 from pathlib import Path
 p = Path(sys.argv[1])
@@ -43,8 +43,8 @@ if old not in t:
 p.write_text(t.replace(old, new, 1), encoding='utf-8')
 print('  ✔ version 1.0.0 → 1.0.1')
 PY
-chown wit:wit "$CL/partner_kb.py"
-grep -n 'version="1.0.1"' "$CL/partner_kb.py" | sed 's/^/  /'
+chown wit:wit "$CL/agents/partner_kb.py"
+grep -n 'version="1.0.1"' "$CL/agents/partner_kb.py" | sed 's/^/  /'
 
 echo
 echo "=== 3) 确认 KB 服务仍在跑（代码改了但未重启，符合预期）==="

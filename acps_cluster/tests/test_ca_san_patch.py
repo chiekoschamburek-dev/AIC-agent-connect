@@ -16,7 +16,7 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import cluster_common  # noqa: E402,F401  (导入即打补丁)
+from acps_cluster.core import cluster_common  # noqa: E402,F401  (导入即打补丁)
 
 
 class CaCsrSanPatchTest(unittest.TestCase):

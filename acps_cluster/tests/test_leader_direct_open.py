@@ -34,7 +34,7 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 
-from delegation.pep import PepConfig, evaluate  # noqa: E402
+from acps_cluster.delegation.pep import PepConfig, evaluate  # noqa: E402
 
 LEADER = "1.2.156.3088.1.BUPT.VTF97R.JXN8O8.98DOO8.0EB6"
 OUTSIDER = "1.2.156.3088.1.0001.00001.EZTK03.JISTB6.0P3V"

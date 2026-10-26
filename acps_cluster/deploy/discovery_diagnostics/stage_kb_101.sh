@@ -17,8 +17,8 @@ stamp=$(date +%Y%m%d-%H%M%S)
 
 mkdir -p "$STAGE"
 echo "############ 1) 暂存「新变更版」为待启用集"
-cp -p "$CL/partner_kb.py" "$STAGE/partner_kb.py.new"
-cp -p "$CL/discovery_metadata.py" "$STAGE/discovery_metadata.py.new"
+cp -p "$CL/agents/partner_kb.py" "$STAGE/partner_kb.py.new"
+cp -p "$CL/core/discovery_metadata.py" "$STAGE/discovery_metadata.py.new"
 echo "  已存到 $STAGE/"
 grep -n 'version="1.0.1"' "$STAGE/partner_kb.py.new" | sed 's/^/    partner_kb: /'
 $PY - <<'PY'
@@ -28,7 +28,7 @@ PY
 
 echo
 echo "############ 2) 回退线上 partner_kb.py → version 1.0.0"
-$PY - "$CL/partner_kb.py" <<'PY'
+$PY - "$CL/agents/partner_kb.py" <<'PY'
 import re, sys
 from pathlib import Path
 p = Path(sys.argv[1])
@@ -40,12 +40,12 @@ else:
     p.write_text(new, encoding='utf-8')
     print("  ✔ partner_kb.py version → 1.0.0")
 PY
-chown wit:wit "$CL/partner_kb.py"
-grep -n 'version="1.0' "$CL/partner_kb.py" | sed 's/^/    /'
+chown wit:wit "$CL/agents/partner_kb.py"
+grep -n 'version="1.0' "$CL/agents/partner_kb.py" | sed 's/^/    /'
 
 echo
 echo "############ 3) 回退线上 discovery_metadata.py 的 KB 文案 → 原 209 字"
-$PY - "$CL/discovery_metadata.py" <<'PY'
+$PY - "$CL/core/discovery_metadata.py" <<'PY'
 import sys
 from pathlib import Path
 p = Path(sys.argv[1])
@@ -88,9 +88,9 @@ t = t[:s2] + old_q + t[e2:]
 p.write_text(t, encoding='utf-8')
 print("  ✔ KB agent 门面与 kb.query 门面已回退到已注册版")
 PY
-chown wit:wit "$CL/discovery_metadata.py"
-python3 -c "import ast,pathlib; ast.parse(pathlib.Path('$CL/discovery_metadata.py').read_text(encoding='utf-8')); print('  语法 OK')" 2>/dev/null \
-  || $PY -c "import ast,pathlib; ast.parse(pathlib.Path('$CL/discovery_metadata.py').read_text(encoding='utf-8')); print('  语法 OK')"
+chown wit:wit "$CL/core/discovery_metadata.py"
+python3 -c "import ast,pathlib; ast.parse(pathlib.Path('$CL/core/discovery_metadata.py').read_text(encoding='utf-8')); print('  语法 OK')" 2>/dev/null \
+  || $PY -c "import ast,pathlib; ast.parse(pathlib.Path('$CL/core/discovery_metadata.py').read_text(encoding='utf-8')); print('  语法 OK')"
 
 echo
 echo "############ 4) 复核：投影是否已回到已注册版（209 字）"
@@ -104,7 +104,7 @@ d = dm.agent_discovery_description('yanshu.kb-partner', 'x')
 print(f"  投影 agent 描述长度 = {len(d)}（已注册版 = 209）")
 print(f"  含「查文献」: {'查文献' in d}（应为 False，加宽版待启用）")
 import partner_kb
-print(f"  partner_kb version  = {'1.0.0（已回退）' if '1.0.0' in open('/opt/wit/my-project/acps_cluster/partner_kb.py', encoding='utf-8').read() else '?'}")
+print(f"  partner_kb version  = {'1.0.0（已回退）' if '1.0.0' in open('/opt/wit/my-project/acps_cluster/agents/partner_kb.py', encoding='utf-8').read() else '?'}")
 PY
 
 echo

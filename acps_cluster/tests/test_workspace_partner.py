@@ -23,7 +23,7 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import partner_workspace as pw  # noqa: E402
+from acps_cluster.agents import partner_workspace as pw  # noqa: E402
 
 
 class WorkspaceCoreTest(unittest.TestCase):
@@ -203,7 +203,7 @@ class WorkspaceCoreTest(unittest.TestCase):
 
 class WorkspaceRosterTest(unittest.TestCase):
     def test_名册含workspace条目且能力齐(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         members = {m.key: m for m in cluster_roster.load_roster()}
         self.assertIn("workspace", members)
@@ -214,7 +214,7 @@ class WorkspaceRosterTest(unittest.TestCase):
             self.assertIn(cap, m.declared_capabilities)
 
     def test_能力可见性_全部非公开(self):
-        from delegation.pep import capability_visibility
+        from acps_cluster.delegation.pep import capability_visibility
 
         public, has_non_public = capability_visibility(partner_workspace_caps())
         self.assertEqual(public, frozenset())
@@ -240,7 +240,7 @@ class TaskScopeTest(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self._root_env = os.environ.get("ACPS_WS_ROOT")
         os.environ["ACPS_WS_ROOT"] = self._tmp.name
-        from delegation.bridge import set_delegation
+        from acps_cluster.delegation.bridge import set_delegation
         self._set = set_delegation
 
     def tearDown(self) -> None:
@@ -293,7 +293,7 @@ class TaskScopeTest(unittest.TestCase):
         self.assertTrue((self.root / "task-a" / "shared" / "secret.txt").exists())
 
     def test_令牌claim解码(self):
-        from delegation.bridge import set_delegation
+        from acps_cluster.delegation.bridge import set_delegation
         set_delegation({"token": self._fake_token("task-z"), "targetAic": "w", "skillId": "ws.write"})
         self.assertEqual(pw._delegation_task_id(), "task-z")
         set_delegation({"token": "not-a-jws", "targetAic": "w", "skillId": "ws.write"})
@@ -306,22 +306,22 @@ class TaskScopeExtractionTest(unittest.TestCase):
     """leader 侧：从委派参数/请求文本提取任务作用域。"""
 
     def test_显式参数优先(self):
-        from supervisor import ResourceDispatchAuthHooks
+        from acps_cluster.agents.supervisor import ResourceDispatchAuthHooks
         args = {"task_id": "task-explicit", "request": "task_id=task-in-text"}
         self.assertEqual(ResourceDispatchAuthHooks._task_scope_from_args(args), "task-explicit")
 
     def test_从请求文本按约定提取(self):
-        from supervisor import ResourceDispatchAuthHooks
+        from acps_cluster.agents.supervisor import ResourceDispatchAuthHooks
         args = {"request": "委派工作区任务，task_id=task-1101，克隆仓库"}
         self.assertEqual(ResourceDispatchAuthHooks._task_scope_from_args(args), "task-1101")
 
     def test_取不到返回空(self):
-        from supervisor import ResourceDispatchAuthHooks
+        from acps_cluster.agents.supervisor import ResourceDispatchAuthHooks
         self.assertEqual(ResourceDispatchAuthHooks._task_scope_from_args({"request": "没有任何标记"}), "")
 
     def test_委派钩子同时覆盖两种delegate工具(self):
         import inspect
-        from supervisor import ResourceDispatchAuthHooks
+        from acps_cluster.agents.supervisor import ResourceDispatchAuthHooks
         src = inspect.getsource(ResourceDispatchAuthHooks.wrap_tool_call)
         # 两种工具都在钩子的识别名单里；authenticated 走它自己的 handler（2026-10-26）
         self.assertIn('"acps_delegate_authenticated"', src)
@@ -454,7 +454,7 @@ class ZoneRulesTest(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self._env = os.environ.get("ACPS_WS_ROOT")
         os.environ["ACPS_WS_ROOT"] = self._tmp.name
-        from delegation.bridge import set_delegation
+        from acps_cluster.delegation.bridge import set_delegation
         self._set = set_delegation
         self._set({"token": self._token(self.SCOUT_AIC), "targetAic": "w", "skillId": "ws.write"})
 
@@ -473,7 +473,7 @@ class ZoneRulesTest(unittest.TestCase):
         return f"hdr.{payload}.sig"
 
     def test_caller身份从令牌act解析出名册key(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
         from unittest import mock
         member = cluster_roster.RosterMember(
             key="scout", name="研枢-Scout-Partner", role="", module="",

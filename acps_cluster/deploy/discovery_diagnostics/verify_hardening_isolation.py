@@ -45,7 +45,7 @@ print("=== 2) 现有 8 个 agent 的 PEP 口径（应为 direct_open=True）==="
 sys.path.insert(0, str(CL.parent))
 sys.path.insert(0, str(CL))
 os.environ["YANSHU_RUN_TRACE"] = "0"
-from delegation.pep import load_pep_config  # noqa: E402
+from acps_cluster.delegation.pep import load_pep_config  # noqa: E402
 
 for w in ("scout", "writer", "critic", "synthesis",
           "contradiction", "frontier", "experiment", "supervisor"):

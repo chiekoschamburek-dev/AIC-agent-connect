@@ -1,4 +1,4 @@
-[Unit]
+﻿[Unit]
 Description=Wit ACPs Yanshu %i Partner
 After=network-online.target
 Wants=network-online.target
@@ -16,7 +16,7 @@ EnvironmentFile=/opt/wit/my-project/acps_cluster/deploy/.env.production
 # !! TimeoutStartSec 必须大于抖动上限，否则睡过 90s 的实例会在 start-pre 阶段被判超时杀掉
 #    （2026-09-27 实测踩过：contradiction 抽到 >90s 的值，start-pre operation timed out）。
 ExecStartPre=/bin/sh -c 'rm -f /opt/wit/my-project/acps_cluster/ws-%i/logs/*.jsonl; sleep $(/opt/wit/venv/bin/python -c "import random;print(random.randint(0,300))")'
-ExecStart=/opt/wit/venv/bin/python partner_%i.py
+ExecStart=/opt/wit/venv/bin/python agents/partner_%i.py
 Restart=always
 RestartSec=300
 TimeoutStartSec=400

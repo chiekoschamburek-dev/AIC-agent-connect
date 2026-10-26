@@ -195,6 +195,14 @@ def domain_visibility_from_module(module_name: str) -> dict[str, list[str]]:
 
     path = CLUSTER / f"{module_name}.py"
     if not path.is_file():
+        # 标准包化后模块位于 agents/ / runtime/ / core/ 下；按短名回退查找。
+        short = module_name.rsplit(".", 1)[-1]
+        for folder in ("agents", "runtime", "core"):
+            candidate = CLUSTER / folder / f"{short}.py"
+            if candidate.is_file():
+                path = candidate
+                break
+    if not path.is_file():
         return {}
     tree = ast.parse(path.read_text(encoding="utf-8"))
     declared: dict[str, list[str]] = {}

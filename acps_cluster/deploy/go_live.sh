@@ -92,7 +92,7 @@ step "阶段 1/5  备份"
 STAMP=$(date +%Y%m%d-%H%M%S)
 BAK=/opt/wit/yanshu-golive-backup-$STAMP
 mkdir -p "$BAK"
-cp -a "$CL"/supervisor.py "$CL"/partner_*.py "$BAK"/ 2>/dev/null
+cp -a "$CL"/agents/supervisor.py "$CL"/agents/partner_*.py "$BAK"/ 2>/dev/null
 cp -a "$CL"/bootstrap.py "$CL"/model_router.py "$CL"/llm_tools.py "$BAK"/ 2>/dev/null
 cp -a "$CL"/feed_tasks.py "$BAK"/ 2>/dev/null
 mkdir -p "$BAK/deploy"
@@ -159,7 +159,7 @@ if [ -n "$ACCESS_FILES" ]; then
 else
   echo "     ✘ 未生成 amp_access_*.jsonl"
   echo "       可能原因：① 钩子没生效（重启没成功）② 任务没打进去（看上面的派发结果）"
-  echo "       排查：grep -n amp_hooks $CL/partner_writer.py"
+  echo "       排查：grep -n amp_hooks $CL/agents/partner_writer.py"
 fi
 
 # ─────────────────────────────────────────────────────────────

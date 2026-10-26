@@ -140,7 +140,7 @@ class SkillScopedToolsHooks(WitHooks):
             # 本任务若带了**有效**的委托令牌，其被授权的 skill 也计入准入集合
             # （L2 路径，签名校验过、不可伪造；与 L0 自报的 admitted 取并集）。
             # peek 只读不消费（consume=False）：令牌要留给真正的业务读取（2026-10-15 审查 #3）。
-            from delegation.client import current_task_id, read_token_file  # noqa: PLC0415
+            from acps_cluster.delegation.client import current_task_id, read_token_file  # noqa: PLC0415
             task_id = current_task_id()
             if task_id is None:
                 metadata = getattr(getattr(ctx, "state", None), "metadata", None)
@@ -176,7 +176,7 @@ class SkillScopedToolsHooks(WitHooks):
                   f"（本任务准入={sorted(keeps) or '仅公开'}）", flush=True)
             if self.audit_path is not None:
                 try:
-                    from delegation.audit import audit_log  # noqa: PLC0415
+                    from acps_cluster.delegation.audit import audit_log  # noqa: PLC0415
                     audit_log(self.audit_path, decision="scope", rule="skill-scoped-tools",
                               extra={"removed": removed, "kept": sorted(keeps)})
                 except Exception:  # noqa: BLE001

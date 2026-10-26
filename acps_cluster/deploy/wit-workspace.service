@@ -1,4 +1,4 @@
-[Unit]
+﻿[Unit]
 Description=Wit ACPs Yanshu Workspace Partner (registered/platform identity)
 After=network-online.target
 Wants=network-online.target
@@ -17,7 +17,7 @@ Environment=ACPS_SERVE_HOST=0.0.0.0
 # 平台同账号单会话：重启/重新登录会踢掉其他 agent 的会话。沿用 yanshu 模板的
 # 0-300s 抖动和 300s 重试间隔，避免 workspace 抖动把 scout/supervisor 踢下线。
 ExecStartPre=/bin/sh -c 'sleep $(/opt/wit/venv/bin/python -c "import random;print(random.randint(0,300))")'
-ExecStart=/opt/wit/venv/bin/python partner_workspace.py
+ExecStart=/opt/wit/venv/bin/python agents/partner_workspace.py
 Restart=always
 RestartSec=300
 TimeoutStartSec=400

@@ -11,7 +11,7 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import partner_scout  # noqa: E402
+from acps_cluster.agents import partner_scout  # noqa: E402
 from wit import AcpsConfig, AgentProviderProfile  # noqa: E402
 from wit.kernel.capabilities import ToolManager  # noqa: E402
 

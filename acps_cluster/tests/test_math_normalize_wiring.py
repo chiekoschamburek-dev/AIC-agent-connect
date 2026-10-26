@@ -23,7 +23,7 @@ os.environ["YANSHU_RUN_TRACE"] = "0"
 
 from wit import RunConfig, Tool  # noqa: E402
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 BODY = r"""## 3 数学地基
 
@@ -106,7 +106,7 @@ async def main() -> int:
         # 判定"是否还有残留"必须**排除代码块**——代码块里的 \[ 是刻意保留的，
         # 笼统地查 "\\[" 会把这条正常保留误判成残留（我在这里错过一次）。
         code_kept = 'r"\\[a-z\\]"' in got
-        from math_delimiters import _split_code_segments  # noqa: PLC0415
+        from acps_cluster.core.math_delimiters import _split_code_segments  # noqa: PLC0415
         non_code = "".join(seg for is_code, seg in _split_code_segments(got) if not is_code)
         bs_open = "\\[" in non_code
         paren_open = "\\(" in non_code

@@ -23,7 +23,7 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from delegation.pep import PepConfig, evaluate  # noqa: E402
+from acps_cluster.delegation.pep import PepConfig, evaluate  # noqa: E402
 
 
 def _request(*, leader="anonymous.example", skill=None, peer_verified=True):

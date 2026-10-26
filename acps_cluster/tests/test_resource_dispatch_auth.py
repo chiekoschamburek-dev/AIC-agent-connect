@@ -36,7 +36,7 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 PROTECTED = "1.2.156.3088.1.BUPT.VTF97R.CPUAAA.CCCCCC.DDDD"
 OTHER = "1.2.156.3088.1.BUPT.VTF97R.GMT5S6.4SZM68.0LC5"   # scout（白名单内）
@@ -236,7 +236,7 @@ class KeyToAicNormalizationTest(unittest.TestCase):
     """
 
     def _roster(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         return [cluster_roster.RosterMember(
             key="cpu", name="研枢-CPU-Partner", role="算力", module="partner_cpu",
@@ -311,7 +311,7 @@ class WorkspaceBundleDispatchTest(unittest.TestCase):
             return SimpleNamespace(token=f"JWS-{jti[2:]}")
 
     def _roster(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         return [
             cluster_roster.RosterMember(
@@ -338,7 +338,7 @@ class WorkspaceBundleDispatchTest(unittest.TestCase):
 
     def _run(self, hook, call, handler):
         from unittest import mock
-        import delegation
+        from acps_cluster import delegation
 
         issuer = self._Issuer()
         with mock.patch.object(delegation, "build_issue_token_tool_from_workspace",

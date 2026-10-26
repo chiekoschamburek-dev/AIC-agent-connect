@@ -236,7 +236,7 @@ def main() -> None:
     print(f"AIC       {aic}")
     print(f"工作区    {TARGET_WS}")
     print(f"证书签发  Agent Intermediate CA（客户端 clientAuth + 服务端 serverAuth，SAN 含 DNS:localhost）")
-    print("下一步    python acps_cluster/partner_gpu.py --local   （本地直连模式起服务并生成 ACS）")
+    print("下一步    python acps_cluster/agents/partner_gpu.py --local   （本地直连模式起服务并生成 ACS）")
 
 
 if __name__ == "__main__":

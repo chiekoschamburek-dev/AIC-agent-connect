@@ -17,7 +17,7 @@ WorkingDirectory=/opt/wit/my-project/acps_cluster
 # 想再来一轮：systemctl start wit-task-feeder
 # **只派给 supervisor**：平台排行榜按 caller 侧 span 计数，脚本直连伙伴
 # 只留被调方记录、平台不认。
-ExecStart=/opt/wit/venv/bin/python /opt/wit/my-project/acps_cluster/feed_tasks.py \
+ExecStart=/opt/wit/venv/bin/python /opt/wit/my-project/acps_cluster/runtime/feed_tasks.py \
     --targets supervisor \
     --round-size 10 --rounds 1 --order random \
     --include-heavy --heavy-per-round 5 --designer-per-round 0 \

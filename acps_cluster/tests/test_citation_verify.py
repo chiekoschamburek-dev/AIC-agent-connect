@@ -13,7 +13,7 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from citation_verify import arxiv_id_of, parse_citations  # noqa: E402
+from acps_cluster.runtime.citation_verify import arxiv_id_of, parse_citations  # noqa: E402
 
 
 class ParseTest(unittest.TestCase):
@@ -62,7 +62,7 @@ class ReviewGateCrossCheckTest(unittest.TestCase):
     """第三步的对账逻辑：三种冲突形态。"""
 
     def setUp(self):
-        from supervisor import _make_review_gate_tool
+        from acps_cluster.agents.supervisor import _make_review_gate_tool
 
         self.tool = _make_review_gate_tool()
 
@@ -116,9 +116,9 @@ class ReviewGateCrossCheckTest(unittest.TestCase):
 
 class WiringTest(unittest.TestCase):
     def test_critic与scout能力声明就位(self):
-        import partner_critic
-        import partner_scout
-        from delegation.pep import capability_visibility
+        from acps_cluster.agents import partner_critic
+        from acps_cluster.agents import partner_scout
+        from acps_cluster.delegation.pep import capability_visibility
 
         critic_ids = [getattr(c, "capability", c).id for c in [partner_critic.review_paper, partner_critic.citation_verify_capability]]
         self.assertEqual(critic_ids, ["paper.review", "citation.verify"])
@@ -132,7 +132,7 @@ class WiringTest(unittest.TestCase):
         self.assertEqual(skill.get("visibility"), "domain")
 
     def test_verify_one的verdict白名单收敛(self):
-        from citation_verify import VERDICTS, verify_one
+        from acps_cluster.runtime.citation_verify import VERDICTS, verify_one
 
         self.assertEqual(set(VERDICTS), {"supported", "misrepresented", "fabricated", "unverifiable"})
         # verify_one 依赖 llm_tools（真 LLM），离线只验证导入面

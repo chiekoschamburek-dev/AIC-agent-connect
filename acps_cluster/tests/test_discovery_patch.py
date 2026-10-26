@@ -19,7 +19,7 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
 
 import wit.acps.discovery as discovery  # noqa: E402
 
-import cluster_common  # noqa: E402,F401  （导入即打补丁，顺序不能调）
+from acps_cluster.core import cluster_common  # noqa: E402,F401  （导入即打补丁，顺序不能调）
 
 
 class DiscoveryFilterPatchTest(unittest.TestCase):

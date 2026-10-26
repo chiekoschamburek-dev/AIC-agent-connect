@@ -41,8 +41,8 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 
-from delegation import skill_scope  # noqa: E402
-from delegation.pep import PepConfig, evaluate  # noqa: E402
+from acps_cluster.delegation import skill_scope  # noqa: E402
+from acps_cluster.delegation.pep import PepConfig, evaluate  # noqa: E402
 
 
 def _cfg(*, public=("arxiv.search", "openalex.search"), has_non_public=True) -> PepConfig:

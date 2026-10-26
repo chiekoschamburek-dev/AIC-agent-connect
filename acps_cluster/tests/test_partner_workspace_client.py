@@ -26,15 +26,15 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 
-from delegation.bridge import BridgeHooks, set_delegation_bundle  # noqa: E402
-from delegation.client import set_current_task, write_bundle_file  # noqa: E402
-from partner_workspace_client import (  # noqa: E402
+from acps_cluster.delegation.bridge import BridgeHooks, set_delegation_bundle  # noqa: E402
+from acps_cluster.delegation.client import set_current_task, write_bundle_file  # noqa: E402
+from acps_cluster.agents.partner_workspace_client import (  # noqa: E402
     WorkspaceAccessBudgetHooks,
     build_workspace_access_capabilities,
     ws_read,
     ws_write,
 )
-from workspace_access import enabled as ws_enabled  # noqa: E402
+from acps_cluster.core.workspace_access import enabled as ws_enabled  # noqa: E402
 
 WS_AIC = "1.2.156.3088.1.1.WORKSPACE.TEST"
 TASK = "task-ws-1"

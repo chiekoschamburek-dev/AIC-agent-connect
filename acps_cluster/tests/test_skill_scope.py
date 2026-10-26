@@ -30,7 +30,7 @@ os.environ["YANSHU_RUN_TRACE"] = "0"
 
 from wit.kernel.capabilities import Capability, ToolManager  # noqa: E402
 
-from delegation import skill_scope  # noqa: E402
+from acps_cluster.delegation import skill_scope  # noqa: E402
 
 
 def _cap(cid: str, public: bool, metadata: dict | None = None) -> Capability:

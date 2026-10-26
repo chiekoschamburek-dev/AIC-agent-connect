@@ -167,7 +167,7 @@ class GuardAdapterTest(unittest.TestCase):
         self.assertEqual(report.alerts[0].subject, recorder.events[0]["subject"])
 
     def test_viz_live_recorder支持guard_alert事件(self):
-        import viz_live
+        from acps_cluster.core import viz_live
 
         rec = viz_live.Recorder(
             instruction="guard 告警接线",

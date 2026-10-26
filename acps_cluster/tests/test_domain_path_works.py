@@ -38,15 +38,15 @@ CL = Path("/opt/wit/my-project/acps_cluster")
 sys.path.insert(0, str(CL.parent))
 sys.path.insert(0, str(CL))
 
-from delegation.domain_manifest import (  # noqa: E402
+from acps_cluster.delegation.domain_manifest import (  # noqa: E402
     build_manifest,
     load_domain_policies,
     sign_manifest,
     write_manifest,
 )
-from delegation.grant import derive_delegation_claims, issue_grant  # noqa: E402
-from delegation.pep import PepConfig, evaluate  # noqa: E402
-from delegation.token import issue_token, load_signing_context  # noqa: E402
+from acps_cluster.delegation.grant import derive_delegation_claims, issue_grant  # noqa: E402
+from acps_cluster.delegation.pep import PepConfig, evaluate  # noqa: E402
+from acps_cluster.delegation.token import issue_token, load_signing_context  # noqa: E402
 
 WS_SUP = CL / "ws-supervisor"
 WS_SCOUT = CL / "ws-scout"
@@ -96,7 +96,7 @@ def _cfg(domains: dict, *, my_aic: str, quota_path=None) -> PepConfig:
 
 
 def _req(caller: str, token: str, skill: str = "kb.query"):
-    from delegation.token import token_data_item
+    from acps_cluster.delegation.token import token_data_item
     item = token_data_item(token, target_aic=skill, skill_id=skill)
     return SimpleNamespace(
         leader_aic=caller, command_params={"skillId": skill},

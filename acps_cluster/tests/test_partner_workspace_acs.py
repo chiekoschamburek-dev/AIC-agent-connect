@@ -18,13 +18,13 @@ CL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 
-import partner_contradiction  # noqa: E402
-import partner_critic  # noqa: E402
-import partner_experiment  # noqa: E402
-import partner_frontier  # noqa: E402
-import partner_scout  # noqa: E402
-import partner_synthesis  # noqa: E402
-import partner_writer  # noqa: E402
+from acps_cluster.agents import partner_contradiction  # noqa: E402
+from acps_cluster.agents import partner_critic  # noqa: E402
+from acps_cluster.agents import partner_experiment  # noqa: E402
+from acps_cluster.agents import partner_frontier  # noqa: E402
+from acps_cluster.agents import partner_scout  # noqa: E402
+from acps_cluster.agents import partner_synthesis  # noqa: E402
+from acps_cluster.agents import partner_writer  # noqa: E402
 from wit import (  # noqa: E402
     AcpsConfig,
     AgentCertificateRequest,
@@ -119,7 +119,7 @@ class WorkspacePeerSeedTest(unittest.TestCase):
     """
 
     def test_合成ACS写进discovered(self):
-        import cluster_common
+        from acps_cluster.core import cluster_common
         from wit.acps.discovery import load_discovered_agent
 
         with tempfile.TemporaryDirectory() as td:
@@ -143,7 +143,7 @@ class WorkspacePeerSeedTest(unittest.TestCase):
             self.assertEqual(summary.get("directEndpointUrl"), "https://127.0.0.1:8470/rpc")
 
     def test_没有workspace目录时静默跳过(self):
-        import cluster_common
+        from acps_cluster.core import cluster_common
 
         with tempfile.TemporaryDirectory() as td:
             scout = Path(td) / "ws-scout"

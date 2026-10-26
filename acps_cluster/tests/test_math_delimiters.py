@@ -13,7 +13,7 @@ CL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 
-from math_delimiters import (  # noqa: E402
+from acps_cluster.core.math_delimiters import (  # noqa: E402
     math_delimiter_stats,
     normalize_math_delimiters,
 )

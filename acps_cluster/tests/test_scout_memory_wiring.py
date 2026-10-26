@@ -35,7 +35,7 @@ def check(label: str, ok: bool, detail: str = "") -> None:
 
 async def part_a_and_c_and_d() -> None:
     import capabilities.papers_memory as pm
-    import partner_scout as ps
+    from acps_cluster.agents import partner_scout as ps
 
     calls = {"arxiv": 0, "openalex": 0, "s2": 0}
 
@@ -160,7 +160,7 @@ def part_b_fingerprint() -> None:
       · scholar.deep_fetch   同上                        → 不在
     所以这两项记忆能力若 public=True，就会进 ACS → **需要重新注册**。
     """
-    import partner_scout as ps
+    from acps_cluster.agents import partner_scout as ps
 
     print()
     print("=== B. 记忆能力是否改 ACS 投影（决定要不要重新注册）===")

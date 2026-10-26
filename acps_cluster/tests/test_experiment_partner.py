@@ -19,7 +19,7 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import partner_experiment  # noqa: E402
+from acps_cluster.agents import partner_experiment  # noqa: E402
 
 
 class PublicL0GateTest(unittest.TestCase):
@@ -185,7 +185,7 @@ class DatasetChannelTest(unittest.TestCase):
 
 class ExperimentWiringTest(unittest.TestCase):
     def test_exp_run公开_唯一能力_无锚点(self):
-        from delegation.pep import capability_visibility
+        from acps_cluster.delegation.pep import capability_visibility
 
         ids = [getattr(c, "capability", c).id for c in partner_experiment.EXPERIMENT_CAPABILITIES]
         self.assertEqual(ids, ["exp.run"])
@@ -203,7 +203,7 @@ class ExperimentWiringTest(unittest.TestCase):
         """回归：exp.run 改非公开后，无凭据且未指名 skill 的入站必须 deny。"""
         from types import SimpleNamespace
 
-        from delegation.pep import PepConfig, evaluate
+        from acps_cluster.delegation.pep import PepConfig, evaluate
 
         cfg = PepConfig(
             enabled=True,
@@ -226,7 +226,7 @@ class ExperimentWiringTest(unittest.TestCase):
         self.assertEqual(outcome.rule, "no-credential")
 
     def test_算力目标解析_gpu_cpu_及三类拒绝(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         def member(key, caps, aic):
             return cluster_roster.RosterMember(
@@ -275,7 +275,7 @@ class ExperimentWiringTest(unittest.TestCase):
 
     def test_名册experiment条目已启用(self):
         # 2026-10-02 平台注册通过后启用；未上线时以 available=False 呈现（ACS 缺失），不阻塞规划
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         roster = cluster_roster.load_roster()
         entries = [m for m in roster if m.key == "experiment"]
@@ -317,7 +317,7 @@ class 令牌通道自检Test(unittest.TestCase):
         import asyncio
         from types import SimpleNamespace
 
-        from delegation.bridge import BridgeHooks
+        from acps_cluster.delegation.bridge import BridgeHooks
 
         async def scenario():
             await BridgeHooks().on_run_start(

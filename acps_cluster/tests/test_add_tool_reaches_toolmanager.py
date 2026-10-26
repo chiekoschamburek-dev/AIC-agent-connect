@@ -23,7 +23,7 @@ from wit import RunConfig, Tool  # noqa: E402
 from wit.kernel.capabilities import ToolManager  # noqa: E402
 from wit.kernel.hooks import HookContext  # noqa: E402
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 
 async def real_ctx_injection() -> list[str]:

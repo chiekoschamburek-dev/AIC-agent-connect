@@ -21,8 +21,8 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 
-import jobs_store as js  # noqa: E402
-import supervisor as s  # noqa: E402
+from acps_cluster.runtime import jobs_store as js  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 
 class JobsStoreTest(unittest.TestCase):
@@ -412,7 +412,7 @@ class JobToolsTest(unittest.TestCase):
 
 class JobRunStateTest(unittest.TestCase):
     def test_done仅限成功收尾且终稿存在(self):
-        import jobs_runner
+        from acps_cluster.runtime import jobs_runner
 
         self.assertEqual(jobs_runner.final_state(True, "completed"), "done")
         self.assertEqual(jobs_runner.final_state(True, "success"), "done")

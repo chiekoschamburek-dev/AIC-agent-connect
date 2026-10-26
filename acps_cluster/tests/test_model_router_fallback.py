@@ -19,7 +19,7 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
 
 import httpx  # noqa: E402
 
-from model_router import _is_fallback_worthy, _strip_reasoning  # noqa: E402
+from acps_cluster.core.model_router import _is_fallback_worthy, _strip_reasoning  # noqa: E402
 
 
 def _assistant_with_reasoning(text: str, reasoning: str):

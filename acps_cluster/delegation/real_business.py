@@ -34,11 +34,11 @@ for _p in (str(PROJECT), str(CLUSTER)):
 
 # demo_pep 在导入时会把自己的目录从 sys.path 摘掉（避免 delegation/token.py 遮蔽标准库 token）；
 # 先导入它，再借用它的常量与工具函数。
-from delegation import demo_pep as dp  # noqa: E402  isort:skip
-from delegation import direct_fetch, issue_token, load_signing_context  # noqa: E402
+from acps_cluster.delegation import demo_pep as dp  # noqa: E402  isort:skip
+from acps_cluster.delegation import direct_fetch, issue_token, load_signing_context  # noqa: E402
 
-import bootstrap  # noqa: E402
-import partner_scout  # noqa: E402
+from acps_cluster.core import bootstrap  # noqa: E402
+from acps_cluster.agents import partner_scout  # noqa: E402
 from wit import WitRuntime  # noqa: E402
 
 PORT = 18450

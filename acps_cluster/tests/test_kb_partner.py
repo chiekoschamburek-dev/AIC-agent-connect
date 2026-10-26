@@ -14,7 +14,7 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import kb_runner  # noqa: E402
+from acps_cluster.runtime import kb_runner  # noqa: E402
 
 
 def _db(tmp: str) -> Path:
@@ -528,7 +528,7 @@ class SchemaHealTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def _make_legacy(self, rows: list[dict]):
-        from kb_store import KBStore
+        from acps_cluster.runtime.kb_store import KBStore
         legacy = KBStore(self.path, self.OLD_FIELDS, lanes=self.OLD_LANES)
         # 显式 id 走元组第一位（record 里的 id 会被存储层覆盖成自动号）
         legacy.insert([(row.get("id"), f"legacy{i}", row) for i, row in enumerate(rows, start=1)])
@@ -602,7 +602,7 @@ class HolderTest(unittest.TestCase):
     def _fix(self):
         import argparse
 
-        import kb_admin
+        from acps_cluster.runtime import kb_admin
         kb_admin.cmd_fix_owner(argparse.Namespace(holder=None))
         return kb_runner.open_store(self.path)
 
@@ -651,8 +651,8 @@ class HolderTest(unittest.TestCase):
 
 class WiringTest(unittest.TestCase):
     def test_能力档位_一橱窗两保险柜(self):
-        import partner_kb
-        from delegation.pep import capability_visibility
+        from acps_cluster.agents import partner_kb
+        from acps_cluster.delegation.pep import capability_visibility
 
         ids = [getattr(c, "capability", c).id for c in partner_kb.KB_CAPABILITIES]
         self.assertEqual(ids, ["kb.schema", "kb.query", "kb.ingest"])

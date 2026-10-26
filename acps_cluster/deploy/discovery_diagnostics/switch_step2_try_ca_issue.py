@@ -53,7 +53,7 @@ sys.path.insert(0, str(CLUSTER))
 try:
     # 触发 cluster_common 里的 wit CSR SAN 补丁；否则 IP 端点领证必报
     # server_public_endpoint_san_mismatch（见 docs/issue-wit-2.1.0-ip-endpoint-san.md）
-    import cluster_common  # noqa: F401
+    from acps_cluster.core import cluster_common  # noqa: F401
 except Exception:  # noqa: BLE001
     pass
 

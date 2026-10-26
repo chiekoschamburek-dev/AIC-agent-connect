@@ -29,7 +29,7 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")  # 仅在真调 llm_tools._instance() 前占位；本测试全走 fake
 
-import partner_synthesis as ps  # noqa: E402
+from acps_cluster.agents import partner_synthesis as ps  # noqa: E402
 
 FAILS: list[str] = []
 

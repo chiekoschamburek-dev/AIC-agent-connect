@@ -18,7 +18,7 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL / "deploy"))
 sys.path.insert(0, str(CL.parent))
 
-import discovery_metadata as dm  # noqa: E402
+from acps_cluster.core import discovery_metadata as dm  # noqa: E402
 
 SNAP = CL / "_platform_snapshot"
 NAME2ID = {

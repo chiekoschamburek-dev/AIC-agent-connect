@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import discovery_metadata as dm  # noqa: E402
+from acps_cluster.core import discovery_metadata as dm  # noqa: E402
 
 
 def merge_skills(carrier_skills: list[dict], draft_skills: list[dict]) -> tuple[list[dict], list[str]]:

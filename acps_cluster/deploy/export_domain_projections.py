@@ -22,11 +22,11 @@ CLUSTER = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CLUSTER.parent))
 sys.path.insert(0, str(CLUSTER))
 
-from delegation.domain_manifest import (  # noqa: E402
+from acps_cluster.delegation.domain_manifest import (  # noqa: E402
     export_policy_projection,
     load_domain_policies,
 )
-from delegation.visibility import write_policy_projections  # noqa: E402
+from acps_cluster.delegation.visibility import write_policy_projections  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:

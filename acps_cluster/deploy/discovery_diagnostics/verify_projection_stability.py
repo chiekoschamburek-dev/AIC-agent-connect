@@ -14,7 +14,7 @@ CL = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 
-import discovery_metadata as dm  # noqa: E402
+from acps_cluster.core import discovery_metadata as dm  # noqa: E402
 from wit.acps.provisioner import _fingerprint  # type: ignore  # noqa: E402
 
 CASES = {

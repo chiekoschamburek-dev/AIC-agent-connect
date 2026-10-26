@@ -27,7 +27,7 @@ echo "=============================================="
 STAMP=$(date +%Y%m%d-%H%M%S)
 BAK=/opt/wit/amp-access-fix-backup-$STAMP
 mkdir -p "$BAK"
-cp -a "$CL"/supervisor.py "$CL"/partner_*.py "$BAK"/ 2>/dev/null
+cp -a "$CL"/agents/supervisor.py "$CL"/agents/partner_*.py "$BAK"/ 2>/dev/null
 cp -a "$CL"/deploy/wit-yanshu@.service "$BAK"/ 2>/dev/null
 cp -a "$CL"/deploy/run_supervisor.sh "$BAK"/ 2>/dev/null
 echo "   备份目录: $BAK"

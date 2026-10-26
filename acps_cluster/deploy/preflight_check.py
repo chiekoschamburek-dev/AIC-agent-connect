@@ -116,7 +116,7 @@ def check_model_live(do_call: bool) -> None:
     """真实探测模型可用性：先看连通性，必要时打一次极小的真实请求。"""
     sys.path.insert(0, str(CLUSTER))
     try:
-        import model_router  # noqa: PLC0415
+        from acps_cluster.core import model_router  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
         record("FAIL", "模型连通", f"无法导入 model_router: {type(exc).__name__}")
         return
@@ -252,7 +252,7 @@ def check_targets() -> None:
     """对每个目标做一次 TLS 握手并核对证书 CN，不发任何业务请求。"""
     sys.path.insert(0, str(CLUSTER))
     try:
-        import feed_tasks  # noqa: PLC0415
+        from acps_cluster.runtime import feed_tasks  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
         record("FAIL", "目标端点", f"无法导入 feed_tasks: {type(exc).__name__}")
         return

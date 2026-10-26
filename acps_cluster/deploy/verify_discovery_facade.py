@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import discovery_metadata as dm  # noqa: E402
+from acps_cluster.core import discovery_metadata as dm  # noqa: E402
 
 
 def cap_of(item):
@@ -21,12 +21,12 @@ def cap_of(item):
 
 
 def main() -> int:
-    import partner_scout
-    import partner_writer
-    import partner_synthesis
-    import partner_critic
-    import partner_frontier
-    import partner_contradiction
+    from acps_cluster.agents import partner_scout
+    from acps_cluster.agents import partner_writer
+    from acps_cluster.agents import partner_synthesis
+    from acps_cluster.agents import partner_critic
+    from acps_cluster.agents import partner_frontier
+    from acps_cluster.agents import partner_contradiction
 
     builders = {
         "scout": (partner_scout.build_scout_agent, None),

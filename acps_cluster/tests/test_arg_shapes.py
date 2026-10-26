@@ -17,12 +17,12 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import eval_runner  # noqa: E402
-import kb_runner  # noqa: E402
-import partner_model  # noqa: E402
-from arg_shapes import as_list  # noqa: E402
-from cluster_roster import RosterMember, validate_plan  # noqa: E402
-from gpu_runner import validate_job  # noqa: E402
+from acps_cluster.runtime import eval_runner  # noqa: E402
+from acps_cluster.runtime import kb_runner  # noqa: E402
+from acps_cluster.agents import partner_model  # noqa: E402
+from acps_cluster.core.arg_shapes import as_list  # noqa: E402
+from acps_cluster.core.cluster_roster import RosterMember, validate_plan  # noqa: E402
+from acps_cluster.runtime.gpu_runner import validate_job  # noqa: E402
 
 
 class AsListTest(unittest.TestCase):

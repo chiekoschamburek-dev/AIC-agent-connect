@@ -21,7 +21,7 @@ os.environ["ACPS_LLM_CALL_TIMEOUT"] = "3"
 os.environ.setdefault("OPENAI_MODEL", "dummy")
 os.environ.setdefault("OPENAI_API_KEY", "dummy")
 
-import bootstrap  # noqa: E402
+from acps_cluster.core import bootstrap  # noqa: E402
 
 
 class _StallFirstByte:

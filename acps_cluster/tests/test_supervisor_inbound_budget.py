@@ -25,7 +25,7 @@ os.environ["YANSHU_RUN_TRACE"] = "0"
 from wit import RunConfig  # noqa: E402
 from wit.kernel.runtime import RunStartEvent  # noqa: E402
 
-import supervisor  # noqa: E402
+from acps_cluster.agents import supervisor  # noqa: E402
 
 
 class _Ctx:

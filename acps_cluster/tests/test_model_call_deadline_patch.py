@@ -22,7 +22,7 @@ os.environ["ACPS_MODEL_CALL_DEADLINE"] = "1"      # 总闸 1 秒
 os.environ.setdefault("OPENAI_MODEL", "dummy")
 os.environ.setdefault("OPENAI_API_KEY", "dummy")
 
-import cluster_common  # noqa: E402
+from acps_cluster.core import cluster_common  # noqa: E402
 
 
 def unwrap(fn):
@@ -92,7 +92,7 @@ async def main() -> int:
         failures.append(f"[4] 正常调用被破坏：{res}")
 
     # 5) 幂等：重复补丁不会套娃（原函数已带 _yanshu_deadline 时应直接返回）
-    import cluster_common as cc
+    from acps_cluster.core import cluster_common as cc
     before = WitRuntime._call_model_stream
     cc._patch_model_call_deadline()
     same = WitRuntime._call_model_stream is before

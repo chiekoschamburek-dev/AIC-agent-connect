@@ -15,7 +15,7 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import hpc_runner  # noqa: E402
+from acps_cluster.runtime import hpc_runner  # noqa: E402
 
 
 def _with_tmp_jobs(fn):
@@ -119,7 +119,7 @@ class WorkerTickTest(unittest.TestCase):
 
             return R()
 
-        with mock.patch("gpu_runner.run_sandbox", side_effect=fake_sandbox):
+        with mock.patch("acps_cluster.runtime.gpu_runner.run_sandbox", side_effect=fake_sandbox):
             processed = asyncio.run(hpc_runner.worker_tick())
         self.assertEqual(processed, 1)
         job_id = hpc_runner.list_jobs()[0]["id"]
@@ -132,8 +132,8 @@ class WorkerTickTest(unittest.TestCase):
 
 class WiringTest(unittest.TestCase):
     def test_能力档位_两橱窗两保险柜(self):
-        import partner_hpc
-        from delegation.pep import capability_visibility
+        from acps_cluster.agents import partner_hpc
+        from acps_cluster.delegation.pep import capability_visibility
 
         ids = [getattr(c, "capability", c).id for c in partner_hpc.HPC_CAPABILITIES]
         self.assertEqual(ids, ["hpc.info", "hpc.jobs", "hpc.submit", "hpc.result"])

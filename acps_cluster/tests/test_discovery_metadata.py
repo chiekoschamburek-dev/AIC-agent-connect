@@ -14,7 +14,7 @@ CLUSTER = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(CLUSTER))
 sys.path.insert(0, str(CLUSTER.parent))
 
-import discovery_metadata as dm  # noqa: E402
+from acps_cluster.core import discovery_metadata as dm  # noqa: E402
 
 
 def _caps(module, const: str) -> list:
@@ -39,12 +39,12 @@ class TestFacadeRegistry(unittest.TestCase):
 
     def test_公开能力都有用户问法示例(self):
         # 只对"公开可见"的能力要求 examples：非公开能力不进 ACS，写了也不被检索
-        import partner_scout  # noqa: PLC0415
-        import partner_writer  # noqa: PLC0415
-        import partner_critic  # noqa: PLC0415
-        import partner_synthesis  # noqa: PLC0415
-        import partner_frontier  # noqa: PLC0415
-        import partner_contradiction  # noqa: PLC0415
+        from acps_cluster.agents import partner_scout  # noqa: PLC0415
+        from acps_cluster.agents import partner_writer  # noqa: PLC0415
+        from acps_cluster.agents import partner_critic  # noqa: PLC0415
+        from acps_cluster.agents import partner_synthesis  # noqa: PLC0415
+        from acps_cluster.agents import partner_frontier  # noqa: PLC0415
+        from acps_cluster.agents import partner_contradiction  # noqa: PLC0415
 
         writer_caps = (
             _caps(partner_writer, "WRITER_CAPABILITIES")
@@ -72,7 +72,7 @@ class TestApply(unittest.TestCase):
     """apply_to_capabilities 的契约：只动描述类字段，不动身份与可见性。"""
 
     def setUp(self):
-        import partner_scout  # noqa: PLC0415
+        from acps_cluster.agents import partner_scout  # noqa: PLC0415
 
         self.original = _caps(partner_scout, "SCOUT_CAPABILITIES")
 
@@ -189,7 +189,7 @@ class TestSkillDisambiguation(unittest.TestCase):
                                      "name": "注册技能名", "inputModes": ["application/x-注册"]},
                 }},
             }
-            import partner_scout  # noqa: PLC0415
+            from acps_cluster.agents import partner_scout  # noqa: PLC0415
             caps = _caps(partner_scout, "SCOUT_CAPABILITIES")
             enriched = dm.apply_to_capabilities(caps, agent_id="yanshu.scout-partner")
             by_id = {dm._capability_of(c).id: dm._capability_of(c) for c in enriched}

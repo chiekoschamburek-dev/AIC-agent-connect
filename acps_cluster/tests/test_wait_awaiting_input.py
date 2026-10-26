@@ -19,7 +19,7 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 
 class _FakeRuntime:
@@ -116,7 +116,7 @@ class BudgetClockTest(unittest.TestCase):
     def test_默认预算8分钟(self):
         from unittest import mock
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("ACPS_SUPERVISOR_SYNC_BUDGET_MINUTES", None)
@@ -126,7 +126,7 @@ class BudgetClockTest(unittest.TestCase):
         import time
         from types import SimpleNamespace
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         s._RUN_STARTED_AT.set(time.monotonic() - 9 * 60)
         try:
@@ -145,7 +145,7 @@ class BudgetClockTest(unittest.TestCase):
         import time
         from types import SimpleNamespace
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         s._RUN_STARTED_AT.set(time.monotonic() - 60)
         try:
@@ -162,7 +162,7 @@ class BudgetClockTest(unittest.TestCase):
     def test_非白名单工具不追加(self):
         from types import SimpleNamespace
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         async def handler(tool_call):  # noqa: ANN001
             return {"ok": True}
@@ -175,7 +175,7 @@ class BudgetClockTest(unittest.TestCase):
         import time
         from unittest import mock
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         s._RUN_STARTED_AT.set(time.monotonic() - 60)
         try:
@@ -196,7 +196,7 @@ class JobLifecycleFenceTest(unittest.TestCase):
         from types import SimpleNamespace
         from unittest import mock
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         async def handler(tool_call):  # noqa: ANN001
             return {"ok": True, "handler": "called"}

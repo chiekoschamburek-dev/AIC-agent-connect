@@ -6,8 +6,8 @@ stamp=$(date +%Y%m%d-%H%M%S)
 
 echo "=== 1) 备份线上关键文件 ==="
 mkdir -p "$CL/.pre-review-fixes-$stamp"
-for f in supervisor.py partner_contradiction.py partner_critic.py partner_frontier.py \
-         partner_synthesis.py partner_writer.py partner_scout.py eval_runner.py \
+for f in agents/supervisor.py agents/partner_contradiction.py agents/partner_critic.py agents/partner_frontier.py \
+         agents/partner_synthesis.py agents/partner_writer.py agents/partner_scout.py runtime/eval_runner.py \
          delegation/__init__.py delegation/pep.py \
          deploy/amp_heartbeat_sender.py deploy/amp_heartbeat_mirror.py; do
   [ -f "$CL/$f" ] && mkdir -p "$CL/.pre-review-fixes-$stamp/$(dirname "$f")" \
@@ -18,18 +18,18 @@ echo "  已备份到 .pre-review-fixes-$stamp/"
 echo
 echo "=== 2) 校验部署源文件（语法 + 关键标记）==="
 cd "$CL" || exit 1
-for f in supervisor.py delegation/skill_scope.py delegation/pep.py \
-         deploy/amp_heartbeat_sender.py deploy/amp_heartbeat_mirror.py eval_runner.py; do
+for f in agents/supervisor.py delegation/skill_scope.py delegation/pep.py \
+         deploy/amp_heartbeat_sender.py deploy/amp_heartbeat_mirror.py runtime/eval_runner.py; do
   sudo -u wit "$PY" -c "import ast,pathlib,sys; ast.parse(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))" "$f" \
     && printf '  %-42s 语法 ✔\n' "$f" || printf '  %-42s 语法 ✘\n' "$f"
 done
 echo "  --- 关键标记"
-grep -c '_WAIT_ROUNDS' supervisor.py | sed 's/^/    supervisor._WAIT_ROUNDS(模块级): /'
-grep -c 'wrap_run' supervisor.py | sed 's/^/    supervisor.wrap_run: /'
+grep -c '_WAIT_ROUNDS' agents/supervisor.py | sed 's/^/    supervisor._WAIT_ROUNDS(模块级): /'
+grep -c 'wrap_run' agents/supervisor.py | sed 's/^/    supervisor.wrap_run: /'
 grep -c 'meta.get(timeout=args.send_timeout)' deploy/amp_heartbeat_sender.py | sed 's/^/    sender 确认投递: /'
 grep -c 'except OSError as exc' deploy/amp_heartbeat_mirror.py | sed 's/^/    mirror 每文件容错: /'
 grep -c 'skill_scope' delegation/__init__.py | sed 's/^/    pep_hooks 装配收窄: /'
-grep -c 'except BaseException' eval_runner.py | sed 's/^/    eval_runner 杀容器: /'
+grep -c 'except BaseException' runtime/eval_runner.py | sed 's/^/    eval_runner 杀容器: /'
 
 echo
 echo "=== 3) 单测 ==="

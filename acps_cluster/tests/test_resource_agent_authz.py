@@ -26,10 +26,10 @@ sys.path.insert(0, str(CL))
 sys.path.insert(0, str(CL.parent))
 os.environ["YANSHU_RUN_TRACE"] = "0"
 
-from delegation.client import token_data_item  # noqa: E402
-from delegation.pep import PepConfig, evaluate  # noqa: E402
+from acps_cluster.delegation.client import token_data_item  # noqa: E402
+from acps_cluster.delegation.pep import PepConfig, evaluate  # noqa: E402
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 LEADER = "1.2.156.3088.1.BUPT.VTF97R.JXN8O8.98DOO8.0EB6"
 OUTSIDER = "1.2.156.3088.1.0001.00001.EZTK03.JISTB6.0P3V"
@@ -101,7 +101,7 @@ def main() -> int:
     print("  [3] leader 携委托令牌 → 进入 L2 令牌校验")
     cfg = cfg_for("cpu")
     # 按 §3.2 的真实形状：type=data、data.acpsDelegationToken=...
-    from delegation.token import ROLE_DELEGATION_TOKEN, TOKEN_DATA_KEY
+    from acps_cluster.delegation.token import ROLE_DELEGATION_TOKEN, TOKEN_DATA_KEY
     token_item = {
         "type": "data",
         "data": {TOKEN_DATA_KEY: "not-a-real-jws", "targetAic": "x", "targetSkillHint": "cpu.run"},

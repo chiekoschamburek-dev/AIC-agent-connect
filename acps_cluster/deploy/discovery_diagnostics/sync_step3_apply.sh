@@ -35,7 +35,7 @@ echo "  完成"
 
 echo
 echo "=== 4) 落盘后核对：关键文件到位 ==="
-for f in acps_cluster/discovery_metadata.py acps_cluster/aip_guard.py acps_cluster/partner_scout.py \
+for f in acps_cluster/core/discovery_metadata.py acps_cluster/core/aip_guard.py acps_cluster/agents/partner_scout.py \
          acps_cluster/delegation/__init__.py acps_cluster/deploy/amp_heartbeat_sender.py; do
   printf '  %-52s %s\n' "$f" "$([ -f "$LIVE/$f" ] && echo 存在 || echo ✘缺失)"
 done

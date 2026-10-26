@@ -30,7 +30,7 @@ os.environ["YANSHU_RUN_TRACE"] = "0"
 
 from wit import RunConfig, Tool  # noqa: E402
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 
 class _Ctx:

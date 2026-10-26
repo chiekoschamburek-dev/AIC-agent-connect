@@ -20,9 +20,9 @@ echo "############ 0) 装回「待启用」的代码变更（门面文案 + vers
 # （否则 KB 一重启就会因指纹不匹配被拒）。切换时在这里装回。
 STAGE=/opt/wit/tmp/kb-101-staged
 if [ -f "$STAGE/partner_kb.py.new" ] && [ -f "$STAGE/discovery_metadata.py.new" ]; then
-  cp -p "$STAGE/partner_kb.py.new" "$CL/partner_kb.py"
-  cp -p "$STAGE/discovery_metadata.py.new" "$CL/discovery_metadata.py"
-  chown wit:wit "$CL/partner_kb.py" "$CL/discovery_metadata.py"
+  cp -p "$STAGE/partner_kb.py.new" "$CL/agents/partner_kb.py"
+  cp -p "$STAGE/discovery_metadata.py.new" "$CL/core/discovery_metadata.py"
+  chown wit:wit "$CL/agents/partner_kb.py" "$CL/core/discovery_metadata.py"
   echo "  ✔ 已从 $STAGE 装回两个文件"
 else
   echo "  ⚠ 找不到待启用文件（$STAGE）——请确认代码是否已是新版本"
@@ -35,7 +35,7 @@ import discovery_metadata as dm
 d = dm.agent_discovery_description('yanshu.kb-partner', 'x')
 print(f"  投影 description 长度 = {len(d)}（目标 365）  含「查文献」= {'查文献' in d}")
 PY
-grep -n 'version="1.0' "$CL/partner_kb.py" | sed 's/^/  /'
+grep -n 'version="1.0' "$CL/agents/partner_kb.py" | sed 's/^/  /'
 
 echo
 echo "############ 1) 确认已获批并发证"

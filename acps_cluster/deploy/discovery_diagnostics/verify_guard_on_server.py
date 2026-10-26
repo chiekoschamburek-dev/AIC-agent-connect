@@ -68,11 +68,12 @@ async def one(key: str, ws_name: str, prefix: str) -> bool:
 
     set_paths()
     for mod_name in list(sys.modules):
-        if mod_name.startswith(("partner_", "cluster_common", "discovery_metadata", "bootstrap", "supervisor")):
+        if mod_name.startswith("acps_cluster."):
             del sys.modules[mod_name]
 
-    cc = importlib.import_module("cluster_common")
-    module_name = "supervisor" if key == "supervisor" else f"partner_{key}"
+    cc = importlib.import_module("acps_cluster.core.cluster_common")
+    module_name = ("acps_cluster.agents.supervisor" if key == "supervisor"
+                   else f"acps_cluster.agents.partner_{key}")
     mod = importlib.import_module(module_name)
     builder = [n for n in dir(mod) if n.startswith("build_") and n.endswith("_agent")][0]
 

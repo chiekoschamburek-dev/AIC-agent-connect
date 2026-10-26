@@ -1,7 +1,7 @@
 # L2 作业化交路：受理-作业-取件
 
-> 2026-10-16 落地，2026-10-17 审查加固。对应代码：`acps_cluster/jobs_store.py`、
-> `acps_cluster/jobs_runner.py`、`supervisor.py` 的 `submit_job` / `check_job`。
+> 2026-10-16 落地，2026-10-17 审查加固。对应代码：`acps_cluster/runtime/jobs_store.py`、
+> `acps_cluster/runtime/jobs_runner.py`、`supervisor.py` 的 `submit_job` / `check_job`。
 > 回归测试：`acps_cluster/tests/test_jobs_store.py`。
 
 ## 1. 为什么需要这条交路
@@ -217,8 +217,8 @@ python -m unittest discover -s tests -p "test_*.py"  # 全量（当前 510 项�
 
 | 主题 | 位置 |
 |---|---|
-| 台账/状态机/探活/清理 | `acps_cluster/jobs_store.py` |
-| detached 作业执行器 | `acps_cluster/jobs_runner.py` |
-| `submit_job` / `check_job` 工具 | `acps_cluster/supervisor.py`（L2 作业化交路段） |
-| 收尾代签（product_gate fail-closed） | `acps_cluster/supervisor.py` `UnclosedDeliverablesHooks` |
+| 台账/状态机/探活/清理 | `acps_cluster/runtime/jobs_store.py` |
+| detached 作业执行器 | `acps_cluster/runtime/jobs_runner.py` |
+| `submit_job` / `check_job` 工具 | `acps_cluster/agents/supervisor.py`（L2 作业化交路段） |
+| 收尾代签（product_gate fail-closed） | `acps_cluster/agents/supervisor.py` `UnclosedDeliverablesHooks` |
 | 回归测试 | `acps_cluster/tests/test_jobs_store.py` |

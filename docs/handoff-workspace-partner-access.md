@@ -98,7 +98,7 @@ tool_request  acps_delegate request=[{'type':'text',...}]
 tool_response error: Invalid high-level content input
 ```
 
-原因在 `acps_cluster/supervisor.py` 的 `ResourceDispatchAuthHooks.wrap_tool_call`
+原因在 `acps_cluster/agents/supervisor.py` 的 `ResourceDispatchAuthHooks.wrap_tool_call`
 （约 3279–3360 行）：
 
 ```python
@@ -127,14 +127,14 @@ workspace DB 里也没有 `task-1026-e2e`。
 
 ### 2.2 supervisor 直接写 workspace，绕过 partner
 
-`acps_cluster/supervisor.py:1841` 的 `_mirror_products()`：
+`acps_cluster/agents/supervisor.py:1841` 的 `_mirror_products()`：
 
 ```python
 import partner_workspace as pws
 summary = pws.archive_products(entries, task_key)
 ```
 
-`acps_cluster/partner_workspace.py:689` 的 `archive_products()` 直接调
+`acps_cluster/agents/partner_workspace.py:689` 的 `archive_products()` 直接调
 `ws_create/ws_write` 本地函数，写 supervisor 所在机器的
 `ws-workspace/workspaces/<task>/products/`。
 
@@ -205,7 +205,7 @@ workspace PEP 的 `leader_aics` 已包含 supervisor，`act==peer` 检查在
 
 ### 4.1 先修委派 request（阻塞项，已完成）
 
-文件：`acps_cluster/supervisor.py`，`ResourceDispatchAuthHooks.wrap_tool_call`
+文件：`acps_cluster/agents/supervisor.py`，`ResourceDispatchAuthHooks.wrap_tool_call`
 （约 3279–3360）。
 
 - 解析 `partner_aic` / `skill_id` / `task_scope` 不变；
@@ -342,11 +342,11 @@ workspace PEP 的 `leader_aics` 已包含 supervisor，`act==peer` 检查在
 
 ## 9. 关键文件索引
 
-- `acps_cluster/supervisor.py`
+- `acps_cluster/agents/supervisor.py`
   - `_mirror_products` 约 1841（直写旁路）
   - `ResourceDispatchAuthHooks.wrap_tool_call` 约 3279–3360（request 形状 bug）
   - `_protected_partners` 约 3470（workspace 的六个 skill）
-- `acps_cluster/partner_workspace.py`
+- `acps_cluster/agents/partner_workspace.py`
   - `_caller_actor` 约 123（act.aic → actor）
   - `_scope_check` 约 148（task_id claim）
   - `archive_products` 约 689（supervisor 本地直写入口）

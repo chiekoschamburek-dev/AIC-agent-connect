@@ -47,7 +47,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import bootstrap  # noqa: E402  加载 .env（真实 LLM）
+from acps_cluster.core import bootstrap  # noqa: E402  加载 .env（真实 LLM）
 
 from wit import (  # noqa: E402
     AcpsConfig,
@@ -63,21 +63,21 @@ from wit import (  # noqa: E402
 from wit.acps.discovery import cache_discovered_agent, normalize_discovered_agent  # noqa: E402
 from wit.hooks.acps.delegation import AipDelegationHooks  # noqa: E402
 
-import partner_critic  # noqa: E402
-import partner_experiment  # noqa: E402
-import partner_gpu  # noqa: E402
-import partner_scout  # noqa: E402
-import partner_writer  # noqa: E402
-from delegation.client import direct_fetch  # noqa: E402
-from delegation.domain_manifest import (  # noqa: E402
+from acps_cluster.agents import partner_critic  # noqa: E402
+from acps_cluster.agents import partner_experiment  # noqa: E402
+from acps_cluster.agents import partner_gpu  # noqa: E402
+from acps_cluster.agents import partner_scout  # noqa: E402
+from acps_cluster.agents import partner_writer  # noqa: E402
+from acps_cluster.delegation.client import direct_fetch  # noqa: E402
+from acps_cluster.delegation.domain_manifest import (  # noqa: E402
     build_manifest,
     sign_manifest,
     verify_manifest,
     write_manifest,
 )
-from delegation.grant import derive_delegation_claims, issue_grant  # noqa: E402
-from delegation.reconciliation import build_report, sign_report, verify_report  # noqa: E402
-from delegation.token import issue_token, load_signing_context, token_data_item  # noqa: E402
+from acps_cluster.delegation.grant import derive_delegation_claims, issue_grant  # noqa: E402
+from acps_cluster.delegation.reconciliation import build_report, sign_report, verify_report  # noqa: E402
+from acps_cluster.delegation.token import issue_token, load_signing_context, token_data_item  # noqa: E402
 
 PACE = float(os.getenv("VIZ_PACE", "1.5"))
 WAIT = float(os.getenv("VIZ_WAIT", "900"))

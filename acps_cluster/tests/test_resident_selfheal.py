@@ -20,7 +20,7 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import partner_supervisor
+from acps_cluster.agents import partner_supervisor
 
 
 class InflightOutboundTest(unittest.TestCase):
@@ -417,7 +417,7 @@ class UnclosedDeliverablesTest(unittest.TestCase):
     def setUp(self):
         import tempfile
 
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         self.supervisor = supervisor
         self.ws = Path(tempfile.mkdtemp(prefix="unclosed-"))

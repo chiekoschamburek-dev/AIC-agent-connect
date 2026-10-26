@@ -27,10 +27,10 @@ for _p in (str(PROJECT), str(CLUSTER)):
 
 import os
 
-import bootstrap  # noqa: E402
-import partner_eval  # noqa: E402
-from delegation import demo_pep as dp  # noqa: E402
-from delegation import issue_grant, load_signing_context, token_data_item  # noqa: E402
+from acps_cluster.core import bootstrap  # noqa: E402
+from acps_cluster.agents import partner_eval  # noqa: E402
+from acps_cluster.delegation import demo_pep as dp  # noqa: E402
+from acps_cluster.delegation import issue_grant, load_signing_context, token_data_item  # noqa: E402
 from wit import AcpsDirect, AgentState, TextPart, WitAgent, WitRuntime  # noqa: E402
 from wit.acps.discovery import cache_discovered_agent, normalize_discovered_agent  # noqa: E402
 from wit.hooks.acps.delegation import AipDelegationHooks  # noqa: E402

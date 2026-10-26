@@ -27,10 +27,10 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import cluster_roster  # noqa: E402
-import supervisor  # noqa: E402
-from delegation import demo_autoresearch as demo  # noqa: E402
-from delegation.bridge import BridgeHooks, current_runtime  # noqa: E402
+from acps_cluster.core import cluster_roster  # noqa: E402
+from acps_cluster.agents import supervisor  # noqa: E402
+from acps_cluster.delegation import demo_autoresearch as demo  # noqa: E402
+from acps_cluster.delegation.bridge import BridgeHooks, current_runtime  # noqa: E402
 from wit.acps.discovery import extract_endpoint_url, load_discovered_agent  # noqa: E402
 
 # 自研模式跑起来必须存在的本地工具（剧本里逐个点名要求模型调用）

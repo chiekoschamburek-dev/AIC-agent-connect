@@ -34,7 +34,7 @@ for _p in (str(PROJECT), str(CLUSTER)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import bootstrap  # noqa: E402
+from acps_cluster.core import bootstrap  # noqa: E402
 
 from wit import (  # noqa: E402
     AcpsDirect, AcpsConfig, AgentCertificateRequest, AgentProviderProfile, AgentState,
@@ -43,15 +43,15 @@ from wit import (  # noqa: E402
 from wit.acps.discovery import cache_discovered_agent, normalize_discovered_agent  # noqa: E402
 from wit.hooks.acps.delegation import AipDelegationHooks  # noqa: E402
 
-import cluster_roster  # noqa: E402
-import eval_runner  # noqa: E402
-import partner_experiment  # noqa: E402
-import partner_eval  # noqa: E402
-import partner_gpu  # noqa: E402
-import partner_frontier  # noqa: E402
-import supervisor  # noqa: E402
-from delegation.bridge import BridgeHooks  # noqa: E402
-from delegation.leader_tools import DelegationLeaderHooks  # noqa: E402
+from acps_cluster.core import cluster_roster  # noqa: E402
+from acps_cluster.runtime import eval_runner  # noqa: E402
+from acps_cluster.agents import partner_experiment  # noqa: E402
+from acps_cluster.agents import partner_eval  # noqa: E402
+from acps_cluster.agents import partner_gpu  # noqa: E402
+from acps_cluster.agents import partner_frontier  # noqa: E402
+from acps_cluster.agents import supervisor  # noqa: E402
+from acps_cluster.delegation.bridge import BridgeHooks  # noqa: E402
+from acps_cluster.delegation.leader_tools import DelegationLeaderHooks  # noqa: E402
 
 SUPERVISOR_WS = CLUSTER / "ws-supervisor"
 FRONTIER_WS = CLUSTER / "ws-frontier"
@@ -403,7 +403,7 @@ async def main() -> None:
 
 def partner_experiment_note(roster_text: str) -> str:
     """真 supervisor 剧本（自研模式附加段在内）+ 演示名册。"""
-    from supervisor import _playbook
+    from acps_cluster.agents.supervisor import _playbook
 
     return _playbook(roster_text, ["frontier", "experiment", "gpu"])
 

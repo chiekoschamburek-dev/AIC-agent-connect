@@ -13,10 +13,10 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from delegation.commerce import (  # noqa: E402
+from acps_cluster.delegation.commerce import (  # noqa: E402
     PaidPlan, issue_paid_grant, load_paid_plans, write_plan_template,
 )
-from delegation.token import load_signing_context  # noqa: E402
+from acps_cluster.delegation.token import load_signing_context  # noqa: E402
 
 GPU_WS = CLUSTER_DIR / "ws-gpu"
 TRUST = GPU_WS / "acps" / "trust-bundle.pem"
@@ -58,7 +58,7 @@ class CommerceTest(unittest.TestCase):
     def test_发卡日限额_第N加1张拒发(self):
         import tempfile
 
-        from delegation.commerce import issue_paid_grant as issue
+        from acps_cluster.delegation.commerce import issue_paid_grant as issue
 
         with tempfile.TemporaryDirectory() as td:
             quota = Path(td) / "issuance.sqlite3"
@@ -74,7 +74,7 @@ class CommerceTest(unittest.TestCase):
         import time as _time
         import tempfile
 
-        from delegation.quota import record_issue
+        from acps_cluster.delegation.quota import record_issue
 
         with tempfile.TemporaryDirectory() as td:
             quota = Path(td) / "issuance.sqlite3"
@@ -91,7 +91,7 @@ class CommerceTest(unittest.TestCase):
     def test_发卡账本重启持久(self):
         import tempfile
 
-        from delegation.quota import issues_in_window
+        from acps_cluster.delegation.quota import issues_in_window
 
         with tempfile.TemporaryDirectory() as td:
             quota = Path(td) / "issuance.sqlite3"

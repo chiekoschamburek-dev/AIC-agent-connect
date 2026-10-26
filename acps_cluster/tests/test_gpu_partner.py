@@ -16,7 +16,7 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import gpu_runner  # noqa: E402
+from acps_cluster.runtime import gpu_runner  # noqa: E402
 from deploy.mint_gpu_identity import aic_checksum, base36_4, crc16_ccitt_false  # noqa: E402
 
 # dev 工作区（ws-*）是本机运行时状态，按仓库禁入清单不入库；干净克隆没有它们。
@@ -144,7 +144,7 @@ class GpuWiringTest(unittest.TestCase):
         服务器侧不读隧道，只靠 `ws-gpu/acps/{acs.final,enrollment}.json` 寻址桩解析身份、
         靠预热发现缓存解析端点。这里只断言"名册认识它、能力齐"。
         """
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         if not GPU_ACS.is_file():
             # 名册的 gpu 条目能力来自 ws-gpu 的 ACS 投影；干净克隆没有 dev 工作区，
@@ -157,7 +157,7 @@ class GpuWiringTest(unittest.TestCase):
         for cap in ("gpu.env", "gpu.status", "gpu.data.list", "gpu.data.fetch", "gpu.run"):
             self.assertIn(cap, gpu[0].capabilities)
         # 能力声明本身不依赖名册条目
-        import partner_gpu
+        from acps_cluster.agents import partner_gpu
 
         self.assertEqual(
             tuple(getattr(c, "capability", c).id for c in partner_gpu.GPU_CAPABILITIES),
@@ -165,8 +165,8 @@ class GpuWiringTest(unittest.TestCase):
         )
 
     def test_gpu能力可见性_公开三非公开二(self):
-        import partner_gpu
-        from delegation.pep import capability_visibility
+        from acps_cluster.agents import partner_gpu
+        from acps_cluster.delegation.pep import capability_visibility
 
         public, has_non_public = capability_visibility(partner_gpu.GPU_CAPABILITIES)
         self.assertEqual(public, frozenset({"gpu.env", "gpu.status", "gpu.data.list"}))

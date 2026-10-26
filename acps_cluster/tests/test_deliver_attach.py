@@ -31,7 +31,7 @@ for _p in (str(CL.parent), str(CL)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import supervisor as s  # noqa: E402
+from acps_cluster.agents import supervisor as s  # noqa: E402
 
 _SWITCH = "ACPS_SUPERVISOR_ATTACH_FILES"
 

@@ -19,8 +19,8 @@ CL = Path("/opt/wit/my-project/acps_cluster")
 sys.path.insert(0, str(CL.parent))
 sys.path.insert(0, str(CL))
 
-from delegation.pep import PepConfig, evaluate  # noqa: E402
-from delegation.token import (  # noqa: E402
+from acps_cluster.delegation.pep import PepConfig, evaluate  # noqa: E402
+from acps_cluster.delegation.token import (  # noqa: E402
     ROLE_DELEGATION_TOKEN,
     TOKEN_DATA_KEY,
     issue_token,

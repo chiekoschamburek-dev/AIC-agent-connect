@@ -86,7 +86,7 @@ class SeedDiscoveryLoggingTest(unittest.TestCase):
     """_seed_discovery：子进程输出必须逐行进日志，缺项时按 rc 分档告警。"""
 
     def _drive(self, code: str):
-        import partner_supervisor
+        from acps_cluster.agents import partner_supervisor
 
         script = self.tmp / "fake_seed.py"
         script.write_text(code, encoding="utf-8")

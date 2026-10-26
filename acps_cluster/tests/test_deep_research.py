@@ -13,7 +13,7 @@ for _p in (str(CLUSTER_DIR.parent), str(CLUSTER_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from supervisor import (  # noqa: E402
+from acps_cluster.agents.supervisor import (  # noqa: E402
     _DELEGATION_DISCIPLINE,
     _DELEGATION_USED,
     _make_deep_research_tool,

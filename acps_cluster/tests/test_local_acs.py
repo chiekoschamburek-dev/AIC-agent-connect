@@ -29,7 +29,7 @@ from wit import (  # noqa: E402
 )
 from wit.acps.provisioner import _fingerprint, _safe_acps_config  # noqa: E402
 
-import cluster_common  # noqa: E402
+from acps_cluster.core import cluster_common  # noqa: E402
 
 ACPS = AcpsConfig.custom(
     registry_url="https://localhost:9001",

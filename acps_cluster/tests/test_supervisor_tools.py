@@ -30,7 +30,7 @@ class _FakeRuntime:
 
 
 def _make(refs: list[str], snapshots: dict[str, dict], **kw):
-    import supervisor
+    from acps_cluster.agents import supervisor
 
     rt = _FakeRuntime(snapshots)
     tool = supervisor._make_wait_many_tool(rt, object(), **kw)
@@ -94,7 +94,7 @@ class WaitManyTest(unittest.TestCase):
 
     def test_部分轮询后才到达(self):
         async def run():
-            import supervisor
+            from acps_cluster.agents import supervisor
 
             # 慢到达：前 2 次 working，之后 completed
             class _Slow:
@@ -119,7 +119,7 @@ class WaitManyTest(unittest.TestCase):
 
 class MaxStepsConfigTest(unittest.TestCase):
     def test_默认200(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         env = "ACPS_SUPERVISOR_MAX_STEPS"
         old = os.environ.pop(env, None)
@@ -131,7 +131,7 @@ class MaxStepsConfigTest(unittest.TestCase):
                 os.environ[env] = old
 
     def test_环境变量覆盖(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         env = "ACPS_SUPERVISOR_MAX_STEPS"
         old = os.environ.get(env)
@@ -146,7 +146,7 @@ class MaxStepsConfigTest(unittest.TestCase):
                 os.environ[env] = old
 
     def test_wait_many与wait_partner都已注册(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         rc = supervisor.build_run_config(supervisor.cluster_roster.load_roster())
         names = {t.name for t in rc.tools}
@@ -160,7 +160,7 @@ class WaitBudgetCapTest(unittest.TestCase):
     """回归：等待类工具预算上限必须低于 RunConfig.tool_timeout（2026-10-06 审查发现）。"""
 
     def test_上限常量低于工具超时(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         self.assertEqual(supervisor._WAIT_BUDGET_CAP, 400.0)
         self.assertLess(supervisor._WAIT_BUDGET_CAP, 420.0)
@@ -169,7 +169,7 @@ class WaitBudgetCapTest(unittest.TestCase):
         async def run():
             from unittest import mock
 
-            import supervisor
+            from acps_cluster.agents import supervisor
 
             class _Never:
                 async def aip_task(self, state, action, task_ref):
@@ -196,7 +196,7 @@ class WaitManyGatherTest(unittest.TestCase):
 
     def test_单ref探针异常_不影响其余ref到达(self):
         async def run():
-            import supervisor
+            from acps_cluster.agents import supervisor
 
             class _Flaky:
                 async def aip_task(self, state, action, task_ref):
@@ -216,7 +216,7 @@ class WaitManyGatherTest(unittest.TestCase):
 
     def test_挂死探针被时限截断_其余不受拖累(self):
         async def run():
-            import supervisor
+            from acps_cluster.agents import supervisor
 
             class _Hang:
                 async def aip_task(self, state, action, task_ref):
@@ -236,7 +236,7 @@ class WaitManyGatherTest(unittest.TestCase):
 
     def test_外部取消可穿透wait_many(self):
         async def run():
-            import supervisor
+            from acps_cluster.agents import supervisor
 
             class _Slow:
                 async def aip_task(self, state, action, task_ref):
@@ -264,7 +264,7 @@ class LeaderBridgeTest(unittest.TestCase):
     桥版工具必须真正可用(此前 _RUN 无人设置,两个工具恒返回'桥未就绪')。"""
 
     async def _activate_bridge(self, runtime, state):
-        from delegation.bridge import BridgeHooks
+        from acps_cluster.delegation.bridge import BridgeHooks
 
         class _Ev:
             pass
@@ -278,8 +278,8 @@ class LeaderBridgeTest(unittest.TestCase):
 
     def test_桥激活后wait_many真正执行等待(self):
         async def run():
-            import supervisor
-            from delegation.bridge import current_runtime
+            from acps_cluster.agents import supervisor
+            from acps_cluster.delegation.bridge import current_runtime
             from wit import AgentState
 
             class _RT:
@@ -298,8 +298,8 @@ class LeaderBridgeTest(unittest.TestCase):
 
     def test_桥激活后wait_partner真正执行等待(self):
         async def run():
-            import supervisor
-            from delegation.bridge import current_state
+            from acps_cluster.agents import supervisor
+            from acps_cluster.delegation.bridge import current_state
             from wit import AgentState
 
             class _RT:
@@ -317,8 +317,8 @@ class LeaderBridgeTest(unittest.TestCase):
 
     def test_桥未激活时如实报错(self):
         async def run():
-            import supervisor
-            from delegation import bridge
+            from acps_cluster.agents import supervisor
+            from acps_cluster.delegation import bridge
 
             bridge._RUN.set(None)  # 显式清空,验证失败安全形态
             tool = supervisor._make_wait_many_bridge_tool()
@@ -354,7 +354,7 @@ class PublicDelegateToolTest(unittest.TestCase):
             return dict(self.snap)
 
     def _roster(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         return [
             cluster_roster.RosterMember(
@@ -369,10 +369,10 @@ class PublicDelegateToolTest(unittest.TestCase):
 
     def _tool(self, protected=None, snap=None, raise_exc=None):
         """起桥 + 关掉探活/发现缓存，保证只测本工具的标量逻辑（不碰真实工作区文件）。"""
-        import supervisor
+        from acps_cluster.agents import supervisor
         from unittest import mock
 
-        from delegation.bridge import BridgeHooks
+        from acps_cluster.delegation.bridge import BridgeHooks
 
         rt = self._RT(snap=snap, raise_exc=raise_exc)
         tool = supervisor._make_public_delegate_tool(
@@ -455,10 +455,10 @@ class PublicDelegateToolTest(unittest.TestCase):
         self.assertIn("缺少必填参数", out["error"])
 
     def test_桥未就绪时报缺件不抛异常(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
         from unittest import mock
 
-        from delegation import bridge
+        from acps_cluster.delegation import bridge
 
         tool = supervisor._make_public_delegate_tool(self._roster(), protected={})
 
@@ -480,7 +480,7 @@ class PublicDelegateToolTest(unittest.TestCase):
         self.assertIn("OSError", out["error"])
 
     def test_运行配置注册了本工具(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         cfg = supervisor.build_run_config([])
         self.assertIn("acps_delegate_public", {t.name for t in cfg.tools})
@@ -493,7 +493,7 @@ class RosterDiscoveredSwitchTest(unittest.TestCase):
         import importlib
         import os
 
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         env = "ACPS_ROSTER_ALLOW_DISCOVERED"
         old = os.environ.pop(env, None)
@@ -529,7 +529,7 @@ class AuthenticatedDelegateAicTest(unittest.TestCase):
             return {"taskRef": "t-auth-1", "state": "accepted"}
 
     def _roster(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         return [cluster_roster.RosterMember(
             key="kb", name="研枢-KB-Partner", role="知识库", module="partner_kb",
@@ -537,12 +537,12 @@ class AuthenticatedDelegateAicTest(unittest.TestCase):
             declared_capabilities=("kb.schema", "kb.query"), aic=self.KB_AIC)]
 
     def _call(self, token_used):
-        import delegation
-        import supervisor
+        from acps_cluster import delegation
+        from acps_cluster.agents import supervisor
         from types import SimpleNamespace
         from unittest import mock
 
-        from delegation.bridge import BridgeHooks
+        from acps_cluster.delegation.bridge import BridgeHooks
 
         rt = self._RT()
         tool = supervisor._make_authenticated_delegate_tool(self._roster())
@@ -592,8 +592,8 @@ class AuthenticatedDelegateAicTest(unittest.TestCase):
 
     def test_闸门拒绝时不签令牌(self):
         # 能力不由该伙伴声明 → 闸门拦下，且**一次签名都不该发生**
-        import delegation
-        import supervisor
+        from acps_cluster import delegation
+        from acps_cluster.agents import supervisor
         from unittest import mock
 
         called = {"n": 0}
@@ -627,7 +627,7 @@ class BuiltinDelegateGateTest(unittest.TestCase):
     SCOUT_AIC = "AIC-SCOUT-GATE"
 
     def _roster(self):
-        import cluster_roster
+        from acps_cluster.core import cluster_roster
 
         return [cluster_roster.RosterMember(
             key="scout", name="Scout", role="", module="partner_scout",
@@ -635,7 +635,7 @@ class BuiltinDelegateGateTest(unittest.TestCase):
             declared_capabilities=("arxiv.search",), aic=self.SCOUT_AIC)]
 
     def _call(self, name, args, *, allowed=True, why="ok"):
-        import supervisor
+        from acps_cluster.agents import supervisor
         from types import SimpleNamespace
         from unittest import mock
 
@@ -674,7 +674,7 @@ class BuiltinDelegateGateTest(unittest.TestCase):
         self.assertEqual(len(called), 1)
 
     def test_优先级早于令牌签发(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         self.assertLess(supervisor.DelegationTargetGateHooks.priority,
                         supervisor.ResourceDispatchAuthHooks.priority,
@@ -685,7 +685,7 @@ class IntakePolicyTest(unittest.TestCase):
     """开工前 intake：关键参数缺失先问一次，参数齐全/按默认直接开工（2026-10-17）。"""
 
     def test_提示词包含开工前intake(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         text = supervisor._INBOUND_INTAKE
         self.assertIn("开工前 intake", text)
@@ -699,7 +699,7 @@ class IntakePolicyTest(unittest.TestCase):
                          "旧硬禁令会让模型先干一半再让用户改")
 
     def test_空payload仍走输入请求(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         text = supervisor._INBOUND_INTAKE
         self.assertIn("完全没有任何用户诉求", text)
@@ -714,7 +714,7 @@ class JobModeToolRegistrationTest(unittest.TestCase):
     """
 
     def _names(self):
-        import supervisor
+        from acps_cluster.agents import supervisor
 
         return {t.name for t in supervisor.build_run_config([]).tools}
 

@@ -66,8 +66,8 @@ from wit.acps.direct import AipDirectClient  # noqa: E402
 from wit.acps.discovery import cache_discovered_agent, normalize_discovered_agent  # noqa: E402
 from wit.hooks.acps.delegation import AipDelegationHooks  # noqa: E402
 
-import partner_scout  # noqa: E402
-from delegation import (  # noqa: E402
+from acps_cluster.agents import partner_scout  # noqa: E402
+from acps_cluster.delegation import (  # noqa: E402
     direct_fetch,
     issue_token,
     load_signing_context,
@@ -225,7 +225,7 @@ def _rogue_signing():
         .add_extension(x509.SubjectAlternativeName([x509.UniformResourceIdentifier("acps://rogue.aic")]), False)
         .sign(key, None)
     )
-    from delegation import SigningContext
+    from acps_cluster.delegation import SigningContext
 
     return SigningContext(private_key=key, chain=(cert,), issuer_aic="rogue.aic")
 
@@ -428,7 +428,7 @@ async def _s4_cases(signing, consumed) -> None:
 
 
 def _fingerprint(ws: Path) -> str:
-    from delegation import certificate_sha256_fingerprint
+    from acps_cluster.delegation import certificate_sha256_fingerprint
 
     cert = x509.load_pem_x509_certificates((ws / "acps" / "client" / "certificate.pem").read_bytes())[0]
     return certificate_sha256_fingerprint(cert)

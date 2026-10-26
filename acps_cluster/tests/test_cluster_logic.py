@@ -26,7 +26,7 @@ from capabilities.contradiction import (  # noqa: E402
 )
 from capabilities.frontier import topic_density, validate_topics  # noqa: E402
 from capabilities.scholar import EmergingWork, compute_velocity  # noqa: E402
-from cluster_roster import (  # noqa: E402
+from acps_cluster.core.cluster_roster import (  # noqa: E402
     DiscoveredAgent,
     RosterMember,
     check_delegation_target,
@@ -204,7 +204,7 @@ class RosterTest(unittest.TestCase):
         self.assertEqual(preferred_provider(roster, "arxiv.search").key, "scout")
 
     def test_偏好顺序取靠前的可用成员(self):
-        from cluster_roster import ROSTER, RosterMember, preferred_provider as pick
+        from acps_cluster.core.cluster_roster import ROSTER, RosterMember, preferred_provider as pick
 
         first = RosterMember(
             key="a", name="A", role="", module="", workspace="", port_env="X", default_port=1,
@@ -539,7 +539,7 @@ class SupervisorPlaybookTest(unittest.TestCase):
     """剧本里的两条纪律（2026-10-02 全链路首跑暴露的缺陷）。"""
 
     def _playbook(self):
-        import supervisor  # noqa: PLC0415
+        from acps_cluster.agents import supervisor  # noqa: PLC0415
 
         return supervisor._playbook("【scout】dataset.fetch ... 【experiment】exp.run", ["scout", "experiment"])
 
@@ -556,7 +556,7 @@ class SupervisorPlaybookTest(unittest.TestCase):
         self.assertIn("gpu.data.fetch", text)
 
     def test_运行配置含三个本地闸门(self):
-        import supervisor  # noqa: PLC0415
+        from acps_cluster.agents import supervisor  # noqa: PLC0415
 
         cfg = supervisor.build_run_config([])
         names = {t.name for t in cfg.tools}
@@ -592,7 +592,7 @@ class WaitPartnerToolTest(unittest.TestCase):
     def _run(self, sequence, args=None, **kwargs):
         import asyncio  # noqa: PLC0415
 
-        import supervisor  # noqa: PLC0415
+        from acps_cluster.agents import supervisor  # noqa: PLC0415
 
         rt = self._FakeRuntime(sequence)
         tool = supervisor._make_wait_partner_tool(rt, object(), poll_seconds=0, **kwargs)
@@ -634,7 +634,7 @@ class SupervisorDaemonTest(unittest.TestCase):
     """常驻入口（partner_supervisor.py）的收件箱/出件箱约定。"""
 
     def test_可导入且约定路径在workspace下(self):
-        import partner_supervisor  # noqa: PLC0415
+        from acps_cluster.agents import partner_supervisor  # noqa: PLC0415
 
         ws = partner_supervisor.WORKSPACE
         self.assertEqual(partner_supervisor.INBOX, ws / "inbox")
@@ -642,8 +642,8 @@ class SupervisorDaemonTest(unittest.TestCase):
         self.assertEqual(partner_supervisor.DONE, ws / "inbox" / "done")
 
     def test_运行配置与一次性入口共用(self):
-        import partner_supervisor  # noqa: PLC0415
-        import supervisor  # noqa: PLC0415
+        from acps_cluster.agents import partner_supervisor  # noqa: PLC0415
+        from acps_cluster.agents import supervisor  # noqa: PLC0415
 
         self.assertIs(partner_supervisor.supervisor.build_run_config, supervisor.build_run_config)
 
@@ -804,7 +804,7 @@ class EndpointReachableHelperTest(unittest.TestCase):
     def test_监听与否的判定(self):
         import socket
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         srv = socket.socket()
         srv.bind(("127.0.0.1", 0))
@@ -817,7 +817,7 @@ class EndpointReachableHelperTest(unittest.TestCase):
         self.assertFalse(s._endpoint_reachable(f"http://127.0.0.1:{port}/rpc", timeout=0.3))
 
     def test_畸形输入一律判不可达(self):
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         for bad in ("", "不是 URL", "localhost:8460", "https:///rpc"):
             self.assertFalse(s._endpoint_reachable(bad, timeout=0.2), bad)
@@ -827,7 +827,7 @@ class EndpointReachableHelperTest(unittest.TestCase):
         import socket
         from unittest import mock
 
-        import supervisor as s
+        from acps_cluster.agents import supervisor as s
 
         class _Conn:
             def __enter__(self):
