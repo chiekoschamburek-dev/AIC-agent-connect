@@ -1,0 +1,101 @@
+# 契约二：Prompt 三层模板 · 静态层 v1.0 ✅ FROZEN（2026-09-28 · D10 W2 交付 · A 起草定稿）
+
+> 关联决议：D10（W2 落地 Prompt 缓存前缀设计）、§11.3（三层缓存设计）
+> 实现代码：`backend/app/core/prompts/`（nl2sql.py / agent.py）
+
+## 1. 为什么分层
+
+提供商前缀缓存对 **Prompt 前缀完全一致** 的请求按折扣计费（DeepSeek 命中价约为原价 1/10，
+Qwen 隐式上下文缓存同理）。三层结构保证最大公共前缀稳定：
+
+```
+[静态层 A]  角色 + 通用规则 + 输出格式规范        ← 跨请求不变（冻结）
+[半静态层 B] schema 语义卡 / 术语样例 / 工具清单   ← 同库/同文档集内稳定
+[动态层 C]  用户问题 + 多轮历史 + 失败反馈        ← 每次变化，永远放最后
+```
+
+## 2. 冻结纪律（W2 起生效）
+
+1. 静态层文本**只允许追加新规则（加在末尾），不允许改写/删除/换序**已有内容。
+2. 任何静态层变更必须 bump `PROMPT_TEMPLATE_VERSION`（`app/core/llm.py`），
+   使应用层响应缓存整体失效（这是刻意的：旧缓存对应旧模板）。
+3. 半静态层内容按数据资产版本化（schema 卡更新 → bump 版本号，不拼在静态层里）。
+4. `LLMService.chat()` 的调用方严禁在 system 消息里混入动态内容。
+
+## 3. 冻结的静态层注册表（v1.0，2026-09-28）
+
+> 冻结原则：W1 双百基线（NL2SQL 31/31 + RAG 8/8 + 选型终测）下的模板文本**一字未改**——
+> 改动即失效全部响应缓存与前缀缓存收益。`PROMPT_TEMPLATE_VERSION` 维持 `v0.3-w1-d4`；
+> **版本号只在文本变更时 bump**（bump = 全量缓存失效，这是刻意的）。
+
+| # | Prompt 家族 | 代码位置 | purpose 标签 | 状态 |
+|---|---|---|---|---|
+| 1 | `nl2sql.generate` | `prompts/nl2sql.py::STATIC_RULES` | nl2sql.generate / nl2sql.summarize 之外的生成与修复轮 | ✅ 冻结 |
+| 2 | `nl2sql.summarize` | `prompts/nl2sql.py::SUMMARIZE_SYSTEM` | nl2sql.summarize | ✅ 冻结 |
+| 3 | `agent.intent` | `prompts/agent.py::INTENT_STATIC` | agent.intent / agent.intent_repair | ✅ 冻结 |
+| 4 | `agent.plan` | `agent/planner.py::PLAN_STATIC` | agent.plan | ✅ 冻结 |
+| 5 | `agent.fuse` | `agent/planner.py::FUSE_STATIC` | agent.fuse | ✅ 冻结 |
+| 6 | `rag.generate` | `prompts/rag.py::RAG_GENERATE_STATIC` | rag.generate | ✅ 冻结 |
+| 7 | `agent.rewrite` | `agent/rewrite.py::REWRITE_STATIC` | agent.rewrite | ✅ 冻结（W2-D2 注册：指代消解/省略补全，失败回退原问题） |
+| 8 | `nl2sql.link_rerank` | `prompts/nl2sql.py::LINK_RERANK_STATIC` | nl2sql.link_rerank | ✅ 冻结（W3 注册：Schema Linking LLM 精排表筛选，response_json 输出不可解析时优雅降级回召回结果） |
+| 9 | `rag.factcheck` | `prompts/rag.py::RAG_FACTCHECK_STATIC` | rag.factcheck | ✅ 冻结（W5 注册：逐句引用支撑校验，最多两轮收敛重写，失败时优雅降级保留答案） |
+| 10 | `rag.ingest` | `prompts/ingestion.py::FORMULA_EXTRACT_STATIC` | rag.ingest | ✅ 冻结（W5 注册：摄入期从候选块抽取 FormulaIR，严格 JSON 输出并执行表达式与参数校验） |
+| 11 | `rag.query_rewrite` | `prompts/rag.py::RAG_QUERY_REWRITE_STATIC` | rag.query_rewrite | ✅ 冻结（W5 B-D4：检索优化、受限历史融合、可选 HyDE；一次调用，严格 JSON，失败回退原查询） |
+
+**新家族注册协议**（B/C 新增 Prompt 时遵守）：静态层文本放 `core/prompts/` 或对应模块顶部常量；
+在注册表追加一行；purpose 命名 `<域>.<动作>`；首次合入即视为冻结（此后走追加规则）。
+B 的 `rag.query_rewrite`、`rag.factcheck` 与 `rag.ingest` 均已于 W5 注册；C 无（前端不写 Prompt）。`agent.rewrite` 负责路由前的多轮自包含化；`rag.query_rewrite` 仅优化已可理解问题的检索表达，历史不作为知识来源。
+
+### 3.x 历史候选（已被 v1.0 取代，过程记录）
+
+### 3.1 `nl2sql.generate`（已上线 v0.1，见 `prompts/nl2sql.py::STATIC_RULES`）
+
+- 角色：PostgreSQL 数据分析助手，只读 SELECT
+- 6 条规则：单条只读 SELECT / 仅用给定 schema / 仅用给定外键路径 / 聚合显式 GROUP BY
+  + ORDER BY 语义 + TOP-N 必带 LIMIT N / 输出自检 / 缺要素时输出 SQL: None（澄清钩子）
+- 输出格式：`【分析】…\n【SQL】\n\`\`\`sql … \`\`\``（双步输出：草稿进 Trace 展示）
+
+### 3.2 `nl2sql.summarize`（已上线 v0.1，`prompts/nl2sql.py::SUMMARIZE_SYSTEM`）
+
+- 角色：数据分析解说员；直接回答数字/实体，空结果如实说明，禁止编造
+
+### 3.3 `agent.intent`（W2 候选，`prompts/agent.py::INTENT_STATIC`）
+
+- 5 类意图（CHAT/DB_QUERY/DOC_QUERY/HYBRID/AMBIGUOUS）+ 判断依据 4 条
+- 输出：严格 JSON（intent/confidence/slots/missing_slots/sub_tasks）
+- AMBIGUOUS 兜底原则：拿不准宁可澄清，不要猜
+
+### 3.4 待 B 起草
+
+- `rag.generate`（引用规范：内联 [1][2] + 忠实度约束）
+- `rag.query_rewrite`（多轮融合 + HyDE 可选开关）
+
+## 4. 半静态层内容清单（随数据资产演进，W2-W3 逐步充实）
+
+| 块 | 内容 | 版本化键 |
+|---|---|---|
+| schema 语义卡 | 表名 + 业务描述 + 列注释 + FK + top 示例值（`schema_meta.build_schema_context`） | DB 资产版本 |
+| Join 路径 | 外键图搜索结果（W3 #5 注入） | 同上 |
+| 术语样例 | 术语库高置信词条节选（W3） | 术语库版本 |
+| 工具清单 | 编排内核注册的工具签名（W2） | 代码版本 |
+
+## 5. 收益核算口径（效率评分项素材）
+
+- `LLMService` 每次调用记录 `cached_prompt_tokens`（DeepSeek 返回 `prompt_cache_hit_tokens`）
+- 账本表 `llm_usage` 已有列；`GET /api/usage` 聚合输出
+- W2 起每日报表输出「命中率 / 未命中价×tokens / 命中价×tokens」对比曲线
+
+## 变更记录
+
+| 版本 | 日期 | 说明 |
+|---|---|---|
+| 0.1 | 2026-09-22 | A 起草：nl2sql 两模板上线文本 + intent 候选 + 冻结纪律 |
+| **1.0** | **2026-09-28** | **冻结**：六家族注册表定稿（nl2sql×2 / agent×3 / rag×1）；文本零改动（保缓存）；新家族注册协议入档 | **✅ FROZEN** |
+| 1.1 | 2026-09-29 | `agent.plan` schema 演进（子任务 DAG：id / depends_on / {tN.result} 占位符）——**冻结规则的登记例外**：功能必需的 schema 变更而非措辞优化；PROMPT_TEMPLATE_VERSION bump 至 v0.4-w2-d3（全量缓存失效为刻意行为）；其余六家族文本未动 | ✅ 变更已登记 |
+| 1.5 | 2026-10-04 | W5：`agent.rewrite` 规则 4 措辞收紧（只取最近要素、严禁合并）+ 内核新增 `intent_standalone_retry`（改写已自包含且矩阵无缺槽时去历史重判一次，治多轮过度澄清，非 Prompt 变更） | ✅ 已登记 |
+| 1.4 | 2026-10-04 | W4 验收：`agent.rewrite` 追加规则 4（多同类要素取最近轮次）——追加式变更；v0.5 同批 | ✅ 已登记 |
+| 1.3 | 2026-10-04 | W4 验收：`agent.intent` 追加规则 5（防过度澄清：统计对象/口径已明确时必须判 DB_QUERY，历史已补全要素不重复追问）——冻结规则追加式变更（不改已有文本），PROMPT_TEMPLATE_VERSION → v0.5-w4-accept | ✅ 已登记 |
+| 1.2 | 2026-09-24 | W3：① 新家族 `nl2sql.link_rerank` 注册（#8，静态层首合即冻结）；② **负结果记录**：曾试验向 `nl2sql.generate` 追加"计数用 COUNT(*)/主键"规则（Rule 7/8 实验）——与 track 表业务注释（W1 name-dedup 约定：曲目数量按曲名去重）直接冲突，导致 st-004/mt-008 回归失败，**已完整回退**，静态层文本保持 v1.0 零改动，PROMPT_TEMPLATE_VERSION 维持 v0.4-w2-d3；③ 顺手修正 eval 数据 bug：mt-021 参考SQL `COUNT(*)` → `COUNT(DISTINCT t.name)`（对齐 W1 约定，见 cases notes） | ✅ 已登记 |
+| 1.3 | 2026-10-02 | W5：新增并冻结 `rag.factcheck` 家族；逐句核验答案与引用片段的支撑关系，发现无依据陈述时最多两轮收敛重写；JSON 解析或 LLM 调用失败时保留当前答案并标记 degraded；不修改已有 Prompt 家族文本，因此不使已有家族缓存失效 | ✅ 已登记 |
+| 1.4 | 2026-10-03 | W5：新增并冻结 `rag.ingest` 家族；摄入期从候选原文块抽取 FormulaIR，并执行表达式、参数和来源校验；不修改已有 Prompt 家族文本 | ✅ 已登记 |
+| 1.5 | 2026-10-03 | W5 B-D4：新增并冻结 `rag.query_rewrite` 家族；动态问题、history 和 HyDE 开关仅放 user 消息；已有静态文本零改动，模板版本保持 v0.4-w2-d3（沿用 1.3/1.4 新家族登记规则） | ✅ 已登记 |

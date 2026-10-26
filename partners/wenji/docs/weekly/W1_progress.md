@@ -1,0 +1,168 @@
+# W1 进度日志（9/21-9/27）· A 角色周报
+
+## D1（9/21）· A 角色完成 ✅
+
+### 交付物
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 项目骨架 + docker-compose + quick_start.sh | ✅ | PG(pgvector:pg16) + backend + frontend 占位；一键启动含 Chinook 导入与冒烟，幂等可重复执行 |
+| Chinook PG 版导入 | ✅ | 11 表 / 3503 曲目 / 2240 订单行；表列名统一小写（PG 无引号折叠兼容，DDL 见 `data/db_schema/chinook_pg.sql`） |
+| 术语库抽取脚本 v1 | ✅ | 129 词条自动入库（genre/mediatype/playlist/country/city/firstname）+ 8 条种子别名（帝都类）增量合并 |
+| LLM 抽象层 v0 | ✅ | provider 纯配置切换（deepseek/qwen/siliconflow/mock）；SQLite 响应缓存（hash 模板版本化）；用量记账（tokens/前缀缓存命中/折算¥）；`GET /api/usage` 可查 |
+| 单表 NL2SQL 最小闭环 | ✅ | 改写(术语链接)→schema上下文→双步生成→sqlglot校验→只读执行→自修复(≤3)→总结+图表建议；全流程 Trace |
+| Trace JSON Schema 契约 v0.1 | ✅ 草案 | `docs/contracts/trace_schema.json` + `trace.md`；运行时与 Schema 枚举同步有测试守护；**待 B/C 评审后周五冻结** |
+| eval 契约（NL2SQL 部分）+ 10 用例 | ✅ | 执行准确率 runner 跑通；mock 驱动 10/10、首过率 100%、成本 ¥0 |
+| LLM 选型评测脚本 | ✅ 就绪 | `eval/model_selection.py`（D1 决议格式：准确率→成本→延迟裁决）；**等 API key 即跑** |
+
+### 关键决策（记录在案）
+
+1. **Chinook 表/列名统一小写**：原 PascalCase 在 PG 无引号引用会被折叠，导致 LLM 生成的 SQL 报"表不存在"。DDL 生成器做 lower() 映射，偏离官方 schema 已在文件头注明。
+2. **sqlglot 30.x `qualify(validate_qualify_columns=True)`** 做 AST 级列存在性校验（旧参数名已弃用）；CTE 表名白名单单独豁免。
+3. **mock provider 贯穿全链路**：无 key 可开发/测试/演示（脚本化响应注入），真实评测只切 `.env`。
+4. **容器以宿主 UID 运行**（compose `user:`）：避免挂载目录出现 root 属主文件。
+5. **受限网络**：镜像统一 `DOCKER_REGISTRY_MIRROR` 前缀（.env 配 daocloud）；nginx 占位容器绕过 entrypoint（其 apk 探测在受限网络挂起）。
+
+### 冒烟证据（quick_start.sh 输出）
+
+- `GET /api/health` → `{"status":"ok","db":true,...}`
+- 脚本化 eval：**execution accuracy 100% (10/10)，first-pass 100%，llm cost ¥0**
+- 单测 27 passed（含 3 个真实 DB 集成用例：端到端/自修复恢复/别名改写）
+- 别名改写：`"摇滚曲风有多少首歌" → "Rock 曲风有多少首歌"`（术语库链接，改写对照进 Trace）
+
+### 待办（A · 本周内）
+
+- [ ] API key 到位 → 跑 `eval/model_selection.py` 双模型 ×3 重复 → 报告 + 主力定案（D1，与 B 共同、C 主导用例）
+- [ ] Trace 契约 B/C 评审 → 周五冻结（含 SSE 事件推送格式初稿）
+- [ ] 多表用例集 20 个（`nl2sql_multi_table.jsonl`，Join 路径素材，喂 W3 #5）
+- [ ] Prompt 三层模板静态层内容定稿候选（W2 冻结前的起草）
+
+### B/C 协作提醒
+
+- C：前端占位页在 `frontend/`（8090 端口），W2 直接替换；`/api/nl2sql` 返回结构含完整 trace 树（`trace.root.children[]`），DAG 可视化可以直接吃这个结构
+- B：摄入中间表示契约（block/breadcrumb/formula 资产）待你起草后放 `docs/contracts/`
+- 双方：`backend/app/core/llm.py` 的 `LLMService.chat()` 是唯一 LLM 入口，RAG 引擎请直接复用（缓存与记账自动生效）
+
+## D2（9/22）· A 角色完成 ✅
+
+### 交付物
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 多表用例集 20 个 | ✅ | `nl2sql_multi_table.jsonl`：2表×10 / 3表×5 / 4表×1 / 5表×1 / 自连接×1 / 嵌套子查询×3，覆盖 JOIN/GROUP/HAVING/NOT EXISTS/双 IN/派生表/日期；全部过预检（可执行、行数≤200、确定性、过校验器） |
+| 用例预检脚本 | ✅ | `eval/preflight_cases.py`（C 后续加用例必过此门；行数预算 200 = 执行准确率对比的生命线） |
+| D1 选型评测用例 | ✅ | `llm_selection_nl2sql.jsonl`（7 单表 + 3 JOIN，覆盖过滤/排序/聚合/LIKE/日期）；**RAG 5 例待 B 引擎就绪后补** |
+| Prompt 静态层定稿候选 | ✅ | `docs/contracts/prompt_static_layer.md` + `prompts/agent.py`（意图分类模板候选）；含冻结纪律（只追加不改序 + 版本号失效缓存） |
+| Trace SSE 事件格式初稿 | ✅ | trace.md §4.2：7 类事件（turn.start/trace.node/answer.delta/answer.done/clarify.request/turn.end/error），供 C 的 W2 前端开发 |
+| 多表基线冒烟 | ✅ | 脚本化 mock 13/13（含 mt-001/002/017）——**W3 #5 Join 路径注入消融实验的基线数据点** |
+
+### 用例设计过程中的数据事实（写入交接文档，避免 B/C 重复踩坑）
+
+- Chinook master 版发票日期范围 **2021-01-01 ~ 2025-12-22**（不是网上教程里的 2013）
+- **71 位艺术家无专辑**：问“每位艺术家专辑数”必须措辞“专辑最多的前 N 位”避免 JOIN/LEFT JOIN 歧义
+- 本版 Chinook playlisttrack 稀疏但 Heavy Metal Classic 有 26 首（含专辑信息）
+- 从未被购买的曲目 1519 首；Rock∩Jazz 双买客户 32 位（复杂嵌套用例的答案锚点）
+
+## D2+（滚动更新）
+
+- 9/22（下午，A 代劳）：B 的 W1 阻塞项已全部解除，详见 `docs/onboarding/B_onboarding.md`
+  - ✅ 知识库文档 v0：3 份（员工手册含提成公式 / 销售总结与 Employee 表联动 / 客服 SOP），`scripts/gen_kb_docs.py` 程序化生成 PDF
+  - ✅ 摄入 IR 契约 v0.1：`docs/contracts/ingestion_ir.md`（Block/Chunk/Formula/Doc 四件套，已随实现验证）
+  - ✅ 单文档 RAG 最小闭环：PyMuPDF 解析→字号标题识别→面包屑切片→pgvector+jieba-BM25 混合检索（RRF）→引用生成；**检索 recall@6 = 8/8，全部命中 rank#1**
+  - ✅ RAG 选型用例 6 个 + 双指标 runner（retrieval_hit / answer_hit）
+  - ✅ Embedding 抽象层：local(bge-small-zh CPU)/siliconflow/mock 三 provider；换 BGE-M3 只改 .env 路径
+  - ✅ `POST /api/rag` 端点 + RAG Prompt 静态层草案（引用规范+忠实度约束）
+  - 测试 41 通过（摄入解析/切片/IR 回环/RAG 管道/store 回程）
+
+- 9/22（晚，A）：**D1 选型评测完成，主力定案 DeepSeek-V3**（`docs/llm_selection_report.md`）
+  - 双模型 90%/90% 平手 → 延迟（34% 优势）+ 前缀缓存可观测性定菜；`.env` 已切 `LLM_PROVIDER=deepseek`
+  - 顺手修了三个真 bug：LLM 响应缓存 key 漏 provider（跨模型评测会被污染）/ 校验器子查询 clamp 污染派生表 / top-N 并列行集漂移（静态层加确定性排序规则，模板 v0.2）
+  - 语义执行准确率匹配器 4 级化（有序/无序/列名映射/含冗余列），strict 双口径上报
+  - **L1 全量基线：deepseek-chat 90%（28/31）**，剩余 3 失败同根因（同名曲目聚合语义，W2 语义卡解）
+  - 用量账本实测：前缀缓存命中率 89.1%（generate），今日总成本 ¥0.46
+  - B 任务残留清理完毕（models/ 184MB、kb 表、缓存），干净态守护与重建文档就绪
+
+- 9/23（D3，A）：**Agent 编排内核 v1 完成**（`docs/design/agent_kernel.md`，W2 冻结）
+  - 意图路由（5 类 + JSON 修复重试 + 关键词兜底）/ 工具注册表 / HYBRID 规划-执行-融合链 /
+    澄清挂起-恢复（history 驱动，零状态机代码）/ 会话记忆（RLock）
+  - `/api/chat`（JSON）+ `/api/chat/stream`（SSE，事件顺序合契约）
+  - deepseek 实测：闲聊/问数/澄清恢复（增长率→补时间→**1.69% 正确**）/
+    跨源多跳（冠军+方法论，RAG 干净态下诚实降级）/ SSE 流
+  - 快赢项：同名曲目业务规则入 PG 表注释（知识外置示范）/ TOP-N LIMIT 启发式 /
+    **L1 全量准确率 97%→100%（31/31，st-004 参考按业务规则修正）**
+  - 修死锁：SessionStore 嵌套锁 → RLock（faulthandler 定位）；SSE 事件顺序合规
+  - 测试 58 通过（含 10 个内核用例）
+
+- 9/24（D4，A）：**C 的四项后端需求全部闭环 + 持久化落地**
+  - `GET /api/docs` + `/api/docs/{doc_id}/pdf`（路径穿越防护）；`GET /api/trace/{turn_id}` +
+    `?session_id=` 列表（契约 §4.1 从纸面到实现）
+  - **Trace/会话 PG 持久化**（`persistence.py`：trace_turn/trace_event/app_session，
+    best-effort 写入，SessionStore 跨实例恢复实测通过）
+  - **LLM 真流式**（`chat_stream`：CHAT/fuse 逐 token，实测 45 增量/轮；SSE 改实时队列转发）
+  - **clarify.options 修复**：意图模板 v0.3 强制 AMBIGUOUS 给 2~4 个具体候选（实测
+    「今年 vs 去年」「2024 vs 2023」），C 的按钮交互从降级兼容变为直接可用
+  - **发现并修复 Trace 嵌套 bug**：流水线步骤曾平铺在根下、rag_search 双重包裹；
+    现在 tool_call 下挂流水线子树 + llm_call 孙节点，回放保真（X6 可直接消费）
+  - 顺手：psycopg JSONB 自动解析兼容、宿主机过夜重启后栈自愈
+  - 测试 63 通过（+持久化集成 4 +流式分片 1）
+
+- 9/26（D5，A）：**W1 收官**
+  - **三契约冻结**：Trace v0.2 / 摄入 IR v0.2 / eval 格式 v0.2，三方签字，变更规则入档
+  - **RAG 选型维度补测完成**（选型终测）：DeepSeek 双维度决定性胜出
+    （NL2SQL 100% vs 90%；RAG answer_hit 100% vs 87.5%；延迟快 46%）——报告已更新为最终版
+  - **语义统一决策**：同名曲目业务规则在计数问题上的歧义收敎（st-004/mt-008 两例
+    互为镜像的失败→规则精确化：计数去重 + 「从未被购买」名称语义），track 表注释更新
+  - **L1 全量回归：NL2SQL 31/31 + RAG 8/8 双百**（deepseek，真实调用）
+  - **demo 证据归档**：`docs/milestones/w1_demo/` 5 张前端实测截图
+    （首页/问数/澄清挂起/澄清恢复/RAG 引用，playwright 无头浏览器实拍）
+  - 知识库运行态重建（4 文档 38 chunks，模型就位——B 上手时跳过下载步骤）
+
+---
+
+# 🏁 W1 里程碑总结（对照 PLAN §13 验收）
+
+| W1 交付项 | 验收结果 |
+|---|---|
+| docker-compose + quick_start | ✅ 一键启动幂等，含数据导入/摄入/双引擎冒烟 |
+| Chinook PG 导入 + 术语库 v1 | ✅ 11 表 3503 曲；129 词条 + 别名增量合并 |
+| LLM 选型评测 → 主力定案 | ✅ **DeepSeek-V3 双维度胜出**（报告终版，成本 ¥3 内）|
+| 单表 NL2SQL 最小闭环 ≥3 例 | ✅ **31/31 = 100%**（超出：含 21 多表用例）|
+| 单文档 RAG 最小闭环 ≥3 例 | ✅ **8/8 = 100%**（4 文档，含 B 新增产品运营文档）|
+| 三份契约冻结 | ✅ Trace/摄入 IR/eval 格式均 v0.2 FROZEN，三方签字 |
+| 选型报告 / demo 证据 / 契约文档 | ✅ `docs/llm_selection_report.md` + `docs/milestones/w1_demo/` |
+| 超额交付（W2 提前量） | ✅ 编排内核 v1（意图/工具/HYBRID/澄清恢复）、Trace/会话持久化、
+    真流式 SSE、C 前端四项需求闭环、前端容器化联调通过 |
+
+**W2 输入就绪**：Prompt 静态层候选已就绪待冻结；C 前端已可用（待修 12s 超时 bug）；
+B 摘入流水线 v1 任务书在上手文档；L0/L1 跑分体系雏形可供 C 扩级。
+
+---
+
+# ⚠ 需要团队协作的阻塞项清单（9/22 晚更新）
+
+## P0 —— 阻塞本周里程碑，需 48h 内响应
+
+| # | 阻塞项 | 影响 | 谁来解 | 具体动作 | 期限 |
+|---|---|---|---|---|---|
+| ~~1~~ | ~~LLM API key 未到位~~ | ✅ **已解除（9/22）**：key 到位，选型评测完成，主力定案 deepseek-chat；成本账本运转中（命中率 89.1%） | — | — | — |
+| 2 | **Trace 契约未评审** | W2 编排内核（A）与前端 DAG（C）并行开发的地基不稳；SSE 事件格式直接决定 C 的 W2 工作量 | C + B 评审 | 对照 `docs/contracts/trace.md`（v0.1+SSE 初稿）提修改意见：C 重点确认 7 类 SSE 事件够不够渲染（X6 需要的坐标/层级提示是否要加）；B 确认 rag 节点 detail.citations[] 字段 | 9/24 晚 |
+| ~~3~~ | ~~单文档 RAG 最小闭环未开工~~ | ✅ **已解除（9/22，A 代劳后清理干净态）**：闭环代码+文档+评测就绪，B 按上手文档重建运行态即可 | B | 按上手文档 §1 下载模型 + 摄入 | B 上手当日 |
+
+## P1 —— 阻塞 W2 并行开发，本周内解
+
+| # | 阻塞项 | 影响 | 谁来解 | 具体动作 | 期限 |
+|---|---|---|---|---|---|
+| 4 | 摄入中间表示契约未起草 | B 摄入流水线与 Trace/融合节点的对接面没定；W4 公式计算（A）也依赖它 | B | block/breadcrumb/formula 资产三件套的 JSON 格式，放 `docs/contracts/`，参照 trace.md 写法（字段表+示例+变更记录） | 9/25 |
+| 5 | RAG 选型用例 5 个未出 | D1 评测只剩 NL2SQL 半边，"RAG 关键事实命中 + LLM-as-judge" 维度缺失，选型结论不完整 | B 起草 / C 主导 | 2 事实型 + 1 数值型 + 1 条款型 + 1 跨块定位，格式见 `eval_case_format.md` RAG 占位节 | 9/26 |
+| 6 | 知识库文档起草未启动 | W2 要出 v1（10 份含 3 坏文档）；B 的 RAG 闭环也需要至少 1 份真文档 | B 主导 / 全员校对 | LLM 起草流水线开跑（员工手册/销售总结优先，与 Employee 表联动）；坏文档程序化生成脚本立项 | 本周启动 |
+| 7 | GPU 本地模型部署未验证 | W3 混合检索（B）与术语库向量化（A）都依赖 BGE-M3；RTX 5060 只有 8GB，BGE-M3+reranker 同驻可能不够 | B | 空载验证：BGE-M3 embedding 吞吐 + 显存占用；不够则按 D9-B 备胎切 SiliconFlow API（代码已配置化，零改动） | 9/26 |
+
+## P2 —— 流程约定，周五前定
+
+| # | 事项 | 说明 |
+|---|---|---|
+| 8 | Git 约定 | 当前 trunk 直推 + 每日一提交（角色署名）。建议维持 trunk-based，但约定：改他人模块先打招呼；每晚收工前 push |
+| 9 | 周五节奏 | 周五 L1 回归（现在可用 `run_nl2sql.py` 30 用例）+ 15min 复盘 + 三份契约冻结（Trace / 摄入表示 / eval 格式） |
+| 10 | 账号归属与预算看板 | ¥1000 预算谁持有账号谁记账；`GET /api/usage` 已能出实时账单，周五起贴周报 |
+
+> 以上 10 项已同步到本文档；周一计划会逐项认领。A 侧无被阻塞项：D3 起按排期推进编排内核设计草稿与选型评测就绪态。
