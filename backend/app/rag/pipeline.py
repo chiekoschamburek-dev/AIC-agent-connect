@@ -1,0 +1,277 @@
+"""RAG pipeline (W1 minimal closed loop):
+
+    question → ① hybrid retrieve (dense+BM25, RRF) → ② cited generation
+    → ③ (W3: 忠实度自检 rerank)
+
+Trace: tool_call node `rag_search` (detail.citations[]) + llm_call child +
+`rag_generate` step. Mirrors NL2SQLPipeline structure so the W2 orchestrator
+treats both as interchangeable tools.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+import numpy as np
+
+from ..core.config import get_settings
+from ..core.llm import LLMService, get_llm_service
+from ..core.prompts import rag as prompts
+from ..core.tracing import NodeStatus, NodeType, TraceCollector
+from ..ingestion import chunker, pdf_ingest
+from ..ingestion.complexity import assess_pdf
+from ..ingestion.parsers import mineru as mineru_parser
+from ..ingestion.formula_extract import extract_formulas
+from ..ingestion.ir import DocIR
+from ..ingestion.quality import assess_quality
+from ..ingestion.structure import recover_flat_headings
+from .embedding import EmbeddingService, get_embedding_service
+from .factcheck import check_answer
+from .query_rewrite import rewrite_query
+from .retriever import ChunkHit, HybridRetriever
+from .store import KBStore
+
+
+@dataclass
+class RAGResult:
+    question: str
+    answer: str = ""
+    initial_answer: str = ""
+    citations: list[dict] = field(default_factory=list)
+    hits: list[dict] = field(default_factory=list)   # debug: full hit info
+    faithfulness: dict[str, Any] = field(default_factory=dict)
+    status: str = "ok"  # ok | no_context | error
+    trace: dict[str, Any] = field(default_factory=dict)
+    latency_ms: int = 0
+    retrieval_query: str = ""
+    query_rewrite: dict[str, Any] = field(default_factory=dict)
+
+
+def ingest_document(
+    path: str,
+    store: KBStore | None = None,
+    embedding: EmbeddingService | None = None,
+    llm: LLMService | None = None,
+    force: bool = False,
+) -> tuple[DocIR, int]:
+    """Assess quality/complexity → route → parse → chunk → embed → store."""
+    quality = assess_quality(path)
+    assessment = assess_pdf(path)
+
+    if assessment.parser == "pymupdf":
+        doc = pdf_ingest.parse_pdf(path)
+        recover_flat_headings(doc)
+    elif assessment.parser == "mineru":
+        doc = mineru_parser.parse_pdf(path)
+    else:
+        raise ValueError(f"unsupported parser route: {assessment.parser}")
+
+    doc.meta.update(quality.metadata())
+    doc.meta.update(assessment.metadata())
+
+    chunker.chunk_doc(doc)
+    if not doc.chunks:
+        raise ValueError("PDF produced no chunks; existing index was left untouched")
+
+    embedding = embedding or get_embedding_service()
+    store = store or KBStore(dim=embedding.dim)
+
+    if not force and store.doc_content_hash(doc.doc_id) == doc.content_hash():
+        if store.update_assessment(doc):
+            return doc, 0  # unchanged chunks; refresh metadata without re-embedding
+
+    settings = (
+        llm.settings
+        if llm is not None and hasattr(llm, "settings")
+        else get_settings()
+    )
+    if settings.formula_extract_enabled:
+        extraction_llm = llm or get_llm_service()
+        extract_formulas(
+            doc,
+            llm=extraction_llm,
+            max_blocks=settings.formula_extract_max_blocks,
+            max_formulas=settings.formula_extract_max_formulas,
+        )
+    embeddings = embedding.embed([c.text for c in doc.chunks])
+    store.upsert_doc(doc, chunk_embeddings=np.asarray(embeddings))
+    return doc, len(doc.chunks)
+
+
+class RAGPipeline:
+    def __init__(self, llm: LLMService | None = None,
+                 embedding: EmbeddingService | None = None):
+        self.llm = llm or get_llm_service()
+        self.embedding = embedding or get_embedding_service()
+        self.store = KBStore(dim=self.embedding.dim)
+        self.retriever = HybridRetriever(self.store, self.embedding)
+        self._loaded = False
+
+    def ensure_loaded(self) -> int:
+        if not self._loaded:
+            self.retriever.reload()
+            self._loaded = True
+        return len(self.retriever.chunks)
+
+    # ------------------------------------------------------------------ api
+
+    def run(self, question: str, trace: TraceCollector | None = None,
+            top_k: int = 6, parent=None, history: list[dict] | None = None,
+            doc_filter: str | None = None) -> RAGResult:
+        """parent: kernel's tool_call node. When given, this pipeline's steps
+        nest under it directly (no double rag_search wrapping)."""
+        trace = trace or TraceCollector(question=question)
+        t0 = time.monotonic()
+        result = RAGResult(question=question)
+        self.ensure_loaded()
+
+        # Retrieval optimization is separate from agent coreference rewriting.
+        if self.llm.settings.rag_query_rewrite_enabled:
+            with trace.span("rag_query_rewrite", NodeType.STEP, parent=parent) as node:
+                rewrite, calls = rewrite_query(self.llm, question, history)
+                for call in calls:
+                    with trace.span("llm", NodeType.LLM_CALL, parent=node) as child:
+                        trace.finish(child, detail={
+                            "purpose": "rag.query_rewrite", "model": call.model,
+                            "cost_rmb": call.cost_rmb,
+                            "tokens": {"prompt": call.usage.prompt_tokens,
+                                       "completion": call.usage.completion_tokens},
+                        }, latency_ms=call.latency_ms)
+                trace.finish(node, detail=rewrite.to_dict(),
+                             status=NodeStatus.DEGRADED if rewrite.degraded else NodeStatus.OK)
+        else:
+            rewrite, _ = rewrite_query(self.llm, question, history)
+        result.retrieval_query = rewrite.retrieval_query
+        result.query_rewrite = rewrite.to_dict()
+
+        # ① retrieve — own tool_call span only when standalone (no double wrap)
+        node = None
+        if parent is None:
+            cm = trace.span("rag_search", NodeType.TOOL_CALL, input=question)
+        else:
+            from contextlib import nullcontext
+            cm = nullcontext(parent)
+        with cm as n:
+            node = n
+            hits: list[ChunkHit] = self.retriever.search(
+                rewrite.retrieval_query, top_k=top_k, doc_filter=doc_filter,
+                dense_query=rewrite.hyde_document or None,
+            )
+            result.citations = [h.citation() for h in hits]
+            result.hits = [
+                {
+                    "doc": h.chunk.doc_name,
+                    "page": h.chunk.page_start,
+                    "score": h.score,
+                    "vector": round(h.vector_score, 4),
+                    "bm25": round(h.bm25_score, 4),
+                    "rrf": round(h.rrf_score, 4),
+                    "rerank": (
+                        round(h.rerank_score, 4)
+                        if h.rerank_score is not None
+                        else None
+                    ),
+                    "text": h.chunk.text[:200],
+                }
+                for h in hits
+            ]
+            if parent is None:   # kernel finishes its own node later
+                trace.finish(node, output=f"{len(hits)} chunks",
+                             detail={"citations": result.citations[:8],
+                                     "hit_count": len(hits)})
+            else:                # enrich the kernel's node with citations
+                node.detail.setdefault("citations", result.citations[:8])
+                node.detail["hit_count"] = len(hits)
+
+        if not hits:
+            result.status = "no_context"
+            result.answer = "知识库中未找到相关信息。"
+            result.trace = trace.to_dict()
+            result.latency_ms = int((time.monotonic() - t0) * 1000)
+            return result
+
+        # ② cited generation
+        with trace.span("rag_generate", NodeType.STEP, parent=parent) as node:
+            chunks_payload = [
+                {"idx": i + 1, "doc": h.chunk.doc_name, "page": h.chunk.page_start,
+                 "breadcrumb": " > ".join(h.chunk.breadcrumb), "text": h.chunk.text}
+                for i, h in enumerate(hits)
+            ]
+            messages = prompts.build_rag_messages(question, chunks_payload)
+            resp = self.llm.chat(messages, temperature=0.2, max_tokens=500,
+                                 purpose="rag.generate")
+            with trace.span("llm", NodeType.LLM_CALL, parent=node) as llm_node:
+                trace.finish(llm_node, detail={
+                    "model": resp.model, "cost_rmb": resp.cost_rmb,
+                    "tokens": {"prompt": resp.usage.prompt_tokens,
+                               "completion": resp.usage.completion_tokens},
+                })
+            result.answer = resp.content.strip()
+            result.initial_answer = result.answer
+            trace.finish(node, output=result.answer[:300])
+
+        # ③ faithfulness self-check: bounded convergence, graceful fallback
+        if self.llm.settings.rag_factcheck_enabled:
+            with trace.span(
+                "rag_factcheck",
+                NodeType.STEP,
+                parent=parent,
+                input={
+                    "max_rounds": self.llm.settings.rag_factcheck_max_rounds,
+                },
+            ) as node:
+                outcome, calls = check_answer(
+                    self.llm,
+                    question=question,
+                    answer=result.answer,
+                    chunks=chunks_payload,
+                    max_rounds=self.llm.settings.rag_factcheck_max_rounds,
+                )
+
+                result.answer = outcome.answer
+                result.faithfulness = outcome.to_dict()
+
+                for attempt, call in enumerate(calls, start=1):
+                    with trace.span(
+                        "llm",
+                        NodeType.LLM_CALL,
+                        parent=node,
+                        input={"attempt": attempt},
+                    ) as llm_node:
+                        trace.finish(
+                            llm_node,
+                            detail={
+                                "purpose": "rag.factcheck",
+                                "attempt": attempt,
+                                "model": call.model,
+                                "cost_rmb": call.cost_rmb,
+                                "tokens": {
+                                    "prompt": call.usage.prompt_tokens,
+                                    "completion": call.usage.completion_tokens,
+                                },
+                            },
+                            latency_ms=call.latency_ms,
+                        )
+
+                status = (
+                    NodeStatus.OK
+                    if outcome.faithful
+                    else NodeStatus.DEGRADED
+                )
+                trace.finish(
+                    node,
+                    output=(
+                        "faithful"
+                        if outcome.faithful
+                        else outcome.reason or "requires_review"
+                    ),
+                    status=status,
+                    detail=result.faithfulness,
+                )
+
+
+        result.trace = trace.to_dict()
+        result.latency_ms = int((time.monotonic() - t0) * 1000)
+        return result
