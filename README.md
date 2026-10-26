@@ -4,9 +4,7 @@
 > 封装成**可发现、可授权、可计量、可撤销、可审计**的协作资源；在"连得上"之外，
 > 进一步回答"**谁有权用、用了什么、通信是否异常**"。
 
-本仓库是比赛的**最终作品**，已整理为可评审、可开源的单仓，
-remote 指向 `chiekoschamburek-dev/AIC-agent-connect`。协议依据
-GB/Z 185《人工智能 智能体互联》与 ACPs（Agent Collaboration Protocols），
+协议依据 GB/Z 185《人工智能 智能体互联》与 ACPs（Agent Collaboration Protocols），
 运行底座为 WIT Framework 2.1.0。
 
 - 项目总览与实验证据：[project.md](project.md)
