@@ -154,7 +154,51 @@ yanshu-AIC/
 
 ---
 
-## 三、guard 与 PEP：互补而非替代
+## 三、外部组件的创新点
+
+这些能力不是简单拼盘：每个组件解决的是集群自身不覆盖的一段问题，
+并以可运行代码 + 可复核数据的形式落在本仓库里。
+
+### 1. Research Designer：把"研究方案"变成可校验的契约
+
+| 创新点 | 机制 | 区别于常见做法 |
+|---|---|---|
+| 结构化设计契约 | 14 个必需章节 + 5 类研究类型的专项检查（empirical / ML / survey / qualitative / systematic review） | 缺章节会被 `research.validate_plan` 直接判无效，不靠模型自觉 |
+| 证据约束 | `literature_evidence` 每条必须有 DOI 或 `source_url`；缺证据返回 `needs_evidence` 并生成委派任务 | 无出处的"文献"进不了设计，避免编造引用 |
+| 可计算的可研 | 内建样本量估算（配对/独立、连续/二分类、alpha/power）与可行性评估（数据/样本/周期/算力） | 样本量与可行性是算出来的字段，不是形容词 |
+| 输出契约 | 8 个必需字段 + 5 种状态（complete / needs_evidence / needs_data / needs_pilot / needs_multiple_inputs） | Leader 可据此判定"继续 / 补数据 / 退回"，编排可重试 |
+| 计量不丢 | AMP JSONL → `amp.heartbeat` / `amp.access`，broker ack 后原子记录 offset | 重启断点续传，计量链路不重不漏 |
+
+### 2. ACPS Event Channel Guard：从"权限可信"到"通信行为可信"
+
+| 创新点 | 机制 | 证据 |
+|---|---|---|
+| 覆盖 PEP 之外的风险 | 即使 AIC 合法、令牌有效，仍检测异常载荷、时序与状态机 | 与 PEP 互补（见下一节） |
+| 三维通道映射到 ACPs | Storage：长度 / Base64 / 熵；Timing：间隔规律 / 长短交替；Behavioral：状态倒退 / 机械切换 | 直接读 `aip_task_events` / `aip_tasks` 真实字段 |
+| 稀疏事件跨任务检测 | 按 direction + local + remote 聚合，1 小时空闲切会话，≥6 个有效间隔才评分 | 140 个历史任务（每任务 3–5 事件）→ 7 个可分析会话 |
+| 运行突发与安全风险分离 | 小于 1 秒的间隔记 `operational_burst`，不计安全分 | 减少把并发/重试误判为攻击 |
+| 保守且可解释 | LOW / MEDIUM / HIGH / INSUFFICIENT_DATA，逐条给维度、规则、分值与样本量 | 样本不足不强判 |
+| 只读旁路 | SQLite `mode=ro`，不写任务库、不自动阻断 | 12 项测试；阳性对照 HIGH 73/100 |
+
+### 3. 问迹（wenji）：可解释的多模态问数 / 问答
+
+| 创新点 | 机制 | 量化 |
+|---|---|---|
+| 检索式要素中台 | 别名 / 指标 / 实体 / Schema 语义外置，字面 + 向量召回后精排 | 候选表 7.5→2.1，Schema token −74%，31/31 |
+| 真依赖 DAG | 子任务声明 `depends_on`，按拓扑波次并行与汇合 | 五类跨源 11/11，Trace 可见依赖边 |
+| 原生可解释 Trace | 意图 / 改写 / 计划 / 工具 / 模型 / 校验 / 计算 / 融合统一成事件树，只展示真实执行证据 | 时间线 + DAG、SQL / 引用 / 公式步骤、`turn_id` 回放 |
+| 证据约束 RAG | Dense + BM25 + RRF + Rerank，回答后逐句忠实度自检 | 检索 / 答案 / 忠实度各 8/8，对抗修复 3/3 |
+| 可执行公式资产 | FormulaIR + 三通道参数绑定 + LaTeX→SymPy 与受限求值双通道校验 | 4/4 数值一致 |
+| 质量—成本一体化 | L0/L1/L2 分级 + 响应缓存 / 内容哈希 + purpose 账本 | 检索 10→1000 篇 P50 7→133ms；前缀缓存命中 ~89%、省 53% |
+
+> 以上指标均来自各组件自带的测试 / 评测（版本化固定用例），口径与复现命令见
+> [acps_cluster/guard/README.md](acps_cluster/guard/README.md)、
+> [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md)、
+> [partners/wenji/README.md](partners/wenji/README.md)；不代表开放域泛化保证。
+
+---
+
+## 四、guard 与 PEP：互补而非替代
 
 | | PEP（准入） | Event Channel Guard（通信风险） |
 |---|---|---|
@@ -188,7 +232,7 @@ Supervisor / 人工复核
 
 ---
 
-## 四、快速开始
+## 五、快速开始
 
 环境：Python ≥ 3.12（开发验证用 3.13）、Node ≥ 20（仅前端）。
 
@@ -231,7 +275,7 @@ cat partners/designer/SUBMISSION_README.md
 
 ---
 
-## 五、安全与合规
+## 六、安全与合规
 
 **一律不入库**（`.gitignore` + 推送前人工核验）：
 
@@ -254,7 +298,7 @@ git subtree pull --prefix=partners/wenji wenji-upstream main --squash
 
 ---
 
-## 六、文档索引
+## 七、文档索引
 
 | 文档 | 内容 |
 |---|---|
@@ -274,7 +318,7 @@ git subtree pull --prefix=partners/wenji wenji-upstream main --squash
 
 ---
 
-## 七、已知限制
+## 八、已知限制
 
 - 干净克隆不含 dev CA 私钥、平台快照、评测私有数据与 `ws-*` 运行时状态，
   相关用例会 **skip**（不是 fail）；需要完整覆盖时按
