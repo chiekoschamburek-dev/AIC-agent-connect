@@ -1,0 +1,57 @@
+{
+  "enabled": true,
+  "agent_id": "wenji-aip-agent",
+  "display_name": "问迹·可解释问数问答智能体",
+  "aic": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+  "status": "active",
+  "public_endpoint": "https://8.160.176.215:8601",
+  "registry_url": "https://wt.ioa.pub/registry-server",
+  "discovery_url": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+  "skills": [
+    {
+      "id": "wenji.ask",
+      "name": "ask",
+      "tags": [
+        "问数",
+        "问答",
+        "跨源",
+        "可解释"
+      ]
+    },
+    {
+      "id": "wenji.data_query",
+      "name": "data_query",
+      "tags": [
+        "NL2SQL",
+        "问数",
+        "数据库"
+      ]
+    },
+    {
+      "id": "wenji.doc_qa",
+      "name": "doc_qa",
+      "tags": [
+        "RAG",
+        "文档问答",
+        "引用"
+      ]
+    },
+    {
+      "id": "wenji.schema",
+      "name": "schema",
+      "tags": [
+        "Schema",
+        "元数据"
+      ]
+    }
+  ],
+  "listen": "0.0.0.0:8443",
+  "stats": {
+    "last_heartbeat_at": "2026-10-15T07:56:50.988365Z",
+    "task_total": 19,
+    "task_p50_ms": 3767.0,
+    "task_p95_ms": 15574.0,
+    "rpc_total": 302,
+    "last_task_at": "2026-10-15T07:48:08.633345Z"
+  }
+}

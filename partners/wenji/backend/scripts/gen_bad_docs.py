@@ -69,7 +69,7 @@ def _write_image_pdf(
     document.set_metadata(
         {
             "title": title,
-            "author": "multimodal-explainable-qa-agent",
+            "author": "wenji",
             "subject": "W2 deliberately defective PDF fixture",
         }
     )
@@ -87,7 +87,7 @@ def _render_missing_structure(output: Path) -> None:
         pageCompression=1,
     )
     canvas.setTitle(BAD_DOCS["bad_missing_structure"])
-    canvas.setAuthor("multimodal-explainable-qa-agent")
+    canvas.setAuthor("wenji")
     canvas.setSubject("W2 missing-structure fixture")
     canvas.setFont(FONT_NAME, 11)
 

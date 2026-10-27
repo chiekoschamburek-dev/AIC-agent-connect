@@ -33,7 +33,7 @@ yanshu-AIC/
 ├── capabilities/                 # 能力实现（arXiv、矛盾侦测、前沿、数据集、记忆等）
 ├── partners/
 │   ├── designer/                 # 设计 agent（src / tests / config.examples / systemd）
-│   └── wenji/                    # 问迹（subtree，含其自有 frontend/）
+│   └── wenji/                    # 问迹（团队自研问数/问答智能体，含其自有 frontend/）
 ├── cluster-viz/                  # 集群总览前端（React + Vite + ReactFlow）
 ├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、运行手册
 ├── project.md                    # 项目总览、实验与量化证据
@@ -179,6 +179,13 @@ yanshu-AIC/
 
 ### 3. 问迹（wenji）：可解释的多模态问数 / 问答
 
+**AIP 互联**：问迹以外部成员身份接入梧桐平台（AIC `…BFZ0FH.F2KZXJ.15ZZZG.19CN`，
+端点为 `https://8.160.176.215:8601/rpc`，mTLS），对外发布 4 个 ACPs Skills
+（`wenji.ask` / `data_query` / `doc_qa` / `schema`）；Supervisor 可经 Discovery 发现并委派，
+问迹也可作为 Leader 反向调用集群伙伴。任务级 AMP access 按 `correlationId=taskId` 双侧记录，
+心跳经平台 Kafka 进入 Discovery aliveMap。对接细节与验证记录见
+[partners/wenji/INTEGRATION.md](partners/wenji/INTEGRATION.md)。
+
 | 创新点 | 机制 | 量化 |
 |---|---|---|
 | 检索式要素中台 | 别名 / 指标 / 实体 / Schema 语义外置，字面 + 向量召回后精排 | 候选表 7.5→2.1，Schema token −74%，31/31 |
@@ -263,7 +270,7 @@ npm ci && npm run dev        # http://localhost:5178
 扩展组件：
 
 ```bash
-# 问迹（subtree）：按上游 README 启动（Docker + FastAPI + Vue3）
+# 问迹：按 partners/wenji/README.md 启动（Docker + FastAPI + Vue3）
 cat partners/wenji/README.md
 
 # 设计 agent
@@ -281,17 +288,14 @@ cat partners/designer/SUBMISSION_README.md
 - 中间/运行产物：`__pycache__`、`.venv`、`node_modules`、`dist`、`*.log`、`output/`、
   `datasets/`、`demo_run/`、`ws-*` 运行时数据、`_archive/`、`_audit/`、`eval-private/`；
 - 二进制 wheel：`wit_framework`、交付包里的 `wheels/`（`acps_sdk` 例外，随仓库分发）；
-- 嵌入 git 目录：`partners/wenji` 以 subtree 引入（无 `.git`），guard 的 `.git` 已剥离。
+- `partners/wenji` 为团队自研模块（无独立 `.git`），与集群共用本仓库版本管理。
 
 **许可证**：本仓库代码以 **MulanPSL-2.0** 发布，全文见 [LICENSE](LICENSE)；
 上游组件、扩展组件的来源与许可状态见 [NOTICE](NOTICE)。
 
-**问迹 subtree 同步**（保持与上游联系）：
-
-```bash
-git remote add wenji-upstream https://github.com/Hakrin-dev/multimodal-explainable-qa-agent
-git subtree pull --prefix=partners/wenji wenji-upstream main --squash
-```
+**问迹与集群的协作**：问迹以外部成员身份登记在 `acps_cluster/core/cluster_roster.py`，
+由集群 Supervisor 通过 AIP Discovery 发现并调用；问迹自身也可作为 Leader 调用集群伙伴。
+对接方式与验证命令见 [partners/wenji/INTEGRATION.md](partners/wenji/INTEGRATION.md)。
 
 ---
 

@@ -1,4 +1,4 @@
-"""Question rewriter — term linking (W1 exact → W3 fuzzy 全链路, 中级任务 #1/#2).
+"""Question rewriter — term linking (W1 exact → W3 fuzzy 全链路, 能力增强 #1/#2).
 
 Stages (each records a rewrite pair for the explainability panel):
 1. exact alias match (W1, longest-alias-first, unchanged contract/fast path);

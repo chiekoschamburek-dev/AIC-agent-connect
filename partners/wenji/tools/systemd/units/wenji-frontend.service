@@ -1,0 +1,14 @@
+[Unit]
+Description=WenJi frontend (vite dev :5173)
+After=wenji-backend.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/hkr/projects/aic/wenji-aip-agent/frontend
+Environment=PATH=/home/hkr/.local/node/bin:/usr/bin:/bin
+ExecStart=/home/hkr/.local/node/bin/pnpm dev
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

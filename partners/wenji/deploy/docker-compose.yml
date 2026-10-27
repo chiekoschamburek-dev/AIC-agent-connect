@@ -2,7 +2,7 @@ services:
   db:
     # DOCKER_REGISTRY_MIRROR (e.g. docker.m.daocloud.io) set in .env for CN networks
     image: ${DOCKER_REGISTRY_MIRROR:-docker.io}/pgvector/pgvector:pg16
-    container_name: mqa-db
+    container_name: wenji-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-chinook}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chinook123}
@@ -22,7 +22,7 @@ services:
       context: ../backend
       args:
         REGISTRY: ${DOCKER_REGISTRY_MIRROR:-docker.io}
-    container_name: mqa-backend
+    container_name: wenji-backend
     depends_on:
       db:
         condition: service_healthy
@@ -75,7 +75,7 @@ services:
       context: ../frontend
       args:
         REGISTRY: ${DOCKER_REGISTRY_MIRROR:-docker.io}
-    container_name: mqa-frontend
+    container_name: wenji-frontend
     depends_on:
       - backend
     # bypass docker-entrypoint.d (its apk/ipv6 probes hang on restricted networks)

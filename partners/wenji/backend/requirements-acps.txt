@@ -1,0 +1,10 @@
+# ACPs / WIT 集成依赖（AIP-PUB 开源社区，GB/Z 185 参考实现）
+#
+# 本仓库的 acps-sdk wheel 由团队统一放在仓库根 vendor/ 下（MulanPSL-2.0）：
+#   .venv/bin/python -m pip install ../../vendor/acps_sdk-2.2.0-py3-none-any.whl
+#
+# wit-framework 未随仓库分发（上游未提供许可证元数据），请从官方发行渠道获取后安装：
+#   .venv/bin/python -m pip install /path/to/wit_framework-2.1.0-cp312.cp313.cp314-none-any.whl
+#
+# 版本关系严格锁定：先装 acps-sdk 2.2.0，再装 wit-framework 2.1.0；要求 CPython 3.12~3.14。
+../../vendor/acps_sdk-2.2.0-py3-none-any.whl

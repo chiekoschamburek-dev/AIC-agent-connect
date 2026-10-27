@@ -1,0 +1,13 @@
+[Unit]
+Description=WenJi backend API (uvicorn :8000)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/hkr/projects/aic/wenji-aip-agent/backend
+ExecStart=/home/hkr/projects/aic/wenji-aip-agent/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

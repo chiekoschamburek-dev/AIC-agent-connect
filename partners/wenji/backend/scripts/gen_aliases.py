@@ -1,4 +1,4 @@
-"""LLM batch alias generation (W3, 中级任务 #1/#2 数据扩充, PLAN §4.2 ②).
+"""LLM batch alias generation (W3, 能力增强 #1/#2 数据扩充, PLAN §4.2 ②).
 
 For each biz_term the LLM proposes colloquial aliases / abbreviations /
 common misspellings (source='llm'). Two-phase per governance:

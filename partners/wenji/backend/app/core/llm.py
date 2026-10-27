@@ -275,8 +275,16 @@ class OpenAICompatProvider:
         if not cfg.api_key:
             raise RuntimeError(f"provider '{cfg.name}' has no API key set (.env)")
         self.cfg = cfg
-        self.client = OpenAI(base_url=cfg.base_url, api_key=cfg.api_key,
-                             timeout=timeout, max_retries=max_retries)
+        client_kwargs: dict[str, Any] = dict(
+            base_url=cfg.base_url, api_key=cfg.api_key,
+            timeout=timeout, max_retries=max_retries,
+        )
+        if cfg.proxy_url:
+            # openai SDK 支持 http_client；用 httpx 显式挂 HTTP CONNECT 代理
+            import httpx
+
+            client_kwargs["http_client"] = httpx.Client(proxy=cfg.proxy_url, timeout=timeout)
+        self.client = OpenAI(**client_kwargs)
 
     def chat(self, model: str, messages: Sequence[Message], params: dict) -> tuple[str, Usage]:
         kwargs: dict[str, Any] = dict(
@@ -290,8 +298,19 @@ class OpenAICompatProvider:
             kwargs["max_tokens"] = params["max_tokens"]
         if params.get("response_json"):
             kwargs["response_format"] = {"type": "json_object"}
+        if self.cfg.enable_thinking is not None:
+            # vLLM 扩展参数：关掉思考可把 6~19s 降到 ~7s（deepseek-v4-flash）
+            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": self.cfg.enable_thinking}}
         resp = self.client.chat.completions.create(**kwargs)
         content = resp.choices[0].message.content or ""
+        if not content.strip():
+            # vLLM 思考模型（如 deepseek-v4-flash）在预算不足/长思考时可能只返回
+            # reasoning_content；截断长度按 token 预算估算，避免上游解析到空串。
+            reasoning = getattr(resp.choices[0].message, "reasoning_content", None) or ""
+            if reasoning:
+                budget = int(params.get("max_tokens") or 0)
+                limit = max(200, budget * 3) if budget else 1200
+                content = reasoning[:limit]
         u = resp.usage
         cached = 0
         if u is not None:
@@ -390,7 +409,10 @@ class LLMService:
     ) -> LLMResponse:
         pname = (provider or self.settings.llm_provider).lower()
         cfg = self.settings.provider_config(pname)
-        model = model or (self.settings.llm_model or cfg.default_model)
+        # 全局 LLM_MODEL 只用于其所属厂商；bupt 使用自带 BUPT_MODEL（见 settings.active_model）
+        if model is None:
+            model = (self.settings.bupt_model or cfg.default_model) \
+                if pname == "bupt" else (self.settings.llm_model or cfg.default_model)
         params: dict[str, Any] = {
             "temperature": temperature,
             "max_tokens": max_tokens,
@@ -440,7 +462,10 @@ class LLMService:
         Streams bypass the response cache by design."""
         pname = (provider or self.settings.llm_provider).lower()
         cfg = self.settings.provider_config(pname)
-        model = model or (self.settings.llm_model or cfg.default_model)
+        # 全局 LLM_MODEL 只用于其所属厂商；bupt 使用自带 BUPT_MODEL（见 settings.active_model）
+        if model is None:
+            model = (self.settings.bupt_model or cfg.default_model) \
+                if pname == "bupt" else (self.settings.llm_model or cfg.default_model)
         params: dict[str, Any] = {
             "temperature": temperature,
             "max_tokens": max_tokens,

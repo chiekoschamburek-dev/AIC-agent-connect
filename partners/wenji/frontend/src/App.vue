@@ -2,6 +2,7 @@
 import { computed, defineAsyncComponent, nextTick, onMounted, reactive, ref } from 'vue'
 import { NButton, NConfigProvider, NInput, NMessageProvider, NTag, type GlobalThemeOverrides } from 'naive-ui'
 import ChatMessage from './components/ChatMessage.vue'
+import AipStatusCard from './components/AipStatusCard.vue'
 import DocumentConsole from './components/DocumentConsole.vue'
 import { checkHealth, streamChat } from './api/chat'
 import type { ChatMessageModel, ClarifyPayload, SSEEvent, TraceNode, TraceTree, TurnResult } from './types'
@@ -21,7 +22,7 @@ const sending = ref(false)
 const backendOnline = ref<boolean>()
 const activeTrace = ref<TraceNode[]>([])
 const feedEl = ref<HTMLElement>()
-const sessionId = ref(localStorage.getItem('mqa.session-id') || crypto.randomUUID())
+const sessionId = ref(localStorage.getItem('wenji.session-id') || crypto.randomUUID())
 const aborter = ref<AbortController>()
 const stopRequested = ref(false)
 const messages = ref<ChatMessageModel[]>([])
@@ -30,7 +31,7 @@ const showDocuments = ref(false)
 const sessionLabel = computed(() => sessionId.value.slice(0, 8))
 
 onMounted(async () => {
-  localStorage.setItem('mqa.session-id', sessionId.value)
+  localStorage.setItem('wenji.session-id', sessionId.value)
   backendOnline.value = await checkHealth()
 })
 
@@ -114,7 +115,7 @@ function newSession() {
   stopRequested.value = true
   aborter.value?.abort()
   sessionId.value = crypto.randomUUID()
-  localStorage.setItem('mqa.session-id', sessionId.value)
+  localStorage.setItem('wenji.session-id', sessionId.value)
   messages.value = []
   activeTrace.value = []
   question.value = ''
@@ -182,6 +183,7 @@ function handleKeydown(event: KeyboardEvent) {
           </section>
 
           <aside class="inspector">
+            <AipStatusCard />
             <TracePanel :nodes="activeTrace" />
             <div class="inspector-note">
               <span>LIVE TRACE</span>

@@ -23,6 +23,14 @@ _DOC_ID_RE = re.compile(r"^[a-z0-9_-]+$", re.I)
 
 app = FastAPI(title="Multimodal Explainable QA Agent", version="0.1.0")
 
+# AIP 互联状态（只读；未启用 ACPs 时返回 enabled=false，不影响引擎）
+try:
+    from .acps.status_api import router as _acps_router
+
+    app.include_router(_acps_router)
+except Exception:  # pragma: no cover - wit 未安装时引擎照常运行
+    pass
+
 # OCR/repair can invoke MinerU and GPU resources. Keep one repair in flight
 # per API process; callers receive 429 instead of creating an unbounded queue.
 _repair_gate = threading.BoundedSemaphore(1)

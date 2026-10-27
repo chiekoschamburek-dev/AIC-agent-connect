@@ -16,8 +16,17 @@ frontend/dist/
 
 # Env & secrets
 .env
+.env.acps
 .env.local
 *.key
+
+# ACPs / AIP（证书、私钥、注册状态、AMP journal）
+.wit/
+*.pem
+deploy/acps/.acps-cli/
+deploy/acps/keyfiles/
+deploy/acps/acs.*.draft.json
+.amp-forwarder-state.json
 
 # Data (raw/derived artifacts; keep structure via .gitkeep)
 data/db_raw/*.sqlite

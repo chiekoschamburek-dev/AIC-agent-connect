@@ -1,4 +1,4 @@
-"""Schema Linking (PLAN §4.2 ③, 中级任务 #4).
+"""Schema Linking (PLAN §4.2 ③, 能力增强 #4).
 
 v0 (W3 前期): offline per-table semantic cards (name + business comment +
 columns + FKs + sample values) indexed by keyword (jieba) AND vector

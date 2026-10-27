@@ -17,11 +17,11 @@ fi
 
 # 2. database up
 echo "· starting postgres (pgvector) …"
-docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa up -d db
+docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji up -d db
 
 echo -n "· waiting for db"
 for i in $(seq 1 30); do
-  if docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa exec -T db \
+  if docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji exec -T db \
        pg_isready -U "${POSTGRES_USER:-chinook}" -d "${POSTGRES_DB:-chinook}" >/dev/null 2>&1; then
     echo " ok"; break
   fi
@@ -30,30 +30,30 @@ for i in $(seq 1 30); do
 done
 
 # 3. import Chinook + extract term dictionary (run once; idempotent data load)
-DB_STATE=$(docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa exec -T db \
+DB_STATE=$(docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji exec -T db \
   psql -U "${POSTGRES_USER:-chinook}" -d "${POSTGRES_DB:-chinook}" -tAc \
   "SELECT count(*) FROM information_schema.tables WHERE table_name='track'" 2>/dev/null || echo 0)
 
 if [[ "$DB_STATE" == "0" || $RESET_DB == 1 ]]; then
   echo "· importing Chinook (SQLite -> PostgreSQL) …"
-  docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa run --rm --no-deps backend \
+  docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji run --rm --no-deps backend \
     python scripts/chinook_to_pg.py --drop
 fi
 
 echo "· extracting term dictionary …"
-docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa run --rm --no-deps backend \
+docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji run --rm --no-deps backend \
   python scripts/extract_terms.py
 
 # 3b. knowledge-base docs (PDFs versioned in git; ingest idempotent by content hash).
 # Clean state: embedding model is NOT in git — B downloads it per onboarding doc;
 # until then the RAG path is skipped gracefully so NL2SQL flow stays green.
-EMB_MODEL_OK=$(docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa \
+EMB_MODEL_OK=$(docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji \
   run --rm --no-deps backend python -c \
   "from app.core.config import resolve_repo_path, Settings; exit(0 if resolve_repo_path(Settings().embedding_model_path).exists() else 1)" 2>/dev/null \
   && echo yes || echo no)
 if [ "$EMB_MODEL_OK" = "yes" ] && ls data/docs_raw/*.pdf >/dev/null 2>&1; then
   echo "· ingesting KB docs (local embedding) …"
-  docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa \
+  docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji \
     run --rm --no-deps backend python scripts/ingest_docs.py 2>/dev/null | tail -4
 else
   echo "· KB ingest skipped (embedding model not downloaded — see docs/onboarding/B_onboarding.md §1)"
@@ -61,7 +61,7 @@ fi
 
 # 4. backend + frontend up
 echo "· starting backend + frontend …"
-docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa up -d backend frontend
+docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji up -d backend frontend
 
 # 5. smoke test
 echo "· smoke test …"
@@ -88,13 +88,13 @@ echo "$CHAT" | python3 -c "import json,sys; d=json.load(sys.stdin); print('  int
 
 # scripted-mock eval over NL2SQL cases — proves the full loop (no API key needed)
 echo "· scripted eval smoke (mock provider):"
-docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa \
+docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji \
   run --rm --no-deps backend python scripts/smoke_nl2sql.py 2>/dev/null | tail -4
 
 # RAG retrieval smoke (only when embedding model is present)
 if [ "$EMB_MODEL_OK" = "yes" ]; then
   echo "· RAG retrieval smoke:"
-  docker compose -f deploy/docker-compose.yml --env-file .env --project-name mqa \
+  docker compose -f deploy/docker-compose.yml --env-file .env --project-name wenji \
     run --rm --no-deps backend python scripts/smoke_rag.py 2>/dev/null | grep -E 'recall|loaded' | tail -2
 fi
 

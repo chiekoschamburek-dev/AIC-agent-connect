@@ -1,4 +1,4 @@
-"""Term embedding backfill (W3, 中级任务 #1/#2 向量化地基).
+"""Term embedding backfill (W3, 能力增强 #1/#2 向量化地基).
 
 - Fixes biz_term.embedding column dim to the active embedding service dim
   (DDL shipped VECTOR(1024); local bge-small-zh-v1.5 is 512 — column was

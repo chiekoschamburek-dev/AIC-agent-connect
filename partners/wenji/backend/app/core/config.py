@@ -45,6 +45,10 @@ class LLMProviderConfig(BaseModel):
     price_prompt: float = 0.0
     price_cached: float = 0.0
     price_completion: float = 0.0
+    # 出网代理（HTTP CONNECT，如校园网 18888 隧道）；空=直连
+    proxy_url: str = ""
+    # 思考型模型开关（vLLM chat_template_kwargs）：False 可显著降低延迟
+    enable_thinking: bool | None = None
 
 
 class Settings(BaseSettings):
@@ -66,6 +70,10 @@ class Settings(BaseSettings):
     qwen_model: str = "qwen-plus"
     siliconflow_api_key: str = ""
     siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
+    # BUPT 校园网关（OpenAI 兼容；deepseek-v4-flash 额度充足，用于内核主力）
+    bupt_base_url: str = ""
+    bupt_api_key: str = ""
+    bupt_model: str = "deepseek-v4-flash"
 
     # ---- database ----
     postgres_user: str = "chinook"
@@ -162,6 +170,21 @@ class Settings(BaseSettings):
                 price_cached=0.2,
                 price_completion=2.0,
             )
+        if name == "bupt":
+            return LLMProviderConfig(
+                name="bupt",
+                base_url=self.bupt_base_url,
+                api_key=self.bupt_api_key,
+                default_model=self.bupt_model or "deepseek-v4-flash",
+                # 校园网免费额度：账本按 0 价记（tokens 仍记账，便于容量评估）
+                price_prompt=0.0,
+                price_cached=0.0,
+                price_completion=0.0,
+                # myai.bupt.edu.cn 解析到校园内网 10.3.19.2，须经校园网反向隧道代理
+                proxy_url=os.environ.get("BUPT_PROXY_URL", "http://127.0.0.1:18888"),
+                enable_thinking=os.environ.get("BUPT_ENABLE_THINKING", "0").strip().lower()
+                not in {"1", "true", "on"},
+            )
         if name == "siliconflow":
             return LLMProviderConfig(
                 name="siliconflow",
@@ -177,7 +200,13 @@ class Settings(BaseSettings):
     def active_model(self) -> str:
         if self.llm_provider == "mock":
             return "mock-1"
-        return self.llm_model or self.provider_config().default_model
+        cfg = self.provider_config()
+        # LLM_MODEL 是全局覆盖；但对自带明确默认模型的 provider（如 bupt 的
+        # deepseek-v4-flash），全局值可能指向别的厂商模型（会被网关 403 拒绝），
+        # 故 bupt 优先使用自己的 BUPT_MODEL。
+        if self.llm_provider == "bupt":
+            return self.bupt_model or cfg.default_model
+        return self.llm_model or cfg.default_model
 
 
 @lru_cache

@@ -1,10 +1,62 @@
-# 多模态数据驱动的可解释精准问数/问答智能体（「问迹」）
+# 问迹（WenJi）· AIP 智能体互联的可解释问数/问答智能体
 
-“中国电子杯”第三届高校 ICT 产教融合创新大赛 · 赛题八（中电云计算）。
-总体方案见 [PLAN.md](./PLAN.md)；赛题说明见 [multimodal-explainable-qa-agent-introduction.md](./multimodal-explainable-qa-agent-introduction.md)。
+第八届全球校园人工智能算法精英大赛 · AIC·智能体互联主题赛参赛作品（团队原创）。
 
-**一句话**：把结构化问数（NL2SQL）、文档问答（RAG）、跨源多跳与公式计算统一到自研事件驱动
-Agent 内核，以 **Trace / 引用 / 可复现分级评测** 让每一步可解释、可审计、可回归。
+问迹在"能问答"之上，回答三个更硬的问题：**答案能不能被核验、协作能不能被审计、能力能不能被发现**。
+它把结构化问数（NL2SQL）、文档问答（RAG）、跨源多跳与公式计算统一到自研事件驱动内核，
+以全链路 Trace 让每一步可解释；并基于 GB/Z 185（AIP）国标与 AIP-PUB 开源代码（ACPs SDK + WIT）
+注册到梧桐智能体互联平台，完成**注册 → 自动发现 → 跨端互联 → 访问**全流程验证。
+
+- AIP 接入与平台验证：[`docs/aic/README.md`](docs/aic/README.md)
+- 与研枢集群的互联对接：[`INTEGRATION.md`](INTEGRATION.md)
+- 第三方组件与数据声明：[`NOTICE.md`](NOTICE.md)
+- 演示材料索引：[`docs/aic/`](docs/aic/)（截图、视频讲稿、PPT 稿、技术报告）
+
+## 模型通道（双通道设计）
+
+| 层 | Provider | 说明 |
+|---|---|---|
+| 引擎内核（NL2SQL/RAG/跨源/公式，每次任务 4~6 次调用） | **BUPT 校园网关 deepseek-v4-flash / qwen3.8-27b** | 免费额度；经校园网 18888 反向隧道（HTTP CONNECT 代理）访问；关闭思考后时延与 DeepSeek 持平（13.1s vs 13.2s）；并发场景下 qwen3.8-27b 更快（20~30s/任务 vs 108s），流量场景选它 |
+| AIP 包装层（WIT，每次任务 1~2 次调用） | **本地代理 → BUPT 网关**（`wenji-llm-proxy`） | WIT 不支持自定义代理且不经记账层；本地反代解决 DNS/代理并注入关思考，成本 ¥0 |
+
+配置项：`LLM_PROVIDER=bupt` / `BUPT_BASE_URL` / `BUPT_API_KEY` / `BUPT_PROXY_URL` / `BUPT_ENABLE_THINKING=0`；
+包装层用 `ACPS_LLM_*` 独立覆盖（当前指向 `http://127.0.0.1:18999/v1`）。
+成本账本对 BUPT 记 0 价（tokens 仍入账）。**注意**：WIT 自带 provider 的调用不经过
+引擎记账层，曾导致"账本显示 ¥0 但 DeepSeek 实际扣费"——现已统一走本地代理，两层均为 ¥0。
+
+## AIP 智能体互联接入
+
+| 层 | 实现 |
+|---|---|
+| ATR 可信注册 | WIT `AcpsConfig` + `AcpsRegistration.integrated()`：登录→ACS 草稿→审核→AIC→EAB→mTLS 证书 |
+| AIP 交互 | `AcpsDirect(rpc)` Partner 服务端（`/rpc` · `/stream` · `/health`），mTLS 双向认证 |
+| 智能体发现 | Leader 侧 `AipDelegationHooks`：`acps_discover` / `acps_delegate` / `acps_task`，可调用平台其它智能体 |
+| AMP 可观测 | 六类 journal（heartbeat/metrics/access/message/system/audit），访问日志按 `correlationId=taskId` 统计 |
+| 对外能力 | `wenji.ask`（综合）· `wenji.data_query`（NL2SQL）· `wenji.doc_qa`（RAG 带引用）· `wenji.schema` |
+
+```bash
+cd backend
+.venv/bin/python -m pip install ../../vendor/acps_sdk-2.2.0-py3-none-any.whl /path/to/wit_framework-2.1.0-*.whl
+.venv/bin/python -m app.acps.cli check          # 本地校验声明/ACS（不访问网络）
+.venv/bin/python -m app.acps.cli show-acs       # 生成 ACS 草稿（注册平台上传）
+.venv/bin/python -m app.acps.cli register       # 推进可信注册（需 ACPS_USERNAME/PASSWORD）
+.venv/bin/python -m app.acps.cli serve          # 启动 AIP Direct Partner + AMP
+```
+
+环境变量模板：`.env.acps.example`；平台侧 CLI 配置模板：`deploy/acps/acps-cli.toml.example`。
+
+### 部署与长期值守（云服务器 systemd 用户服务）
+
+全栈部署在云服务器（公网 8601 直连，无代理层）：
+
+```bash
+tools/systemd/install.sh            # 安装并启动 6 个服务：db/backend/frontend/serve/amp-forwarder/traffic
+tools/systemd/install.sh status     # 全部状态 + 端口 + linger
+systemctl --user restart wenji-serve  # 单服务操作
+```
+
+前提：`sudo loginctl enable-linger $USER`（已启用）。重启/注销后服务自动拉起。
+数据库为用户态源码编译的 PostgreSQL 16 + pgvector（`~/opt/pgsql-16`，无需 root）。
 
 ## 快速启动
 
@@ -49,14 +101,17 @@ backend/
     rag/        Embedding 抽象 · pgvector+BM25 · RRF · 重排 · 忠实度自检 · 查询改写/HyDE
     ingestion/  IR · 质量评估(#9) · 复杂度评分(#8) · MinerU/PaddleOCR 路由 · 修复工作流 · 公式抽取
     agent/      编排内核：意图/工具/HYBRID DAG/澄清/改写 · Trace+会话持久化 · SSE
+    acps/       AIP 互联适配层：ACPs 配置/能力声明/WIT Agent/Runtime/CLI（见 docs/aic/）
     formula/    公式引擎：登记(store) · LaTeX→SymPy · 参数绑定 · 双通道校验
   eval/         分级评测 run_levels(L0/L1/L2) + 12 个用例文件 161 例 + 专项 runner(跨源/澄清/多轮/消融)
   scripts/      Chinook 导入 · 术语库抽取/别名生成 · 知识库 PDF 生成/摄入 · 基准语料/效率矩阵 · 冒烟
   tests/        255 个测试（单测 + 集成，含安全边界）
 frontend/       Vue 3 + TS + Vite + Naive UI：对话流(SSE) · 数据卡片 · 引用 · 澄清按钮 · Trace 双视图 · 文档管理台
-deploy/         docker-compose(pgvector+backend+frontend) · quick_start.sh
+deploy/         docker-compose(pgvector+backend+frontend) · quick_start.sh · acps/(平台接入材料)
+tools/          amp_forwarder/(平台 AMP 上报转发器) · 其它运维脚本
 data/           db_raw(Chinook SQLite) · db_schema(DDL/术语种子) · docs_raw(10 份知识库) · docs_bad(3 份坏文档) · docs_bench(可再生成)
 docs/
+  aic/          AIP 接入与参赛文档（架构/注册流程/24h 冲刺计划/脱敏说明）
   contracts/    Trace JSON Schema · 摄入 IR · Prompt 静态层 · eval 用例格式（均已冻结，含变更记录）
   design/       设计报告与说明书（提交骨架）· Agent 内核设计
   milestones/   W1 demo 截图 · W5 效率矩阵（图+报告）
@@ -105,17 +160,19 @@ cd frontend && pnpm install && pnpm test && pnpm build
 pnpm dev                                       # http://localhost:5173，/api 代理到 8000
 ```
 
-## 提交物对照（初赛三件套）
+## AIC 提交物对照（智能体互联主题赛）
 
 | 要求 | 现状 |
 |---|---|
-| 设计报告（≤20 页，含亮点预览页） | 骨架 `docs/design/design_report.md`（章节+证据入口已固定，C 牵头定稿） |
-| 技术实现说明书（≤30 页） | 骨架 `docs/design/technical_implementation.md` |
-| ZIP：源码 + schema 定义 + 知识库样本（≥10）+ 环境说明 + quick_start | ✅ `data/db_schema/chinook_pg.sql` · `data/docs_raw/` 10 份 · README 环境说明 · `deploy/quick_start.sh` |
+| 技术报告（按附件 2 大纲，PDF ≤10M） | 素材齐备：`docs/design/design_report.md` + `docs/design/technical_implementation.md`；AIC 版按 `docs/aic/README.md` 映射表重写 |
+| 演示视频（MP4 3–5 分钟，含梧桐平台全流程） | 待录制：注册/发现/互联/访问 + 后台访问数据截图（`docs/aic/plan_24h.md` 有分镜清单） |
+| 答辩 PPT（PDF） | 待制作：复用设计报告亮点页 + AIP 架构与平台数据 |
+| 佐证材料 | 评测基线（L2 全量）· 效率矩阵 · 平台访问截图 |
+| 代码包（网盘） | 本仓库 + `data/db_schema` + `data/docs_raw`(10 份) + 一键启动脚本；命名遵循 `团队编号-赛题名称-作品名称-XX` |
 
 ## 里程碑
 
-W1 地基/选型/双引擎最小闭环 → W2 编排内核/缓存/Prompt 冻结 → W3 中级任务 #1/#2/#4/#5 +
+W1 地基/选型/双引擎最小闭环 → W2 编排内核/缓存/Prompt 冻结 → W3 能力增强 #1/#2/#4/#5 +
 Schema Linking → W4 跨源五类型/公式引擎/L2 首测 → **W5 打磨：L2 终验 + 效率矩阵 + 文档/视频/打包**。
 逐周状态：[W5_progress.md](./docs/weekly/W5_progress.md)（含 B/C W5 复验与 A 收官）；
 W4 验收报告：[W4_acceptance.md](./docs/weekly/W4_acceptance.md)。

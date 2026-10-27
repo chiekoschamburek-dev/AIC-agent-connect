@@ -40,7 +40,8 @@
 | [../acps_cluster/guard/docs/covert-event-guard.md](../acps_cluster/guard/docs/covert-event-guard.md) | guard 设计与威胁模型映射 |
 | [../partners/designer/SUBMISSION_README.md](../partners/designer/SUBMISSION_README.md) | 设计 agent（ACPs Direct + AMP→Kafka） |
 | [../partners/designer/SERVER_DEPLOY.md](../partners/designer/SERVER_DEPLOY.md) | 设计 agent 部署 |
-| [../partners/wenji/README.md](../partners/wenji/README.md) | 问迹（多模态可解释问答 agent） |
+| [../partners/wenji/README.md](../partners/wenji/README.md) | 问迹（可解释问数/问答智能体，AIP 接入） |
+| [../partners/wenji/INTEGRATION.md](../partners/wenji/INTEGRATION.md) | 问迹与研枢集群的互联对接与验证 |
 
 ## 前端
 

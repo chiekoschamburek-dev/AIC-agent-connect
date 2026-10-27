@@ -1,0 +1,77 @@
+{
+  "captured_at": "2026-10-15 15:56:54",
+  "total_rpc_records": 302,
+  "total_task_records": 19,
+  "task_samples": [
+    {
+      "correlation_id": "task-2fd19a12-1284-4ff2-bbb5-914d7a3af26e",
+      "timestamp": "2026-10-15T07:28:20.886661Z",
+      "durationMs": 15574.0,
+      "statusCode": 200,
+      "caller": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "callee": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "attributes": {
+        "task.state": "awaiting-completion",
+        "session_id": "session-e0a0441d-7a7d-41d4-be94-fe277ac76936",
+        "peer_verified": true,
+        "products": 1
+      }
+    },
+    {
+      "correlation_id": "task-e8e05d9f-0fb2-4fd3-a96d-6e22766d8a0f",
+      "timestamp": "2026-10-15T07:29:43.927772Z",
+      "durationMs": 15840.0,
+      "statusCode": 200,
+      "caller": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "callee": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "attributes": {
+        "task.state": "awaiting-completion",
+        "session_id": "session-f7d585ab-1795-4225-bb2a-69c96df525fe",
+        "peer_verified": true,
+        "products": 1
+      }
+    },
+    {
+      "correlation_id": "task-e21fe0dc-0cbc-478f-bac2-4239e3a22126",
+      "timestamp": "2026-10-15T07:44:20.020498Z",
+      "durationMs": 3752.0,
+      "statusCode": 200,
+      "caller": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "callee": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "attributes": {
+        "task.state": "awaiting-input",
+        "session_id": "session-49934bfd-8720-4d86-bba2-afaec1752cf1",
+        "peer_verified": true,
+        "products": 0
+      }
+    },
+    {
+      "correlation_id": "task-8b18ec27-ed6b-4a32-b6dd-5ba7d8f7431f",
+      "timestamp": "2026-10-15T07:45:27.866985Z",
+      "durationMs": 3058.0,
+      "statusCode": 200,
+      "caller": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "callee": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "attributes": {
+        "task.state": "awaiting-input",
+        "session_id": "session-5f2e0c37-69e2-4530-9bd1-fe88d9e64eec",
+        "peer_verified": true,
+        "products": 0
+      }
+    },
+    {
+      "correlation_id": "task-4141d1ac-2776-48df-848d-669cbb17272b",
+      "timestamp": "2026-10-15T07:48:08.633345Z",
+      "durationMs": 10891.0,
+      "statusCode": 200,
+      "caller": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "callee": "1.2.156.3088.1.BUPT.BFZ0FH.F2KZXJ.15ZZZG.19CN",
+      "attributes": {
+        "task.state": "awaiting-completion",
+        "session_id": "session-b487bd9c-4112-46b6-afc5-295edb3341f3",
+        "peer_verified": true,
+        "products": 1
+      }
+    }
+  ]
+}

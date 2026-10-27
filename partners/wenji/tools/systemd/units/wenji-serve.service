@@ -1,0 +1,14 @@
+[Unit]
+Description=WenJi AIP Direct Partner (wit serve :8443)
+After=network-online.target wenji-backend.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/hkr/projects/aic/wenji-aip-agent/backend
+Environment=ACPS_ENABLED=1
+ExecStart=/home/hkr/projects/aic/wenji-aip-agent/backend/.venv/bin/python -m app.acps.cli serve
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

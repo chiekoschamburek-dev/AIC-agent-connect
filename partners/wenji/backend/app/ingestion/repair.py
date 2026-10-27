@@ -165,7 +165,7 @@ def repair_pdf(
 
                 metadata = dict(document.metadata or {})
                 metadata["producer"] = (
-                    "multimodal-explainable-qa-agent W4 repair"
+                    "wenji document repair"
                 )
                 repaired.set_metadata(metadata)
                 repaired.save(

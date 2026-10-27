@@ -1,0 +1,22 @@
+# acps-cli 配置模板（梧桐平台现状：https://wt.ioa.pub）
+# 用法：cp acps-cli.toml.example ./acps-cli.toml && 按需修改
+# acps-cli 用于「注册平台审核通过后的证书申请」：
+#   acps-cli --config acps-cli.toml auth login
+#   acps-cli --config acps-cli.toml cert eab fetch --aic <AIC> --output eab.json --json
+#   acps-cli --config acps-cli.toml cert issue -a <AIC> --eab-file eab.json -u clientAuth \
+#       --key-path agent-key.pem --cert-path agent-cert.pem --trust-bundle-path trust-bundle.pem
+# 注意：WIT 自动化流程（backend/app/acps/cli.py register）会自行完成同一套流程；
+#       仅当平台要求手工申请证书时才使用本模板。
+
+[registry]
+base_url = "https://wt.ioa.pub/registry-server"
+
+[auth]
+user_token_file = "./.acps-cli/tokens/registry-user.json"
+admin_token_file = "./.acps-cli/tokens/registry-admin.json"
+
+[ca]
+base_url = "https://wt.ioa.pub/ca-server"
+
+[discovery]
+base_url = "https://wt.ioa.pub/discovery"

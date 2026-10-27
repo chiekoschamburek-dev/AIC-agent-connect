@@ -1,0 +1,17 @@
+[Unit]
+Description=WenJi AIP traffic runner (platform access accumulation)
+After=wenji-serve.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/hkr/projects/aic/wenji-aip-agent/backend
+Environment=TRAFFIC_WORKERS=6
+Environment=TRAFFIC_INTERVAL_MIN=1
+Environment=TRAFFIC_JITTER_MIN=0.3
+Environment=TRAFFIC_DAILY_MAX=8000
+ExecStart=/home/hkr/projects/aic/wenji-aip-agent/backend/.venv/bin/python scripts/acps/traffic.py
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=default.target

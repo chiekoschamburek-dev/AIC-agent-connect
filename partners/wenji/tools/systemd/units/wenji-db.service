@@ -1,0 +1,13 @@
+[Unit]
+Description=WenJi PostgreSQL 16 + pgvector (userspace, :5433)
+After=network-online.target
+
+[Service]
+Type=forking
+ExecStart=/home/hkr/opt/pgsql-16/bin/pg_ctl -D /home/hkr/projects/aic/wenji-aip-agent/var/pgdata -l /home/hkr/projects/aic/wenji-aip-agent/var/pg.log start -w
+ExecStop=/home/hkr/opt/pgsql-16/bin/pg_ctl -D /home/hkr/projects/aic/wenji-aip-agent/var/pgdata stop -m fast
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

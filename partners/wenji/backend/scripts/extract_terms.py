@@ -1,4 +1,4 @@
-"""Term dictionary extractor v1 (W1, 中级任务 #1/#2 的数据地基).
+"""Term dictionary extractor v1 (W1, 能力增强 #1/#2 的数据地基).
 
 Strategy (PLAN §4.2): knowledge lives in the DB, not in prompts.
 - Auto-extract low-cardinality enum-like columns (Genre, MediaType, Country…)

@@ -195,7 +195,7 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 
 | 接缝 | 做法 | 影响面 |
 |---|---|---|
-| 问迹 | `git subtree add --prefix=partners/wenji ... --squash` | 无改动；保留 `wenji-upstream` remote 可 `subtree pull` |
+| 问迹 | 团队自研模块，直接置于 `partners/wenji/` | 与集群共用本仓库；AIP 接入层与能力声明见 `partners/wenji/docs/aic/` |
 | guard | 纯拷贝到 `acps_cluster/guard/`，剥离其 `.git` | 无改动 |
 | guard 模块路径 | 新增 `acps_cluster/covert_event_guard.py` 一行转发 shim | 原测试/CLI 命令原样可用 |
 | guard → supervisor | 新增 `acps_cluster/guard_adapter.py` | 新增旁路，不触碰 PEP |
