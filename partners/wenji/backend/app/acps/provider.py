@@ -63,7 +63,7 @@ def build_model_provider():
         base_url=cfg["base_url"],
         temperature=0,
     )
-    # 校园网网关（myai.bupt.edu.cn → 10.3.19.2）需经 18888 反向隧道代理；
+    # 校园网关解析到内网地址，需经反向隧道代理；
     # 其它厂商（DeepSeek 等）直连即可。
     proxy = os.environ.get("ACPS_LLM_PROXY_URL", "").strip()
     if proxy:

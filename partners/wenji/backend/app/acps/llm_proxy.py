@@ -2,8 +2,8 @@
 
 为什么需要它：
 
-- WIT 的 ``OpenAIChatProvider`` 不接受自定义 HTTP 代理，且 ``myai.bupt.edu.cn`` 解析到
-  校园内网（10.3.19.2），公网服务器无法直连；
+- WIT 的 ``OpenAIChatProvider`` 不接受自定义 HTTP 代理，且模型网关解析到校园内网地址，
+  公网服务器无法直连；
 - 它也不经过引擎的记账层（``app/core/llm.py``），所以此前包装层的 DeepSeek 调用
   在成本账本里显示 ¥0、但实际在扣费（实测 4 天约 ¥64）。
 
@@ -38,12 +38,17 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-UPSTREAM = os.environ.get("BUPT_BASE_URL", "https://myai.bupt.edu.cn/llm-gw/v1").rstrip("/")
-API_KEY = os.environ.get("BUPT_API_KEY", "")
-PROXY = os.environ.get("BUPT_PROXY_URL", "http://127.0.0.1:18888")
+UPSTREAM = (os.environ.get("CAMPUS_LLM_BASE_URL") or os.environ.get("BUPT_BASE_URL") or "").rstrip("/")
+API_KEY = os.environ.get("CAMPUS_LLM_API_KEY") or os.environ.get("BUPT_API_KEY", "")
+PROXY = os.environ.get("CAMPUS_LLM_PROXY_URL") or os.environ.get("BUPT_PROXY_URL", "http://127.0.0.1:18888")
 STATS_PATH = Path(os.environ.get("LLM_PROXY_STATS", "var/llm_proxy_stats.json"))
 
-app = FastAPI(title="WenJi LLM Proxy (BUPT)", docs_url=None, redoc_url=None)
+if not UPSTREAM:
+    raise RuntimeError(
+        "未配置上游模型网关：请设置 CAMPUS_LLM_BASE_URL（或 BUPT_BASE_URL）"
+    )
+
+app = FastAPI(title="WenJi LLM Proxy", docs_url=None, redoc_url=None)
 _client: httpx.AsyncClient | None = None
 _stats = {"requests": 0, "streams": 0, "errors": 0, "started_at": time.time()}
 

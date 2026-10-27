@@ -251,7 +251,7 @@ Partner 监听器由 `serve_direct_partner()` 启动，strict 模式强制 TLS 1
 | 平台统计口径 | AMP access 需 `correlationId=taskId` | 采用 `AmpAccessLoggingHooks` 并使用平台口径核对；必要时补应用侧 emit |
 | 模型双跳延迟 | WIT 编排层 + 引擎层各一次 LLM 调用 | 双通道拆分：包装层走公网 DeepSeek、内核走校园免费额度；实测任务往返 20~55s（BUPT 内核），RPC 边界仍为 P50 53ms |
 | AMP journal 跨进程冲突 | 多个进程为同一 AIC 各绑一套 AMP runtime 时，wit 追加校验报 `journal changed during validation` | 流量器与自测脚本改为**纯客户端**（AipRpcClient + 原生 discovery），只有 serve 进程写 journal，冲突归零 |
-| 校园网模型接入 | `myai.bupt.edu.cn` 解析到内网 10.3.19.2，公网服务器不可达 | 复用 18888 反向隧道（HTTP CONNECT 代理，`Proxy-Agent: campus-llm-proxy`）；内核 provider 挂 httpx 代理，AIP 出站不走代理 |
+| 校园网模型接入 | 校内模型网关解析到内网地址，公网服务器不可达 | 复用 18888 反向隧道（HTTP CONNECT 代理，`Proxy-Agent: campus-llm-proxy`）；内核 provider 挂 httpx 代理，AIP 出站不走代理 |
 
 ---
 

@@ -180,7 +180,7 @@ class Settings(BaseSettings):
                 price_prompt=0.0,
                 price_cached=0.0,
                 price_completion=0.0,
-                # myai.bupt.edu.cn 解析到校园内网 10.3.19.2，须经校园网反向隧道代理
+                # 网关解析到校园内网地址，公网侧须经反向隧道代理
                 proxy_url=os.environ.get("BUPT_PROXY_URL", "http://127.0.0.1:18888"),
                 enable_thinking=os.environ.get("BUPT_ENABLE_THINKING", "0").strip().lower()
                 not in {"1", "true", "on"},

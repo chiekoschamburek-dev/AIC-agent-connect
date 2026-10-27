@@ -6,6 +6,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PY="$REPO/backend/.venv/bin/python"
 WS="$REPO/backend/.wit/wenji-probe"
+export WENJI_REPO="$REPO"
 
 log() { echo "$(date '+%F %T') $*"; }
 
@@ -14,13 +15,13 @@ for i in $(seq 1 240); do
   status=$("$PY" - <<'EOF' 2>/dev/null || echo "unknown"
 import json, os, sys
 from pathlib import Path
-sys.path.insert(0, "/home/hkr/projects/aic/wenji-aip-agent/backend")
+sys.path.insert(0, os.path.join(os.environ["WENJI_REPO"], "backend"))
 from dotenv import load_dotenv
-load_dotenv("/home/hkr/projects/aic/wenji-aip-agent/.env", override=False)
-load_dotenv("/home/hkr/projects/aic/wenji-aip-agent/.env.acps", override=False)
+load_dotenv(os.path.join(os.environ["WENJI_REPO"], ".env"), override=False)
+load_dotenv(os.path.join(os.environ["WENJI_REPO"], ".env.acps"), override=False)
 import asyncio
 from wit import RegistryPasswordCredentials, WitRuntime
-sys.path.insert(0, "/home/hkr/projects/aic/wenji-aip-agent/backend/scripts/acps")
+sys.path.insert(0, os.path.join(os.environ["WENJI_REPO"], "backend/scripts/acps"))
 from register_probe import build_probe_agent, build_probe_config, PROBE_WORKSPACE
 rt = WitRuntime(build_probe_agent(), workspace=PROBE_WORKSPACE, acps=build_probe_config())
 r = asyncio.run(rt.up(credentials=RegistryPasswordCredentials.from_env()))
@@ -40,8 +41,8 @@ EOF
     sleep 15
     log "已重启 wenji-traffic：$(systemctl --user is-active wenji-traffic)"
     "$PY" - <<'EOF'
-import json
-p = "/home/hkr/projects/aic/wenji-aip-agent/backend/.wit/wenji-probe/acps/acs.final.json"
+import json, os
+p = os.path.join(os.environ["WENJI_REPO"], "backend/.wit/wenji-probe/acps/acs.final.json")
 print("probe AIC:", json.load(open(p)).get("aic"))
 EOF
     exit 0
