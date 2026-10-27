@@ -71,6 +71,21 @@ GB/Z 185 与 ACPs 协议族，在梧桐平台构建"受治资源协作网络"：
 平台接入场景要求完成"注册→自动发现→跨端互联→访问"并留存数据。研枢在此之上进一步要求
 **可编排**：Supervisor 按能力发现并委派；资源方按令牌准入；全过程可计量、可冻结。
 
+**平台抽样分布（表 1-1）**
+
+| 场景类别 | 数量 | 典型能力 |
+|---|---:|---|
+| 科研协作/文献 | 5 | 任务调度、文献检索、写作、审稿、引用核验 |
+| 数据问答/知识库 | 3 | 问数、文档问答、知识库查询 |
+| 医疗健康 | 2 | 影像描述、报告解读 |
+| 法律/合规 | 1 | 法条检索与建议 |
+| 校园/生活服务 | 4 | 报修调度、活动策划、社交助理、格式检查 |
+| 运维/诊断 | 3 | 指标、日志、链路、协调 |
+
+**表 1-1 平台公开发现抽样**：18 个在线智能体中，具备"数据问答"能力的仅 3 个，且没有一个是
+"SQL + 引用 + 公式 + 跨源"一体化；这为问迹的差异化定位提供了直接依据。
+
+
 ### 1.4 需求定位与产业贴合度
 
 | 需求 | 指标 | 落点 |
@@ -172,6 +187,33 @@ GB/Z 185 与 ACPs 协议族，在梧桐平台构建"受治资源协作网络"：
 
 ---
 
+### 3.5 关键设计取舍
+
+| 取舍点 | 备选方案 | 选择 | 理由 |
+|---|---|---|---|
+| 授权粒度 | 会话级 / 任务级 / 永久密钥 | **任务级** | 最小权限；令牌可 TTL/次数约束，泄漏面最小 |
+| 令牌如何到达能力 | 放模型上下文 / 环境变量 / jti 句柄 | **jti 句柄 + 进程内保管库** | 模型不可见；运行中可注入；可审计 |
+| 可见性实现 | 访问控制层过滤 / 发现层元数据过滤 | **元数据收窄 + PEP 兜底** | 发现层只决定"看不看得见"，是否可用永远由 PEP 判定 |
+| 资源隔离 | 统一沙盒 / 按风险定制 | **按资产风险定制** | 防泄题、防权重外泄与算力隔离的最优边界不同 |
+| 计数口径 | 传输边界（请求 ID） | **任务级（taskId）双侧** | 与平台榜单口径一致；可配对、可审计 |
+| 发现过滤 | 先 limit 后过滤 | **3× 超取 + 后续谓词下推** | 兼容现状；已在建议中提出下推方案 |
+
+### 3.6 部署拓扑与资源规格（图 3-1）
+
+```text
+[公网] 8.160.176.215
+  ├─ :8601  wenji-serve（AIP Direct，mTLS）──┐
+  ├─ :8000  wenji-backend（FastAPI）          │ 同一台 VPS（2 vCPU / 4 GiB）
+  ├─ :5173  wenji-frontend（Vue3）            │ systemd 用户单元 × 6（Linger）
+  ├─ :18999 wenji-llm-proxy（本地反代）       │ PostgreSQL 16 + pgvector（用户态）
+  └─ :8444  supervisor / :8445-8461 partners  ┘
+[校园网] 反向隧道 :18888（HTTP CONNECT）→ 模型网关（内网地址）
+```
+
+**图 3-1 总体部署拓扑**：平台侧只暴露 mTLS 端点；模型出网经校园隧道；AIP 出站不走该代理，
+避免"模型可达但平台不可达"的相互污染。
+
+
 ## 4. 关键技术实现（对应评分：AI 技术应用 20 分）
 
 ### 4.1 智能体注册与元数据建模
@@ -260,6 +302,49 @@ leader 上下文材料 **196KB→0**，并行度 1→3。
 
 ---
 
+### 4.7 协议对象与状态机（表 4-1、表 4-2）
+
+**表 4-1 AIP Direct 命令与语义**
+
+| 命令 | 方向 | 语义 | 本作品处理 |
+|---|---|---|---|
+| `start` | Leader→Partner | 创建任务并下发内容 | 校验准入（PEP）→ 建立任务 → `accepted` |
+| `get` | Leader→Partner | 幂等读取状态 | 直接返回快照，不产生副作用 |
+| `continue` | Leader→Partner | 向 `awaiting-input` 补充信息 | 仅等待态接受；回填后回到 `working` |
+| `complete` | Leader→Partner | 确认 `awaiting-completion` 的产物 | 终态 `completed`；幂等 |
+| `cancel` | Leader→Partner | 取消任务 | 终态 `canceled`；不可取消态返回 -32002 |
+
+**表 4-2 状态迁移与错误码**
+
+| 当前态 | 事件 | 下一态 | 异常路径 |
+|---|---|---|---|
+| — | start（通过准入） | accepted | 准入拒绝 → rejected |
+| accepted | 开始执行 | working | 内部错误 → failed |
+| working | 需要补充信息 | awaiting-input | 超时 → failed |
+| working | 产出就绪 | awaiting-completion | — |
+| awaiting-input | continue | working | 非法命令 → -32004 |
+| awaiting-completion | complete | completed | 重复 complete 幂等 |
+| 任意非终态 | cancel | canceled | 终态取消 → -32002 |
+
+错误码遵循 AIP：`-32001` 任务不存在、`-32002` 不可取消、`-32004` 不支持的操作、
+`-32005` 内容类型不支持、`-32008` 缺少证书身份、`-32009` 身份不一致。
+
+### 4.8 编排时序与工具面（图 4-2）
+
+```text
+用户 → supervisor：规划 → 选伙伴（名册/发现）→ 准入（PEP）→ start
+        ├─ 并行：独立子任务（wait_many 屏障）
+        ├─ 依赖：占位符传递上游结果
+        ├─ 完成闸门：awaiting-completion → complete
+        └─ 聚合：分区溯源 + 审稿裁决 + 引用核验 → 终稿
+```
+
+**图 4-2 多智能体委派时序**：Supervisor 的工具面包括 `acps_discover`、`acps_delegate`、
+`acps_delegate_public`（纯标量入参，规避数组参数丢失）、`acps_task`（wait/inspect/complete）、
+`wait_partner`、`plan_gate`（可选自检）与 `review_gate`；委派点在代码侧做权威校验
+（伙伴存在、能力归属、AIC 取自 ACS），不依赖模型自述。
+
+
 ## 5. 开源代码改造说明（对应评分：创新性 25 分）
 
 ### 5.1 基线仓库、版本与二次开发范围
@@ -312,6 +397,163 @@ leader 上下文材料 **196KB→0**，并行度 1→3。
 | I6 | 访问计量口径与平台不一致 | 任务级双侧 access（`taskId`）+ 逐条确认转发 + 部署门禁 | 榜单可见、可审计；避免"有调用无名次" |
 
 ---
+
+### 5.4.1 上游改造摘要（表 5-0）
+
+**表 5-0 discovery-server 域可见性改造（分支 `cdap-domain-visibility`）**
+
+| 文件/模块 | 改动 | 目的 |
+|---|---|---|
+| discovery 检索入口 | 增加 `visibility/domains` 谓词与 3× 超取 | 域成员可见、匿名仅 public |
+| ACS 响应投影 | 按身份裁剪 skills 与敏感字段 | 响应不泄露未授权能力 |
+| registry ACS schema | 接受 `visibility/domains` | 让可见性成为声明的一部分 |
+| 通知回调白名单 | 允许受控 origin | 防 SSRF/任意回调 |
+| 健壮性修复 R4–R10 | 参数校验、异常路径、日志 | 稳定性 |
+
+改造保持"元数据收窄"边界：发现层只决定可见性，真正的访问控制仍在 PEP，二者不互相替代。
+
+
+### 5.5 代码量与模块对照（表 5-1）
+
+**表 5-1 改造规模（按目录统计，不含测试）**
+
+| 目录 | 行数 | 性质 |
+|---|---:|---|
+| `acps_cluster/`（agents/core/runtime/delegation/guard/tools） | ~30,000 | 自研（治理 + 编排 + 资源） |
+| `capabilities/` | ~4,000 | 自研（arXiv/矛盾/前沿/数据集/记忆等） |
+| `partners/designer/` | ~3,000 | 自研（研究设计成员） |
+| `partners/wenji/backend/app`（引擎） | 10,051 | 自研（NL2SQL/RAG/跨源/公式/Trace） |
+| `partners/wenji/backend/app/acps`（适配层） | 1,536 | 本届新增（能力声明/桥接/计量/注册） |
+| `partners/wenji/frontend/src` | 972 | 自研（对话/Trace/文档台） |
+| `partners/wenji/cluster-viz`（团队） | — | 自研（集群可视化） |
+| 上游 diff（discovery-server 等） | +1,272 / −170 | 二次开发（48 文件） |
+
+### 5.6 创新点与证据对照（表 5-2）
+
+**表 5-2 每条创新的"原有做法—我方做法—收益—证据"**
+
+| # | 原有做法 | 我方做法 | 收益（量化） | 证据 |
+|---|---|---|---|---|
+| I1 | AAC 委托无实现 | PEP：三级准入 + JWS + jti + 注入 | 2.94× 加速；上下文 196KB→0；并行 1→3 | `test_delegation` 102 项；fanout 报告 |
+| I2 | 统一沙盒 | 五类底座六实例，按风险定制 | 防泄题三路全挡且渗透者正常得分；权重不出域 | 各伙伴专项测试；E 系列 9/9 |
+| I3 | 单任务令牌 | 双签域 + grant 派生 + 冻结 + 双配额 | 跨机构 5/5；冻结即刻生效 | `test_domain` 31 + hardening 16 + visibility 15 |
+| I4 | 只管准入 | guard 管运行期通信风险 | 12 项测试；阳性对照 HIGH 73/100 | guard README |
+| I5 | 能力/协议两套事实 | 一份 `@capability` 三处投影；Leader/Partner 同体 | 声明不漂移；自调/被调双向 | 问迹 4 Skills；双向调用记录 |
+| I6 | 传输边界计量 | 任务级双侧 + 逐条确认 + 门禁 | 榜单可见；2,700+ 唯一 taskId | `amp_access_*` 与平台后台 |
+
+
+### 4.8.1 关键代码片段
+
+**（1）能力声明即资产（问迹）**
+
+```python
+@capability(
+    id="wenji.ask",
+    description="综合问数/问答：可同时涉及业务数据库与知识库文档……",
+    acps_skill=True, public=True, input_modes=["text/plain"],
+    tags=["问数", "问答", "跨源", "可解释"],
+)
+async def ask(question: str) -> dict:
+    session_id = CURRENT_TASK_SESSION.get()      # 按 AIP 任务隔离会话
+    return await bridge.run_in_thread(bridge.answer_question, question, session_id)
+```
+
+同一份声明同时投影为：模型工具（WIT 内编排）、ACS Skill（平台发现）与文档条目；
+`CURRENT_TASK_SESSION` 用 `contextvars` 传递 taskId，使澄清/多轮在任务内闭环、跨任务不污染。
+
+**（2）PEP 准入判定顺序（伪代码）**
+
+```python
+def admit(request):
+    peer = verify_mtls_identity(request)          # 证书 CN/SAN → AIC
+    if peer is None: return deny(-32008)
+    if domain.is_frozen(target_domain):           # 冻结先于验签（急停）
+        return deny("domain_frozen")
+    token = load_by_jti(request.jti)              # 模型只见 jti，不见 JWS
+    if not verify_signature(token, peer): return deny(-32009)
+    if not scope_subset(token, request.skill): return deny("scope")
+    if not quota.consume(token, request): return deny("quota")
+    return allow()
+```
+
+**（3）任务级 AMP 记录（双侧配对）**
+
+```python
+# 被调方（serve）：任务进入首个稳定态时写一条
+await emitter.emit(body, correlation_id=task_id)   # correlationId = taskId
+# 调用方（leader）：任务结束后写一条，caller/callee 对调
+await leader_emitter.emit(body, correlation_id=task_id)
+```
+
+两条记录 `aic` 不同（或同 AIC 自调）、`taskId` 相同，平台即可配对为一次调用/被调用；
+转发器逐条确认后才推进 offset，失败落 DLQ 重投。
+
+
+### 4.9 委托令牌与准入字段（表 4-3）
+
+**表 4-3 Ed25519 JWS 令牌字段与校验**
+
+| 字段 | 含义 | 校验点 |
+|---|---|---|
+| `iss` | 签发者 AIC | 必须是名册内的 leader；签发者授权检查（修复"自签 iss=leader"越权） |
+| `sub` | 主体（能力/资源） | 必须与目标伙伴声明一致 |
+| `aud` | 受众 AIC | 只取与本机 AIC 相等者；防跨节点重放 |
+| `act` | 信任链（谁代谁） | 逐跳校验，派生令牌必须继承父链 |
+| `jti` | 令牌唯一 ID | 单次使用；运行中注入时登记；用于审计与撤销 |
+| `scope` | 能力/资源范围 | 必须 ⊆ 域资产表；域技能需 grant |
+| `exp` / `max_uses` | 有效期/次数 | 过期或用尽即拒；父令牌约束子令牌 |
+| `parent_jti/parent_exp/parent_max_uses` | 父链约束 | 重验父签名/主体/资产并扣父配额 |
+
+**准入判定顺序**（fail-closed）：身份（mTLS/AIC）→ 域状态（冻结先于验签）→ 令牌签名与父链 →
+scope 与资产表 → 配额（签发侧/使用侧）→ 放行并记账。任一步缺失或异常均拒绝并写审计。
+
+### 4.10 通信风险检测（guard，表 4-4）
+
+guard 是 PEP 的补充：PEP 回答"能不能用"，guard 回答"用得对不对"。它以只读旁路读取任务事件，
+按时间窗与行为模式打分，不阻断业务，输出可解释的风险报告。
+
+**表 4-4 风险维度与判定**
+
+| 维度 | 观察量 | 风险信号 |
+|---|---|---|
+| 节奏 | 委派间隔、突发度 | 小于 1 秒的密集调用记为运营突发，不计安全分 |
+| 重放/重复 | 相同 taskId/参数指纹 | 高频重复提交、结果复用异常 |
+| 越界 | 能力/资源与声明不符 | 请求未声明 skill、跨域访问 |
+| 失败模式 | 连续拒绝/超时 | 探测式尝试、异常重试 |
+| 结论 | LOW/MEDIUM/HIGH/INSUFFICIENT_DATA | 样本不足不强判；逐条给维度、规则、分值与样本量 |
+
+### 4.11 资源封装与审计（表 4-5）
+
+**表 4-5 六类资源实例的隔离与审计**
+
+| 实例 | 资产 | 关键防护 | 审计 |
+|---|---|---|---|
+| gpu | 算力时间 | Docker 八条硬边界（白名单/断网/只读 FS/非 root/限额/时限） | 容器审计 + 作业账本 |
+| cpu | 算力时间 | 同沙盒，`use_gpu` 由代码决定 | 同上 |
+| eval | 评测数据 | 标签不进容器、stdout 管制、产物不回传；8% 噪声确定性基准 | 评分账本 + 哈希校验 |
+| kb | 私有语料 | 受限 DSL（无代码执行面）+ 行级过滤 + 字段级三档脱敏 | 查询审计 + meta 列明 |
+| model | 模型权重 | 权重不出域、输入域/批量校验、热替换位 | 推理账本 |
+| workspace | 任务存储 | `task_id` 白名单、路径逃逸拒绝、配额、令牌作用域 | `manifest.jsonl`（actor/sha256/时间） |
+
+### 4.12 三个难点的展开
+
+**难点 1（令牌不可见 + 运行中注入）**：难在"模型会看到一切上下文"与"长任务需要凭证"的矛盾。
+解法分四步：① 签发工具返回 jti 句柄而非令牌；② 返回树断言不含 `token` 字段（测试固定）；
+③ JWS 锁进程内保管库，按 `jti` 索引；④ `delegate_continue` 向运行中任务注入，能力桥接用
+ContextVar 取值并只在本进程出站。效果：脚本版 2.94×、真实 LLM 版 1.73× 加速；leader 上下文
+从 196KB 降到 0；并行度 1→3；且"模型无法打印令牌"成为可回归的断言。
+
+**难点 2（计量口径与部署资产）**：难在平台按 `taskId` 双侧配对，而框架按 RPC 请求 ID 打点，
+一个任务产生多条边界记录；更隐蔽的是"部署覆盖计量钩子"会让历史计数看似存在、实际停止上报
+（10-23 事故导致榜单清零一天）。解法：应用层补任务级双侧记录（被调方 TaskAccessHooks、
+调用方 leader emitter），转发器改 confluent-kafka + `acks=all` + 逐条确认 + DLQ + 断点续传，
+并把"钩子是否在生效"做成部署前门禁。效果：唯一 taskId 记录 2,700+、无重复、榜单恢复稳定。
+
+**难点 3（一次性注册 + IP 端点证书）**：难在 WIT 激活后声明不可变，就地修改会拒绝启动；
+IP 直连端点又因 WIT 2.1.0 不写 IP SAN 而无法签发。解法：能力演进走"新版本 + 新工作区"，
+并文档化注册—领证—切换的校验点（CN/SAN/EKU/链/私钥匹配）；IP 场景改走本地 CA 身份（路线 B）。
+效果：平台身份稳定、能力可迭代；缺陷与修复建议已回馈上游。
+
 
 ## 6. 梧桐平台接入与全流程验证（对应评分：应用成效 10 分 / AI 技术应用 20 分）
 
@@ -402,6 +644,76 @@ Leader                                                                  │
 
 ---
 
+### 6.5.1 测试用例样例（表 6-0）
+
+**表 6-0 典型验收用例（节选）**
+
+| 用例 | 输入 | 期望 | 实测 |
+|---|---|---|---|
+| 公开能力直调 | 匿名 leader 调 public skill | 放行 | 通过 |
+| 白名单外调用 | 非名单 AIC 调 L1 能力 | 拒绝并记审计 | 通过 |
+| 无令牌调域技能 | 普通令牌调 `visibility=domain` | 拒绝 | 通过 |
+| 令牌次数用尽 | `max_uses` 耗尽后再调 | 拒绝 | 通过 |
+| 域冻结 | 冻结后使用存量令牌 | 拒绝（验签前） | 通过 |
+| 自签越权 | 伪造 `iss=leader` | 拒绝（签发者授权检查） | 复现→修复 |
+| 评测泄题 | 容器内读测试标签 | 不可读；三路渗透全挡 | 通过 |
+| 知识库越权字段 | consumer 读 curator 字段 | 静默丢弃并在 meta 列明 | 通过 |
+
+
+### 6.6 可复现验证步骤
+
+```bash
+# 1) 平台身份与技能（问迹）
+cd partners/wenji/backend
+.venv/bin/python -m app.acps.cli status          # 本地注册状态（AIC/证书路径）
+.venv/bin/python -m app.acps.cli check           # 声明/ACS 本地校验（无网络）
+# 2) 公网健康（strict mTLS）
+curl -sk --cert .wit/wenji-aip-agent/acps/client/certificate.pem \
+  --key .wit/wenji-aip-agent/acps/client/private-key.pem \
+  --cacert .wit/wenji-aip-agent/acps/trust-bundle.pem \
+  https://8.160.176.215:8601/health
+# 3) 发现 + 双向调用（One-shot）
+.venv/bin/python scripts/acps/aip_selftest.py --query "问数 数据库 文档问答" --no-delegate
+.venv/bin/python scripts/acps/aip_selftest.py --partner-aic <SUPERVISOR_AIC> --query "科研任务调度规划" \
+  --question "请介绍你能提供的科研任务调度能力，并给出一个示例任务规划。"
+# 4) 计量核对
+python3 - <<'EOF'
+import json,glob,collections
+c=collections.Counter()
+for f in glob.glob(".wit/wenji-aip-agent/logs/amp_access_*.jsonl"):
+    for l in open(f):
+        l=l.strip()
+        if l:
+            cid=str(json.loads(l).get("correlation_id") or "")
+            if cid.startswith("task-"): c[cid]+=1
+print("唯一 taskId:", len(c), "| 双侧:", sum(1 for v in c.values() if v>=2))
+EOF
+```
+
+### 6.7 兼容性问题与事故时间线
+
+| 日期 | 事件 | 影响 | 处置 |
+|---|---|---|---|
+| 10-15 | 平台 URL 拼接规则（服务根 vs 完整端点）踩坑 | 404 | 区分 registry/ca 与 discovery 写法 |
+| 10-15 | ACS 已批准后修改声明 | serve 拒启 | 恢复状态 + 声明版本门控 |
+| 10-19 | AMP journal 跨进程写冲突（524 次/6h） | 任务级记录丢失 | 独立 journal + 单写者 |
+| 10-23 | 部署覆盖服务器侧计量钩子 | 榜单清零一天 | 部署门禁 + 复盘文档 |
+| 10-27 | 校园隧道中断 | 模型不可达 | 零开销暂停 + 自动恢复脚本 |
+
+### 6.8 性能与容量（表 6-1）
+
+**表 6-1 关键指标（截至 2026-10-27）**
+
+| 指标 | 值 | 口径/环境 |
+|---|---|---|
+| 公网 health | P50 ≈ 0.16 s | VPS 2C/4G，mTLS，5 次 |
+| RPC 边界 | P50 53 ms / P95 320 ms | n=62，不含 LLM |
+| 任务往返 | 20–55 s | 6–8 并发，qwen3.8-27b |
+| 检索 P50 | 10 篇 7.4 ms → 1000 篇 133 ms | 116/300/3000 chunks |
+| Schema Linking | 11 表 55 ms → 71 表 160 ms | 语义卡召回+精排 |
+| 单任务模型成本 | ¥0 | 校园网关免费额度；本地代理 |
+
+
 ## 7. 项目实施（对应评分：项目实施 15 分）
 
 ### 7.1 里程碑计划与实际
@@ -445,6 +757,28 @@ Leader                                                                  │
 
 ---
 
+### 7.5 交付物清单
+
+| 交付物 | 位置 | 状态 |
+|---|---|---|
+| 集群核心与三大机制 | `acps_cluster/` | 完成（757 单测） |
+| 问迹引擎与 AIP 适配 | `partners/wenji/` | 完成（4 Skills，平台 active） |
+| 研究设计成员 | `partners/designer/` | 完成 |
+| 集群可视化 | `cluster-viz/` | 完成 |
+| 技术报告 | `partners/wenji/docs/aic/report/` | 初稿完成，待补截图 |
+| 演示视频/PPT | 〔待补〕 | 进行中 |
+| 一键部署/测试 | `deploy/`、`run_all_tests.py` | 完成 |
+
+### 7.6 团队协作机制
+
+- **单一事实源**：名册只存元数据（module/workspace/port/declared_capabilities），AIC 与端点从
+  `acs.final.json` 解析，避免多处硬编码漂移；
+- **变更流程**：代码 → `make_acs.py` 投影 → `validate_acs.py` 校验 → 部署门禁 → 服务重启；
+- **接口契约**：跨成员只通过 AIP 任务契约与 ACS 交互，不共享进程/存储；
+- **周节奏**：周一对齐风险清单（令牌 TTL、隧道、配额、计量钩子），周五冻结提交物；
+- **诚实文化**：失败/拒件/降级均留痕，评审只认可复核证据。
+
+
 ## 8. 应用成效与案例（对应评分：应用成效 10 分 / 实用性）
 
 ### 8.1 落地场景
@@ -475,6 +809,29 @@ Leader                                                                  │
 "受治资源接入套件"，面向高校算力平台与科研机构私有数据场景。
 
 ---
+
+### 8.4 业务价值与成本
+
+| 维度 | 价值 |
+|---|---|
+| 效率 | 文献→综述链路自动化，DeepResearch 六阶段产出 11,575 字符综述；AutoResearch 18 轮自动复现 |
+| 成本 | 单任务模型成本 ¥0（校园网关免费额度）；GPU 按任务隔离，失败可重试 |
+| 风险 | 授权可撤销、冻结急停、防泄题三闸门；通信风险旁路检测 |
+| 可复制 | 名册 + ACS 投影 + PEP/域，支持新资源方 1 天内接入 |
+| 社会效益 | 为高校算力/数据共享提供"可授权、可计量、可审计"的协议化样板 |
+
+### 8.5 案例细节
+
+**案例 A（DeepResearch）**：9 篇真实文献检索 → 逐篇萃取四要素 → 核验前置 → 结构化综述
+（11,575 字符）→ 审稿对账；Contradiction 伙伴缺失时按纪律降级，不编造矛盾对。
+
+**案例 B（AutoResearch）**：真 AIP 链路 18 轮；leader → experiment → gpu（容器）→ eval
+全程走协议与委托令牌；账本记录 `verdictSource=host-score`（0.9 ≥ 0.85），预测文件 sha256
+在第 12/13/14/16/18 轮逐字节一致；第 17 轮拿不到独立分数时如实记 `inconclusive`。
+
+**案例 C（问迹）**：为集群提供问数与文档问答；NL2SQL 61/61、RAG 41/41、跨源 11/11、澄清 30/30；
+回答附 SQL/引用/公式步骤与 Trace，可作为"数据结论可复核"的样板。
+
 
 ## 9. 总结与展望（对应评分：总结与展望 10 分）
 
@@ -512,6 +869,19 @@ Leader                                                                  │
 - 将域可见性改造与 WIT 缺陷修复提交上游，持续回馈 AIP-PUB 社区。
 
 ---
+
+### 9.5 建议的落地路线（表 9-1）
+
+**表 9-1 标准化建议的落地方式与预期收益**
+
+| 建议 | 落地方式 | 预期收益 |
+|---|---|---|
+| ACS 版本化/热更新 | 注册中心增加 revision 与灰度字段；框架支持"同 AIC 多版本" | 能力迭代不再换身份，减少重注册成本 |
+| AMP 计量口径 | 规范附录给出 taskId 双侧配对、采样与 logId 幂等；提供一致性测试 | 榜单/计费/审计口径统一，跨团队可比 |
+| AAC 委托参考实现 | SDK 提供令牌签发/校验/撤销/配额模块 | 跨组织协作门槛下降，安全默认开启 |
+| IP 端点证书 | 明确 IP SAN 签发与校验；框架修复 | 内网/IP 直连场景可用，不再"注册成功但服务起不来" |
+| 发现谓词下推 | discovery-server 支持 visibility/domains 下推 | 大目录检索性能与语义正确性同时提升 |
+
 
 ## 10. 附录
 
@@ -558,6 +928,38 @@ Leader                                                                  │
 - 上游 discovery-server 的域可见性改造以 diff 形式标注（48 文件，+1272/−170），未合并上游；
 - 第三方数据与模型（Chinook、BGE、MinerU/PaddleOCR 等）授权说明见 `partners/wenji/NOTICE.md`；
 - 本作品不含任何密钥、证书私钥与平台凭据。
+
+### 10.6 测试清单（表 10-1）
+
+**表 10-1 测试与验收分布**
+
+| 类别 | 数量 | 说明 |
+|---|---:|---|
+| 离线单测（团队） | 757 | PEP/域/资源/编排/guard/工作区等 |
+| PEP 专项 | 102 | 含越权复现与修复回归 |
+| 域/硬化/可见性 | 31 + 16 + 15 | 章程、派生、冻结、可见性 |
+| 资源伙伴专项 | 全量内 | GPU/CPU/评测/KB/模型/工作区 |
+| 问迹引擎 | 273 | 单测 + 集成（NL2SQL/RAG/跨源/公式/Trace） |
+| 问迹 AIP 适配 | 18 | 声明/ACS/计量/状态 API |
+| 场景验收 | 7 类 | 16/16、11/11、10/10、9/9、9/9、7/7、5/5 |
+
+### 10.7 图表索引
+
+| 编号 | 名称 | 位置 |
+|---|---|---|
+| 图 3-1 | 总体部署拓扑 | 3.6 |
+| 图 4-1 | 心跳与发现链路 | 4.2 |
+| 图 4-2 | 多智能体委派时序 | 4.8 |
+| 图 6-1 | 平台接入拓扑 | 6.1 |
+| 图 6-2 | 注册→发现→互联→访问时序 | 6.2 |
+| 表 4-1/4-2 | AIP 命令与状态机 | 4.7 |
+| 表 4-3 | 委托令牌字段 | 4.9 |
+| 表 4-4 | guard 风险维度 | 4.10 |
+| 表 4-5 | 资源实例隔离与审计 | 4.11 |
+| 表 5-1/5-2 | 改造规模/创新证据 | 5.5/5.6 |
+| 表 6-1 | 关键性能指标 | 6.8 |
+| 表 9-1 | 标准化建议落地 | 9.5 |
+
 
 ### 10.5 佐证材料索引
 

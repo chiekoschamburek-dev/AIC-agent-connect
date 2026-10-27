@@ -1,5 +1,7 @@
 # 问迹 · AIP 智能体互联接入说明
 
+> 团队级技术报告全文：[`report/AIC_technical_report.md`](report/AIC_technical_report.md)
+
 > 第八届全球校园人工智能算法精英大赛 · AIC·智能体互联主题赛
 > 最后更新：2026-10-14（距初赛提交截止 2026-10-15 20:00 约 21 小时）
 
