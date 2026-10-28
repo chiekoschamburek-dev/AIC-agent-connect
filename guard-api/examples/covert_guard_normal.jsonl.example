@@ -1,0 +1,4 @@
+{"task_ref":"task-normal-demo","event_seq":1,"event_type":"task-result","created_at":"2026-10-20T08:00:00Z","event_data":{"status":{"state":"accepted"}}}
+{"task_ref":"task-normal-demo","event_seq":2,"event_type":"task-status-update","created_at":"2026-10-20T08:00:00.800Z","event_data":{"status":{"state":"working"}}}
+{"task_ref":"task-normal-demo","event_seq":3,"event_type":"task-status-update","created_at":"2026-10-20T08:00:08.200Z","event_data":{"status":{"state":"awaiting-completion"}}}
+{"task_ref":"task-normal-demo","event_seq":4,"event_type":"task-status-update","created_at":"2026-10-20T08:00:14.100Z","event_data":{"status":{"state":"completed"}}}

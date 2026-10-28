@@ -26,7 +26,20 @@ ROOT = Path(__file__).resolve().parent
 TESTS = ROOT / "acps_cluster" / "tests"
 # 队友 guard 组件自带测试（经 acps_cluster/covert_event_guard.py shim 原样导入）。
 GUARD_TESTS = ROOT / "acps_cluster" / "guard" / "tests"
+# guard-api（FastAPI 接口层）测试；依赖 fastapi/uvicorn/httpx，未安装时跳过。
+GUARD_API_TESTS = ROOT / "guard-api" / "tests"
+
+
+def _guard_api_available() -> bool:
+    return all(
+        importlib.util.find_spec(name) is not None
+        for name in ("fastapi", "uvicorn", "httpx")
+    )
+
+
 TEST_DIRS = [TESTS, GUARD_TESTS]
+if GUARD_API_TESTS.is_dir() and _guard_api_available():
+    TEST_DIRS.append(GUARD_API_TESTS)
 
 # 无副作用子集：不启动 Docker、不发外部网络请求；仍然需要 dev 私钥才能跑签名用例，
 # 缺私钥时这些用例会 skip（不是 fail）。
@@ -68,7 +81,10 @@ def main() -> int:
 
     print(f"Python {platform.python_version()} | {platform.platform()}")
     print(f"repo   {ROOT} | HEAD {_git_head()}")
-    print(f"mode   {'quick' if args.quick else 'full'}{' / collect-only' if args.collect else ''}\n")
+    print(f"mode   {'quick' if args.quick else 'full'}{' / collect-only' if args.collect else ''}")
+    if GUARD_API_TESTS.is_dir() and GUARD_API_TESTS not in TEST_DIRS:
+        print("note   guard-api 测试已跳过（缺 fastapi/uvicorn/httpx；pip install -r guard-api/requirements.txt）")
+    print()
 
     if not TESTS.is_dir():
         print(f"找不到测试目录：{TESTS}", file=sys.stderr)
@@ -87,7 +103,7 @@ def main() -> int:
         return 2
     modules = QUICK_MODULES if args.quick else sorted(
         str(path.relative_to(ROOT)).replace("/", ".")[:-3]
-        for directory in TEST_DIRS
+        for directory in (TESTS, GUARD_TESTS)   # guard-api 目录名含 "-"，仅 pytest 可收集
         for path in directory.glob("test_*.py")
     )
     return _run([sys.executable, "-m", "unittest", "-v", *modules])

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acps-guard-api"
+version = "0.1.0"
+description = "ACPS Event Channel Guard 的 HTTP 接口(只读旁路,可独立运行或挂载进 supervisor)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MulanPSL-2.0" }
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28",   # fastapi TestClient 依赖
+]
+
+[tool.setuptools.packages.find]
+include = ["guard_api*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -70,7 +70,8 @@
 
 - 外部组件代码：**零业务改动**。问迹以 subtree 原样引入；guard 与 designer 纯拷贝。
 - 本仓库新增（我方）：
-    acps_cluster/guard_adapter.py           guard → supervisor 只读旁路适配层
+    acps_cluster/guard_adapter.py           guard → supervisor 只读旁路适配层（CLI/留档）
+    guard-api/                              guard 的 HTTP 接口层（FastAPI；独立进程或挂载 supervisor）
     acps_cluster/covert_event_guard.py      兼容 shim（一行转发）
     acps_cluster/tests/test_guard_adapter.py 适配层测试
     docs/architecture.md、docs/README.md、README.md  整合说明
@@ -87,5 +88,10 @@
     smoke_* 引用）与 demo_autoresearch.py（被 test_ar_wiring_offline 引用）。
   * test_skill_scope_wiring.py 改为内联 AgentProviderProfile，不再依赖已删除的
     ACS 声明稿。
+- guard-api 的仓库侧修复（2026-10-28）：Bearer 鉴权参数由
+  `Annotated[str | None, Header()] = None` 改为 `str | None = Header(default=None)`——
+  前者在本模块 `from __future__ import annotations` 下被 FastAPI 误判为 query 参数，
+  导致配置 token 后所有请求（含正确 token）都返回 401。检测逻辑与阈值零改动，
+  修复后 20 项 API 测试全过。
 - 不入库：真实 .env、tokens/、证书私钥、ws-* 运行时数据、datasets/、eval-private/、
   demo_run/、二进制 wheel（wit_framework 与 designer wheels/）、嵌入 .git。

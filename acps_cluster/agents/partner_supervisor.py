@@ -437,6 +437,10 @@ async def serve() -> None:
     INBOX.mkdir(parents=True, exist_ok=True)
     OUTBOX.mkdir(parents=True, exist_ok=True)
     await _seed_discovery()
+    # guard-api（ACPS Event Channel Guard 只读旁路 HTTP 接口）：默认关闭，设了
+    # ACPS_GUARD_API_PORT 才挂载。uvicorn 跑在 supervisor 自己的事件循环里，与宿主
+    # 同生共死；db 缺省沿用本 ws 的任务库约定。挂载失败只降级、不阻断主管线。
+    guard_api: tuple | None = None
     try:
         result = await runtime.up_until_ready(
             serve=True,
@@ -449,11 +453,40 @@ async def serve() -> None:
             raise SystemExit(2)
         aic = result.identity.aic if result.identity else "?"
         print(f"[supervisor] 常驻已上线 AIC={aic} 收件箱={INBOX}（投递 <名字>.txt 即可）", flush=True)
+        guard_port = os.getenv("ACPS_GUARD_API_PORT", "").strip()
+        if guard_port:
+            start_guard_api = None
+            try:
+                from guard_api.mount import start_guard_api
+            except ImportError:
+                # 仓库内直接可用：把 guard-api/ 加入 sys.path（无需 pip install -e）。
+                sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "guard-api"))
+                try:
+                    from guard_api.mount import start_guard_api
+                except ImportError as exc:
+                    print(f"[supervisor] guard-api 未安装({exc})，跳过挂载；"
+                          f"需要时 pip install -e guard-api", flush=True)
+            if start_guard_api is not None:
+                guard_db = (os.getenv("ACPS_GUARD_DB", "").strip()
+                            or str(WORKSPACE / "acps" / "aip-tasks.sqlite3"))
+                try:
+                    guard_api = await start_guard_api(guard_db, port=int(guard_port))
+                    print(f"[supervisor] guard-api 已挂载 http://127.0.0.1:{guard_port} "
+                          f"db={guard_db}（只读旁路，advisory-only）", flush=True)
+                except Exception as exc:  # noqa: BLE001  端口占用等不阻断主管线
+                    print(f"[supervisor] guard-api 挂载失败({type(exc).__name__}: {exc})，跳过",
+                          flush=True)
         while True:
             for path in sorted(INBOX.glob("*.txt")):
                 await run_inbox_task(runtime, roster, path)
             await asyncio.sleep(POLL_SECONDS)
     finally:
+        if guard_api is not None:
+            try:
+                from guard_api.mount import stop_guard_api
+                await stop_guard_api(*guard_api)
+            except Exception as exc:  # noqa: BLE001  旁路停止失败不应挡住退出
+                print(f"[supervisor] guard-api 停止失败({type(exc).__name__}: {exc})", flush=True)
         await runtime.stop_serving()
         await provider.aclose()
 

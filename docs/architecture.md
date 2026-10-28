@@ -137,12 +137,17 @@ acps_cluster/guard/covert_event_guard.py   外部检测器（纯拷贝，零改�
         ▲ load_sqlite / analyze_events
         ▲ load_peer_tasks_sqlite / analyze_peer_timing
         │
-acps_cluster/guard_adapter.py              本仓库新增
-        ├── scan()            → GuardReport（单任务 + 跨任务 peer timing）
-        ├── write_report()    → guard-report-<ts>.json + latest.json
-        ├── publish_viz_alerts() → cluster-viz/public/scenarios/guard-alerts.json
-        ├── attach_recorder() → viz_live.Recorder.guard_alert()（run 内事件流）
-        └── main()            → 一次性 / --interval 周期模式
+        ├── guard-api/                     本仓库新增：HTTP 接口层（FastAPI）
+        │   ├── guard_api/app.py           /health /scan /tasks /peer-timing /events
+        │   ├── guard_api/report.py        scan() → GuardReport（不落盘）
+        │   └── guard_api/mount.py         start/stop_guard_api（supervisor 进程内）
+        │
+        └── acps_cluster/guard_adapter.py  本仓库新增：CLI / 留档层
+            ├── scan()            → GuardReport（单任务 + 跨任务 peer timing）
+            ├── write_report()    → guard-report-<ts>.json + latest.json
+            ├── publish_viz_alerts() → cluster-viz/public/scenarios/guard-alerts.json
+            ├── attach_recorder() → viz_live.Recorder.guard_alert()（run 内事件流）
+            └── main()            → 一次性 / --interval 周期模式
 ```
 
 ### 6.3 报告契约（节选）
@@ -186,6 +191,22 @@ python -m acps_cluster.guard_adapter --db /path/to/acps/aip-tasks.sqlite3 --inte
 ```
 
 默认输出目录 `acps_cluster/ws-supervisor/guard/`（属 `ws-*` 运行时目录，不入库）。
+
+**HTTP 接口层**（`guard-api/`，可选依赖 `pip install -r guard-api/requirements.txt`）：
+
+```bash
+# 独立进程
+python -m guard_api --db /path/to/acps/aip-tasks.sqlite3 --port 8778
+
+# 挂载进 supervisor：设了才启用，与宿主同一事件循环、同生共死
+export ACPS_GUARD_API_PORT=8778
+export ACPS_GUARD_DB=acps_cluster/ws-supervisor/acps/aip-tasks.sqlite3
+```
+
+`guard-api` 的检测器与 `acps_cluster/guard/` 同源；`report.py` 沿用 `guard_adapter` 的
+`GuardReport` 契约但**不落盘**。仓库侧修复了一处 Bearer 鉴权缺陷（`Annotated[..., Header()]`
+在 `from __future__ import annotations` 下被 FastAPI 误判为 query，导致 token 模式全部 401），
+修复后 20 项 API 测试全过；该改动在 NOTICE 中记录。
 
 ---
 

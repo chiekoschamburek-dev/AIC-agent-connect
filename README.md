@@ -35,6 +35,7 @@ yanshu-AIC/
 │   ├── designer/                 # 设计 agent（src / tests / config.examples / systemd）
 │   └── wenji/                    # 问迹（团队自研问数/问答智能体，含其自有 frontend/）
 ├── cluster-viz/                  # 集群总览前端（React + Vite + ReactFlow）
+├── guard-api/                    # guard 的 HTTP 接口层（FastAPI；独立进程或挂载 supervisor）
 ├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、运行手册
 ├── project.md                    # 项目总览、实验与量化证据
 ├── requirements.txt / pyproject.toml
@@ -211,7 +212,7 @@ yanshu-AIC/
 | 输入 | 身份、令牌、域策略、配额 | `aip_task_events` / `aip_tasks`（只读） |
 | 输出 | allow / deny + 规则 | LOW / MEDIUM / HIGH + 可解释发现 |
 | 动作 | 拦截或放行 | **只告警，不阻断** |
-| 实现 | `acps_cluster/delegation/pep.py` | `acps_cluster/guard/covert_event_guard.py` |
+| 实现 | `acps_cluster/delegation/pep.py` | 检测器 `acps_cluster/guard/covert_event_guard.py`；接口层 `guard-api/`；留档 `acps_cluster/guard_adapter.py` |
 
 数据流：
 
@@ -221,15 +222,23 @@ ACPs / 梧桐任务事件
 aip_tasks / aip_task_events  ←── PEP 事前判定（allow/deny）
         ↓
 acps_cluster/guard/covert_event_guard.py  ←── 只读旁路（mode=ro）
-        ↓
-acps_cluster/guard_adapter.py  ←── 定时扫描、汇总、发布
-        ↓
-风险报告 JSON + 结构化日志 + viz 告警
+        ├── guard-api/（FastAPI）──→ /health /scan /tasks /peer-timing /events
+        │                            在线查询，仅返回 JSON、不落盘
+        └── guard_adapter.py ──────→ 周期报告 JSON + 结构化日志 + viz 告警（留档）
         ↓
 Supervisor / 人工复核
         ↓
 （必要时，人工决定）走既有 PEP 流程限速 / 撤销授权 / 冻结域
 ```
+
+**两条通道，同一份报告契约**：
+
+- `guard-api`：面向在线查询与前端/运维；默认关闭，可独立进程
+  （`python -m guard_api`）或**挂载进 supervisor 的 asyncio 事件循环**
+  （`ACPS_GUARD_API_PORT`，与宿主同生共死）；
+- `guard_adapter.py`：面向周期留档、结构化日志与 viz 告警（`--interval` / CLI）。
+
+两者共用 `GuardReport` 字段（含 `disposition` / `pep_semantics`），均只读、均不自动处置。
 
 **适配层不改变 PEP 语义**：不签发、不撤销、不改令牌、不改域策略、不自动阻断。
 报告里 `disposition: "advisory-only"`、`pep_semantics: "untouched"` 是显式契约。
@@ -257,12 +266,19 @@ python -m acps_cluster.guard_adapter --db /path/to/aip-tasks.sqlite3
 # 周期模式（常驻，类似 systemd）：
 python -m acps_cluster.guard_adapter --db /path/to/aip-tasks.sqlite3 --interval 300
 
-# 4) 扩展组件自带测试
+# 4) guard HTTP API（可选依赖：pip install -r guard-api/requirements.txt）
+python -m guard_api --db /path/to/aip-tasks.sqlite3 --port 8778
+#   挂载进 supervisor（默认关闭，设了才启用；与宿主同生共死）：
+#   export ACPS_GUARD_API_PORT=8778
+#   export ACPS_GUARD_DB=acps_cluster/ws-supervisor/acps/aip-tasks.sqlite3
+
+# 5) 扩展组件自带测试
 python -m pytest acps_cluster/guard/tests -q          # 12 项
+python -m pytest guard-api/tests -q                   # 20 项（FastAPI/挂载/鉴权）
 ```
 
 ```bash
-# 5) 前端 viz
+# 6) 前端 viz
 cd cluster-viz
 npm ci && npm run dev        # http://localhost:5178
 ```
@@ -314,6 +330,7 @@ cat partners/designer/SUBMISSION_README.md
 | [docs/third-party-compute.md](docs/third-party-compute.md) | 第三方算力 / 商业域 |
 | [docs/runbook-add-new-agent.md](docs/runbook-add-new-agent.md) | 新增 agent 的铸造/注册/验收 |
 | [acps_cluster/guard/README.md](acps_cluster/guard/README.md) | 三维事件通信风险检测器 |
+| [guard-api/README.md](guard-api/README.md) | guard HTTP API：端点、鉴权、supervisor 挂载 |
 | [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md) | 设计 agent 提交说明 |
 | [partners/wenji/README.md](partners/wenji/README.md) | 问迹（多模态可解释问答 agent） |
 

@@ -1,5 +1,5 @@
-# 研枢（yanshu-AIC）依赖清单（方案一 main.py 与方案三 acps_cluster 共用）
-# 安装：pip install -r requirements.txt   （在 my-project/ 目录下执行）
+# 研枢（yanshu-AIC）依赖清单（supervisor + acps_cluster + guard-api 共用）
+# 安装：pip install -r requirements.txt   （在仓库根目录执行）
 # 离线服务器可先在本机打包：
 #   pip download -r requirements.txt -d wheels/
 # 然后把 wheels/ 上传，服务器执行 pip install --no-index --find-links wheels/ -r requirements.txt
@@ -20,7 +20,14 @@ pydantic>=2.10.0
 cryptography>=42.0.0
 jcs>=0.2.0
 
-# 说明：acps_cluster/bootstrap.py 的 .env 加载是零依赖自实现（load_env_file），无需 python-dotenv。
+# ---- guard-api（可选 HTTP 接口层）----
+# 只有启用 guard-api（独立进程或挂载进 supervisor）时才需要；也可直接
+#   pip install -r guard-api/requirements.txt
+# fastapi>=0.110
+# uvicorn>=0.29
+# httpx>=0.28          # 测试用（fastapi.testclient）
+
+# 说明：acps_cluster/core/bootstrap.py 的 .env 加载是零依赖自实现（load_env_file），无需 python-dotenv。
 # 标准库（asyncio/json/pathlib/re/os/sys/time/datetime/dataclasses/typing/
 # collections.abc/xml.etree）不列入。
 # acps_cluster/group（消息队列群组）如需启用，追加：aio-pika>=10.0.1,<11

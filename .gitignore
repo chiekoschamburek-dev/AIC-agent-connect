@@ -33,6 +33,7 @@ tokens/
 # ---- 运行时数据与中间产物 --------------------------------------------------
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

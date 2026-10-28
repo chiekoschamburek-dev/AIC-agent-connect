@@ -1,0 +1,8 @@
+# guard-api 依赖(FastAPI 方案)
+# 安装:在 guard-api/ 目录下执行 pip install -r requirements.txt
+# 或作为可编辑包安装(供 my-project supervisor 挂载导入):pip install -e .
+fastapi>=0.110
+uvicorn>=0.29
+
+# 测试用(fastapi.testclient 需要 httpx)
+httpx>=0.28

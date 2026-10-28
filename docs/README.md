@@ -37,6 +37,7 @@
 | 文档 | 用途 |
 |---|---|
 | [../acps_cluster/guard/README.md](../acps_cluster/guard/README.md) | 三维事件通信风险检测器（Storage / Timing / Behavioral） |
+| [../guard-api/README.md](../guard-api/README.md) | guard HTTP API：端点、鉴权、supervisor 进程内挂载 |
 | [../acps_cluster/guard/docs/covert-event-guard.md](../acps_cluster/guard/docs/covert-event-guard.md) | guard 设计与威胁模型映射 |
 | [../partners/designer/SUBMISSION_README.md](../partners/designer/SUBMISSION_README.md) | 设计 agent（ACPs Direct + AMP→Kafka） |
 | [../partners/designer/SERVER_DEPLOY.md](../partners/designer/SERVER_DEPLOY.md) | 设计 agent 部署 |
