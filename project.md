@@ -174,7 +174,7 @@ Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
 
 | 主题 | 路径 |
 |---|---|
-| 委托授权层设计/实现/迭代记录 | `../PEP_design.md`、`../PEP-result.md`（在父目录，与 `my-project/` 同级） |
+| 委托授权层设计/实现/迭代记录 | `docs/PEP_design.md`、`docs/PEP-result.md`（研发期原始记录，已入库） |
 | RFC 草案 | `../RFC_delegation_domain_draft.md` |
 | 三阶段复现 | `acps_cluster/demo_run/repro-phase{A,B,C}/` |
 | 域×真 GPU / 两机构 | `acps_cluster/demo_run/{domain-real-gpu,two-org-domain}/` |
