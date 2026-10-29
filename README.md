@@ -26,7 +26,7 @@ yanshu-AIC/
 │   ├── delegation/               # ★ 互联机制：PEP 准入、委托令牌、协作域、工作区令牌
 │   ├── guard/                    # ★ 事件通信风险检测器（纯拷贝，剥 .git）
 │   ├── guard_adapter.py          # ★ 新代码：guard → supervisor 旁路适配层
-│   ├── covert_event_guard.py     # 兼容 shim（让队友原模块路径继续可用）
+│   ├── covert_event_guard.py     # 兼容 shim（保留原模块路径）
 │   ├── deploy/                   # 运行单元、AMP 上报组件、发布/预检脚本
 │   ├── policy-projections/       # 域授权的策略投影（公开声明）
 │   └── tests/                    # 集群测试（含 guard_adapter 测试）
@@ -45,7 +45,7 @@ yanshu-AIC/
 ```
 
 > `partners/wenji/frontend/` 与 `cluster-viz/` **职责不同、不合并**：前者是问迹
-> agent 的内部界面（上传、问答、Trace），后者是全集群总览与任务回放。
+> agent 自身的界面（上传、问答、Trace），后者是全集群总览与任务回放。
 >
 > **ACS 声明稿不随仓库分发**：各 agent 的 `acs.*.filled.json` / `.resubmit.json`
 > 快照已移除，避免仓库堆积多版本公开声明；需要时用
@@ -55,7 +55,7 @@ yanshu-AIC/
 
 ---
 
-## 二、五部分导览
+## 二、团队组件与创新点
 
 ### 1. Agents（15 个参赛 agent + 1 个编排器）
 
@@ -84,9 +84,9 @@ yanshu-AIC/
 
 **编排器**：`acps_cluster/agents/supervisor.py`（入口 `partner_supervisor.py`），负责发现 →
 计划 → 委派 → 等待产物 → 汇总。名册另含 `eval` / `model` 两个早期资源节点
-（`agents/partner_eval.py`、`agents/partner_model.py`），以及 `designer` / `wenji` 外部成员条目。
+（`agents/partner_eval.py`、`agents/partner_model.py`），以及 `designer` / `wenji` 两个团队伙伴条目。
 
-**外部 agent（2）**：`partners/designer/`（Research Designer）、`partners/wenji/`（问迹）。
+**团队贡献 agent（2）**：`partners/designer/`（Research Designer）、`partners/wenji/`（问迹）。
 
 ### 2. 互联机制（创新点）
 
@@ -151,14 +151,12 @@ yanshu-AIC/
 - **安全告警栏位**：`viz_live.Recorder.guard_alert()` 把通信风险告警写进事件流；
   `guard_adapter` 另发布 `cluster-viz/public/scenarios/guard-alerts.json` 快照。
 
----
-
-## 三、外部组件的创新点
+### 6. 团队贡献组件的创新点
 
 这些能力不是简单拼盘：每个组件解决的是集群自身不覆盖的一段问题，
 并以可运行代码 + 可复核数据的形式落在本仓库里。
 
-### 1. Research Designer：把"研究方案"变成可校验的契约
+#### 6.1 Research Designer：把"研究方案"变成可校验的契约
 
 | 创新点 | 机制 | 区别于常见做法 |
 |---|---|---|
@@ -168,20 +166,22 @@ yanshu-AIC/
 | 输出契约 | 8 个必需字段 + 5 种状态（complete / needs_evidence / needs_data / needs_pilot / needs_multiple_inputs） | Leader 可据此判定"继续 / 补数据 / 退回"，编排可重试 |
 | 计量不丢 | AMP JSONL → `amp.heartbeat` / `amp.access`，broker ack 后原子记录 offset | 重启断点续传，计量链路不重不漏 |
 
-### 2. ACPS Event Channel Guard：从"权限可信"到"通信行为可信"
+#### 6.2 ACPS Event Channel Guard + RunGuard：通信取证与运行止损
 
 | 创新点 | 机制 | 证据 |
 |---|---|---|
-| 覆盖 PEP 之外的风险 | 即使 AIC 合法、令牌有效，仍检测异常载荷、时序与状态机 | 与 PEP 互补（见下一节） |
+| 覆盖 PEP 之外的风险 | 即使 AIC 合法、令牌有效，仍检测异常载荷、时序与状态机 | 与 PEP 互补（见 7 小节） |
 | 三维通道映射到 ACPs | Storage：长度 / Base64 / 熵；Timing：间隔规律 / 长短交替；Behavioral：状态倒退 / 机械切换 | 直接读 `aip_task_events` / `aip_tasks` 真实字段 |
 | 稀疏事件跨任务检测 | 按 direction + local + remote 聚合，1 小时空闲切会话，≥6 个有效间隔才评分 | 140 个历史任务（每任务 3–5 事件）→ 7 个可分析会话 |
 | 运行突发与安全风险分离 | 小于 1 秒的间隔记 `operational_burst`，不计安全分 | 减少把并发/重试误判为攻击 |
 | 保守且可解释 | LOW / MEDIUM / HIGH / INSUFFICIENT_DATA，逐条给维度、规则、分值与样本量 | 样本不足不强判 |
 | 只读旁路 | SQLite `mode=ro`，不写任务库、不自动阻断 | 12 项测试；阳性对照 HIGH 73/100 |
+| 运行中止损 | `RunGuardHooks` 在 run 内实时看工具响应、步数、错误、等待轮次与墙钟；卡住 / 空转 / 重复 / 错误连击时中止 | 7 条规则；回放 18/18 成功作业零误杀，3/3 卡到 TTL 的作业被 `progress-stall` 捕获 |
+| 取证与处置分层 | guard-api / guard_adapter 只读历史事件、advisory-only；RunGuard 在进程内，enforce 时 `aip_fail` + viz failed | 同仓、同报告语义；PEP 语义不动，RunGuard 不做内容评分 |
 
-### 3. 问迹（wenji）：可解释的多模态问数 / 问答
+#### 6.3 问迹（wenji）：可解释的多模态问数 / 问答
 
-**AIP 互联**：问迹以外部成员身份接入梧桐平台（AIC `…BFZ0FH.F2KZXJ.15ZZZG.19CN`，
+**AIP 互联**：问迹作为团队伙伴接入梧桐平台（AIC `…BFZ0FH.F2KZXJ.15ZZZG.19CN`，
 端点为 `https://8.160.176.215:8601/rpc`，mTLS），对外发布 4 个 ACPs Skills
 （`wenji.ask` / `data_query` / `doc_qa` / `schema`）；Supervisor 可经 Discovery 发现并委派，
 问迹也可作为 Leader 反向调用集群伙伴。任务级 AMP access 按 `correlationId=taskId` 双侧记录，
@@ -202,18 +202,16 @@ yanshu-AIC/
 > [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md)、
 > [partners/wenji/README.md](partners/wenji/README.md)；不代表开放域泛化保证。
 
----
+### 7. guard 与 PEP：三层互补
 
-## 四、guard 与 PEP：互补而非替代
-
-| | PEP（准入） | Event Channel Guard（通信风险） |
-|---|---|---|
-| 时间点 | **事前**：调用发生前 | **事中 / 事后**：事件已落库之后 |
-| 回答 | "这一次调用**有没有资格**" | "即使有资格，**通信过程是否异常**" |
-| 输入 | 身份、令牌、域策略、配额 | `aip_task_events` / `aip_tasks`（只读） |
-| 输出 | allow / deny + 规则 | LOW / MEDIUM / HIGH + 可解释发现 |
-| 动作 | 拦截或放行 | **只告警，不阻断** |
-| 实现 | `acps_cluster/delegation/pep.py` | 检测器 `acps_cluster/guard/covert_event_guard.py`；接口层 `guard-api/`；留档 `acps_cluster/guard_adapter.py` |
+| | PEP（准入） | Event Channel Guard（通信取证） | RunGuard（运行止损） |
+|---|---|---|---|
+| 时间点 | **事前**：调用发生前 | **事中 / 事后**：事件已落库之后 | **运行中**：run 未结束 |
+| 回答 | "这一次调用**有没有资格**" | "即使有资格，**通信过程是否异常**" | "当前 run 是否卡住 / 空转 / 异常循环" |
+| 输入 | 身份、令牌、域策略、配额 | `aip_task_events` / `aip_tasks`（只读） | 工具响应、步数、错误、等待轮次、墙钟 |
+| 输出 | allow / deny + 规则 | LOW / MEDIUM / HIGH + 可解释发现 | 规则命中 + detail |
+| 动作 | 拦截或放行 | **只告警，不阻断** | **中止 + `aip_fail` + viz failed**（enforce） |
+| 实现 | `acps_cluster/delegation/pep.py` | 检测器 `acps_cluster/guard/covert_event_guard.py`；接口层 `guard-api/`；留档 `acps_cluster/guard_adapter.py` | `acps_cluster/agents/supervisor.py` 的 `RunGuardHooks` |
 
 数据流：
 
@@ -230,6 +228,8 @@ acps_cluster/guard/covert_event_guard.py  ←── 只读旁路（mode=ro）
 Supervisor / 人工复核
         ↓
 （必要时，人工决定）走既有 PEP 流程限速 / 撤销授权 / 冻结域
+
+run 执行中 ── RunGuardHooks ──→ 命中规则：中止 run + aip_fail + viz failed（enforce）
 ```
 
 **两条通道，同一份报告契约**：
@@ -244,7 +244,7 @@ Supervisor / 人工复核
 **适配层不改变 PEP 语义**：不签发、不撤销、不改令牌、不改域策略、不自动阻断。
 报告里 `disposition: "advisory-only"`、`pep_semantics: "untouched"` 是显式契约。
 
-### 运行中守卫（RunGuardHooks）：把"事后审计"变成"过程中止损"
+#### 7.1 运行中守卫（RunGuardHooks）：把"事后审计"变成"过程中止损"
 
 guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有建议权；运行中守卫
 （`RunGuardHooks`，priority 20）在 supervisor / 作业进程内按代码侧观测实时判定，
@@ -275,7 +275,7 @@ guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有�
 
 ---
 
-## 五、快速开始
+## 三、快速开始
 
 环境：Python ≥ 3.12（开发验证用 3.13）、Node ≥ 20（仅前端）。
 
@@ -342,7 +342,7 @@ cat partners/designer/SUBMISSION_README.md
 
 ---
 
-## 六、安全与合规
+## 四、安全与合规
 
 **一律不入库**（`.gitignore` + 推送前人工核验）：
 
@@ -356,13 +356,13 @@ cat partners/designer/SUBMISSION_README.md
 **许可证**：本仓库代码以 **MulanPSL-2.0** 发布，全文见 [LICENSE](LICENSE)；
 上游组件、扩展组件的来源与许可状态见 [NOTICE](NOTICE)。
 
-**问迹与集群的协作**：问迹以外部成员身份登记在 `acps_cluster/core/cluster_roster.py`，
+**问迹与集群的协作**：问迹作为团队伙伴登记在 `acps_cluster/core/cluster_roster.py`，
 由集群 Supervisor 通过 AIP Discovery 发现并调用；问迹自身也可作为 Leader 调用集群伙伴。
 对接方式与验证命令见 [partners/wenji/INTEGRATION.md](partners/wenji/INTEGRATION.md)。
 
 ---
 
-## 七、文档索引
+## 五、文档索引
 
 | 文档 | 内容 |
 |---|---|
@@ -385,7 +385,7 @@ cat partners/designer/SUBMISSION_README.md
 
 ---
 
-## 八、已知限制
+## 六、已知限制
 
 - 干净克隆不含 dev CA 私钥、平台快照、评测私有数据与 `ws-*` 运行时状态，
   相关用例会 **skip**（不是 fail）；需要完整覆盖时按

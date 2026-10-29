@@ -34,7 +34,7 @@
 | [l2-job-pipeline.md](l2-job-pipeline.md) | L2 令牌作业流水线 |
 | [runbook-add-new-agent.md](runbook-add-new-agent.md) | 新增 agent：铸造身份、注册、发现、验收 |
 
-## 外部组件
+## 团队组件与协作方
 
 | 文档 | 用途 |
 |---|---|
