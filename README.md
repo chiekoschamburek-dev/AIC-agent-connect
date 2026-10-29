@@ -282,9 +282,9 @@ guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有�
 ### Linux 一键部署
 
 ```bash
-./deploy.sh preflight                  # 环境/依赖/配置自检
 ./deploy.sh init                       # venv + 依赖 + .env.production 模板
 $EDITOR acps_cluster/deploy/.env.production
+./deploy.sh preflight                  # 环境/依赖/配置自检
 ./deploy.sh build --with-tests         # 前端构建 + 语法编译 + 全量测试
 sudo ./deploy.sh install-units         # 渲染并安装 systemd 单元
 sudo ./deploy.sh start                 # supervisor + 伙伴 + workspace + AMP + 定时器

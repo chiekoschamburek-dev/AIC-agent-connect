@@ -36,14 +36,14 @@
 git clone https://github.com/chiekoschamburek-dev/AIC-agent-connect.git yanshu-AIC
 cd yanshu-AIC
 
-# 1) 检查环境（不会改任何东西）
-./deploy.sh preflight
-
-# 2) 建 venv、装依赖、生成配置模板
+# 1) 建 venv、装依赖、生成配置模板（首次先 init，才有 .env.production 可检查）
 ./deploy.sh init
 
-# 3) 填真实配置（平台账号/模型 Key/端口等；不要提交）
+# 2) 填真实配置（平台账号/模型 Key/端口等；不要提交）
 $EDITOR acps_cluster/deploy/.env.production
+
+# 3) 环境自检（不会改任何东西）
+./deploy.sh preflight
 
 # 4) 构建前端 + 语法编译（可选跑全量测试）
 ./deploy.sh build --with-tests
