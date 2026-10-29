@@ -1,3 +1,5 @@
+# 模板：由 deploy.sh install-units 渲染 __ACPS_ROOT__ / __ACPS_PY__ 后安装；
+# 不要直接把本文件拷进 /etc/systemd/system。
 [Unit]
 Description=Yanshu 台账日报（只读：非终态任务 + 年龄 + 超龄⚠；政策=按设计驻留不自动 expire）
 
@@ -5,5 +7,5 @@ Description=Yanshu 台账日报（只读：非终态任务 + 年龄 + 超龄⚠�
 Type=oneshot
 User=wit
 Group=wit
-WorkingDirectory=/opt/wit/my-project/acps_cluster
-ExecStart=/opt/wit/venv/bin/python /opt/wit/my-project/acps_cluster/deploy/task_ledger_report.py --warn-days 14
+WorkingDirectory=__ACPS_ROOT__/acps_cluster
+ExecStart=__ACPS_PY__ __ACPS_ROOT__/acps_cluster/deploy/task_ledger_report.py --warn-days 14

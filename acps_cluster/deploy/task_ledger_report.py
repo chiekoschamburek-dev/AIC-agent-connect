@@ -5,7 +5,7 @@
 "N 天 → expired" 闸门，须另行评审后加入写路径（当前明确不做）。
 
 建议由 `wit-ledger-report.timer`（每日 09:00）调用；手动运行：
-    runuser -u wit -- /opt/wit/venv/bin/python deploy/task_ledger_report.py [--warn-days 14]
+    runuser -u wit -- python deploy/task_ledger_report.py [--warn-days 14]
 """
 
 from __future__ import annotations

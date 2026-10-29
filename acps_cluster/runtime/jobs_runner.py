@@ -124,6 +124,7 @@ def _acquire_job_lock(path: Path):
 
 
 def main() -> int:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     job_dir = Path(sys.argv[1]).resolve()
     question = (job_dir / "request.txt").read_text(encoding="utf-8")
     jobs_store.update_status(job_dir, state="running", started_at=jobs_store.now_iso(),

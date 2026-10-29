@@ -1,4 +1,4 @@
-﻿"""P0-2 回归：skill-scope 必须进入 run 生命周期 hooks，而不是 aip_hooks。"""
+"""P0-2 回归：skill-scope 必须进入 run 生命周期 hooks，而不是 aip_hooks。"""
 
 import asyncio
 import sys

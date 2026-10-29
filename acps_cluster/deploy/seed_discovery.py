@@ -125,7 +125,7 @@ def _local_acs(key: str, registered: set[str] | None) -> dict | None:
 
 
 def main() -> int:
-    sys.path.insert(0, "/opt/wit/my-project")
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from wit.acps.discovery import cache_discovered_agent, normalize_discovered_agent
 
     registry = os.getenv("ACPS_REGISTRY_URL", "https://wt.ioa.pub/registry-server")

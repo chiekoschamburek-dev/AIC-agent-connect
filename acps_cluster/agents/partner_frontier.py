@@ -81,6 +81,7 @@ _SYSTEM = (
 async def detect_frontier(
     topic: str, window_months: int = 12, max_results: int = 20
 ) -> FrontierReport:
+    """从论文集合中识别速度前沿与趋势信号。"""
     try:
         window = max(1, min(int(window_months), 36))
     except (TypeError, ValueError):
@@ -143,6 +144,7 @@ async def citation_profile(paper_id: str) -> dict:
 
 
 def build_frontier_agent(provider) -> WitAgent:
+    """装配「研枢-Frontier-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     ws_enabled = workspace_access_enabled("frontier")
     capabilities = [detect_frontier, citation_profile]
     hooks: list = []

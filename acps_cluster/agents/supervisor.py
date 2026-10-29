@@ -434,6 +434,7 @@ def _make_plan_gate_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
     """
 
     async def plan_gate(arguments: dict | str) -> dict:
+        """计划闸门：校验 supervisor 计划中的目标与能力是否可委派。"""
         if isinstance(arguments, dict):
             plan = arguments.get("plan", arguments)
         else:
@@ -565,6 +566,7 @@ def _make_review_gate_tool() -> Tool:
         return conflicts
 
     async def review_gate(arguments: dict | str) -> dict:
+        """审查闸门：校验 critic 结论是否满足放行条件。"""
         args = arguments if isinstance(arguments, dict) else {"raw": str(arguments)}
         raw = str(args.get("raw", "") or "")
         match = re.search(r"\{.*\}", raw, re.S)
@@ -638,6 +640,7 @@ def _make_product_gate_tool() -> Tool:
     placeholders = ("test content", "placeholder", "lorem ipsum", "todo:", "tbd", "内容待补")
 
     async def product_gate(arguments: dict | str) -> dict:
+        """产物闸门：校验待提交产物是否完整、非空壳。"""
         args = arguments if isinstance(arguments, dict) else {"product": str(arguments)}
         text = str(args.get("product") or "").strip()
         try:
@@ -746,6 +749,7 @@ async def research_orchestrate(task: str, mode: str = "standard") -> dict:
 
 
 def build_supervisor_agent(provider) -> WitAgent:
+    """装配「研枢-Supervisor」agent：模型、工具与 hooks 的公开构建入口。"""
     roster = cluster_roster.load_roster()
     available = [m.key for m in roster if m.kind != "leader" and m.available]
     public_skills, has_non_public = capability_visibility([research_orchestrate])
@@ -977,6 +981,7 @@ def _make_wait_many_tool(
     terminal = {"completed", "failed", "rejected", "canceled", "cancelled", "expired"}
 
     async def wait_many(arguments: dict | str) -> dict:
+        """并行等待多个伙伴任务，直到全部收尾或超时。"""
         args = arguments if isinstance(arguments, dict) else {}
         raw_refs = args.get("task_refs") or []
         if isinstance(raw_refs, str):
@@ -1158,6 +1163,7 @@ def _make_submit_job_tool() -> Tool:
     submit_lock = _job_submit_lock(jobs_root)   # 同进程内所有 run 共享，防并发越限
 
     async def submit_job(arguments: dict | str) -> dict:
+        """提交 L2 作业并记录回执，交由后台 worker 执行。"""
         args = arguments if isinstance(arguments, dict) else {}
         question = str(args.get("question") or "").strip()
         mode = str(args.get("mode") or "custom").strip() or "custom"
@@ -1247,6 +1253,7 @@ def _make_check_job_tool() -> Tool:
     jobs_root = _jobs_root()
 
     async def check_job(arguments: dict | str) -> dict:
+        """查询作业状态与产物；必要时补交或如实标失败。"""
         args = arguments if isinstance(arguments, dict) else {}
         ref = str(args.get("job_ref") or args.get("job_id") or "").strip()
         if not ref or ref.lower() in ("list", "ls", "列表"):
@@ -1366,6 +1373,7 @@ def _make_deep_research_tool() -> Tool:
     state = {"active": False, "checkins": 0, "stage": 0}
 
     async def deep_research(arguments: dict | str) -> dict:
+        """深度研究编排：检索、综合、写作、审查的完整链路。"""
         args = arguments if isinstance(arguments, dict) else {}
         report = str(args.get("report") or "").strip()
         if not state["active"]:
@@ -1442,6 +1450,7 @@ def _make_auto_research_tool() -> Tool:
              "ledger": [], "supported": [], "refuted": []}
 
     async def auto_research(arguments: dict | str) -> dict:
+        """自动研究编排：假设—实验—复核—收敛的迭代链路。"""
         args = arguments if isinstance(arguments, dict) else {}
         action = str(args.get("action") or "").strip()
         if not state["active"]:
@@ -1684,6 +1693,7 @@ def _make_wait_partner_tool(
     max_rounds = int(os.getenv("ACPS_WAIT_MAX_ROUNDS", "12"))   # 12×360s ≈ 72 分钟
 
     async def wait_partner(arguments: dict | str) -> dict:
+        """等待单个伙伴任务收尾，返回产物或终态。"""
         args = arguments if isinstance(arguments, dict) else {"task_ref": str(arguments)}
         task_ref = str(args.get("task_ref") or "").strip()
         if not task_ref:
@@ -2237,6 +2247,7 @@ class SupervisorRunHooks(WitHooks):
         return out
 
     async def on_run_end(self, event: RunEndEvent) -> None:
+        """run 收尾回调：落盘结果并处理异常/中止路径。"""
         res = getattr(event, "result", None)
         text = ""
         try:
@@ -2401,6 +2412,7 @@ class SupervisorRunHooks(WitHooks):
                            "tool_calls": tool_calls, "thought": thought[:400]})
 
     async def on_tool_request(self, event: ToolRequestEvent) -> None:
+        """工具调用前回调：记录或改写本次调用。"""
         name, args = None, None
         tc = getattr(event, "tool_call", None)
         if tc is not None:
@@ -2438,6 +2450,7 @@ class SupervisorRunHooks(WitHooks):
                            "args": str(args)[:800]})
 
     async def on_tool_response(self, event: ToolResponseEvent) -> None:
+        """工具返回后回调：记录结果并推进状态判断。"""
         name = None
         tc = getattr(event, "tool_call", None)
         if tc is not None:
@@ -2575,6 +2588,7 @@ class UnclosedDeliverablesHooks(WitHooks):
         return bool(node.get("ok")) if isinstance(node, dict) else False
 
     async def on_tool_response(self, event) -> None:  # noqa: ANN001
+        """工具返回后回调：记录结果并推进状态判断。"""
         name = self._tool_name(event)
         seen = self._SEEN.get()
         if name == self._GATE_TOOL:
@@ -2672,6 +2686,7 @@ class UnclosedDeliverablesHooks(WitHooks):
         return mine
 
     async def on_run_end(self, event) -> None:  # noqa: ANN001
+        """run 收尾回调：落盘结果并处理异常/中止路径。"""
         anchor = self._ANCHOR.get()
         seen = self._SEEN.get()
         self._ANCHOR.set(None)
@@ -2858,6 +2873,7 @@ class RunGuardHooks(WitHooks):
         self._check(st)
 
     async def on_tool_response(self, event) -> None:  # noqa: ANN001
+        """工具返回后回调：记录结果并推进状态判断。"""
         st = self._STATE.get()
         if st is None:
             return
@@ -3030,6 +3046,7 @@ class JobLifecycleFenceHooks(WitHooks):
     })
 
     async def wrap_tool_call(self, ctx, tool_call, handler):  # noqa: ANN001, ANN202
+        """工具调用包装：在 handler 前后执行守卫/鉴权逻辑。"""
         name = str(getattr(tool_call, "name", None) or "")
         receipts = _JOB_RECEIPTS.get() or []
         if receipts:
@@ -3152,6 +3169,7 @@ def _make_authenticated_delegate_tool(roster: list[cluster_roster.RosterMember])
             return ""
 
     async def handler(arguments: dict | str) -> dict:
+        """工具/回调的具体处理函数（由上层闭包装配）。"""
         args = arguments if isinstance(arguments, dict) else {"request": str(arguments)}
         partner_aic = str(args.get("partner_aic") or "").strip()
         request = str(args.get("request") or "").strip()
@@ -3296,6 +3314,7 @@ def _make_public_delegate_tool(
         return dict(protected) if protected is not None else _protected_partners()
 
     async def handler(arguments: dict | str) -> dict:
+        """工具/回调的具体处理函数（由上层闭包装配）。"""
         args = arguments if isinstance(arguments, dict) else {"request": str(arguments)}
         partner_aic = str(args.get("partner_aic") or "").strip()
         request = str(args.get("request") or "").strip()
@@ -3521,6 +3540,7 @@ class ResourceDispatchAuthHooks(WitHooks):
         return matched.group(1) if matched else ""
 
     async def wrap_tool_call(self, ctx, tool_call, handler):  # noqa: ANN001, ANN202
+        """工具调用包装：在 handler 前后执行守卫/鉴权逻辑。"""
         name = str(getattr(tool_call, "name", None) or "")
         if name not in ("acps_delegate", "acps_delegate_authenticated"):
             return await handler(tool_call)
@@ -3670,6 +3690,7 @@ class DelegationTargetGateHooks(WitHooks):
         return self._roster
 
     async def wrap_tool_call(self, ctx, tool_call, handler):  # noqa: ANN001, ANN202
+        """工具调用包装：在 handler 前后执行守卫/鉴权逻辑。"""
         name = str(getattr(tool_call, "name", None) or "")
         if name not in self._TOOLS:
             return await handler(tool_call)
@@ -3989,6 +4010,7 @@ def _atomic_write_text(path: Path, text: str) -> None:
 
 
 async def main() -> dict:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     task = " ".join(sys.argv[1:]) or "调研 GNN 在知识图谱补全中的最新进展，写一篇带引用的 mini survey 初稿并送审"
     provider = bootstrap.build_provider()
     port = int(os.getenv("ACPS_SUPERVISOR_PORT", "8444"))

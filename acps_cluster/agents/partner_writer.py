@@ -60,6 +60,7 @@ async def write_paper(
     feedback: str = "",
     previous_draft: str = "",
 ) -> str:
+    """根据资料与综合分析撰写论文初稿。"""
     if mode not in ("outline", "full"):
         raise ValueError("mode 只能是 outline 或 full")
     user = f"研究主题：{topic}\n\n资料清单：\n{materials[:12000] or '（无，按[需补充证据]处理）'}"
@@ -78,6 +79,7 @@ async def write_paper(
 
 
 def build_writer_agent(provider) -> WitAgent:
+    """装配「研枢-Writer-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     ws_enabled = workspace_access_enabled("writer")
     capabilities = [write_paper]
     hooks: list = []

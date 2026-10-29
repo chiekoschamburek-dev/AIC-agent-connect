@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 CLUSTER_DIR = Path(__file__).resolve().parents[1]
-SCRIPT = CLUSTER_DIR / "deploy" / "discovery_diagnostics" / "switch_step4_apply_identity.py"
+SCRIPT = CLUSTER_DIR / "deploy" / "archive" / "discovery_diagnostics" / "switch_step4_apply_identity.py"
 
 
 def _load_module():

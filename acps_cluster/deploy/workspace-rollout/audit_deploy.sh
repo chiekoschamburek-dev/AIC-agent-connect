@@ -3,8 +3,8 @@
 # 用法（在服务器上）：bash audit_deploy.sh [--expected /tmp/local_sha256.txt]
 set -euo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/opt/wit/my-project}"
-PY="${PY:-/opt/wit/venv/bin/python}"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+PY="${PY:-$PROJECT_DIR/.venv/bin/python}"
 EXPECTED=""
 
 while [ $# -gt 0 ]; do

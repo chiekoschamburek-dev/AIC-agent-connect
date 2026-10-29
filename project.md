@@ -161,7 +161,7 @@ Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
   docs/issue-wit-2.1.0-ip-endpoint-san.md);workspace partner 注册挂起于此,
   现以路线 B(本地 CA 身份)在集群内服务;
 - 10-23 曾发生部署覆盖服务器侧计量钩子事故(榜单清零一天),已恢复并固化
-  部署前门禁(deploy/discovery_diagnostics/scan_server_only_patches.py),
+  部署前门禁(deploy/archive/discovery_diagnostics/scan_server_only_patches.py),
   复盘见 docs/incident-2026-10-23-amp-hooks-lost.md。
 - 伙伴工作区访问的粒度限制(2026-10-26 上线):一次委派只签一个 `ws.*` 令牌
   (`ws.create` 与 `ws.clone_repo` 要分两次委派);伙伴令牌 TTL 上限 600s,超过

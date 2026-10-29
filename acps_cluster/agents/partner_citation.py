@@ -114,6 +114,7 @@ CITATION_CAPABILITIES = [citation_rules, citation_verify_cap]
 
 
 def build_citation_agent(provider) -> WitAgent:
+    """装配「研枢-Citation-Integrity-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     public_skills, has_non_public = capability_visibility(CITATION_CAPABILITIES)
     pep_hooks = build_pep_hooks(
         capabilities=CITATION_CAPABILITIES,

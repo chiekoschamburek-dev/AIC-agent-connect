@@ -90,6 +90,7 @@ async def gpu_env() -> dict:
     tags=["gpu", "compute", "status"],
 )
 async def gpu_status() -> dict:
+    """返回 GPU 资源的运行时状态、设备与限额信息（公开能力）。"""
     runs_root = gpu_runner.RUNS_DIR
     if not runs_root.is_dir():
         return {"runs": []}
@@ -171,6 +172,7 @@ GPU_CAPABILITIES = [gpu_env, gpu_status, gpu_data_list, gpu_data_fetch, gpu_run]
 
 
 def build_gpu_agent(provider) -> WitAgent:
+    """装配「研枢-GPU-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     public_skills, has_non_public = capability_visibility(GPU_CAPABILITIES)
     pep_hooks = build_pep_hooks(
         capabilities=GPU_CAPABILITIES,

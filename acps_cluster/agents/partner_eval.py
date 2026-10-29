@@ -103,6 +103,7 @@ EVAL_CAPABILITIES = [eval_benchmark_info, eval_leaderboard, eval_submit]
 
 
 def build_eval_agent(provider) -> WitAgent:
+    """装配「研枢-Eval-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     public_skills, has_non_public = capability_visibility(EVAL_CAPABILITIES)
     pep_hooks = build_pep_hooks(
         capabilities=EVAL_CAPABILITIES,

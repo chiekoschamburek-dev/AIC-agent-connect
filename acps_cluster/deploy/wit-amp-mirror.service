@@ -1,16 +1,18 @@
+# 模板：由 deploy.sh install-units 渲染 __ACPS_ROOT__ / __ACPS_PY__ 后安装；
+# 不要直接把本文件拷进 /etc/systemd/system。
 [Unit]
 Description=AMP Heartbeat Mirror (ws-*/logs/amp_heartbeat_*.jsonl → /var/log/acps-amp/yanshu/)
-Documentation=file:/opt/wit/my-project/acps_cluster/deploy/AMP_FORWARDER.md
+Documentation=file:__ACPS_ROOT__/acps_cluster/deploy/AMP_FORWARDER.md
 After=network-online.target
 
 [Service]
 Type=simple
 User=wit
 Group=wit
-WorkingDirectory=/opt/wit/my-project/acps_cluster
+WorkingDirectory=__ACPS_ROOT__/acps_cluster
 # 只读源日志、只写镜像目录；新鲜度窗口 300s，单文件达到 8MB 原子轮转（不原地裁剪）
-ExecStart=/opt/wit/venv/bin/python deploy/amp_heartbeat_mirror.py \
-    --cluster /opt/wit/my-project/acps_cluster \
+ExecStart=__ACPS_PY__ deploy/amp_heartbeat_mirror.py \
+    --cluster __ACPS_ROOT__/acps_cluster \
     --root /var/log/acps-amp \
     --watch --interval 15 \
     --stale-seconds 300 \

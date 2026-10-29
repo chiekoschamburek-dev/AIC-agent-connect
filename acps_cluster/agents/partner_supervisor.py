@@ -425,6 +425,7 @@ async def run_inbox_task(runtime, roster, path: Path) -> None:
 async def serve() -> None:
     # 启动收敛必须在 wit 接管账本之前：把上一进程遗留的非终态任务收敛掉，
     # 否则它们会以 awaiting-completion/working 永远挂着（见 _cleanup_stale_tasks）。
+    """常驻服务入口：完成上线、循环处理与优雅退出。"""
     _cleanup_stale_tasks()
     provider = bootstrap.build_provider()
     port = int(os.getenv("ACPS_SUPERVISOR_PORT", "8444"))

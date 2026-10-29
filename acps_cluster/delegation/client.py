@@ -260,6 +260,7 @@ class DelegationTokenScrubHooks(AipPartnerTransformHooks):
         return bundle
 
     async def on_partner_request(self, event: AipPartnerRequestEvent) -> None:
+        """伙伴请求变换：对入参做不可信内容外壳化。"""
         from .bridge import set_delegation, set_delegation_bundle
 
         # 每个 inbound 请求从"无令牌"起算：不在受托分支就复位。此前只有拿到令牌时才 set，

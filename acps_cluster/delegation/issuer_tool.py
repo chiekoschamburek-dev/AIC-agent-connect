@@ -58,6 +58,7 @@ def build_issue_token_tool(
     store = vault if vault is not None else DEFAULT_TOKEN_VAULT
 
     async def issue_delegation_token(arguments: dict | str) -> dict[str, Any]:
+        """签发委托令牌：返回句柄，JWS 留在保管库。"""
         args = arguments if isinstance(arguments, dict) else {"delegate_aic": str(arguments)}
         delegate_aic = str(args.get("delegate_aic") or "").strip()
         targets = _as_str_list(args.get("targets"))

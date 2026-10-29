@@ -78,6 +78,9 @@
     acps_cluster/covert_event_guard.py      兼容 shim（一行转发）
     acps_cluster/tests/test_guard_adapter.py 适配层测试
     acps_cluster/tests/test_run_guard.py    运行中守卫测试
+    deploy.sh                               一键部署入口（preflight/init/build/install-units/start/stop/status/logs）
+    acps_cluster/deploy/*.service            systemd 模板（__ACPS_ROOT__/__ACPS_PY__ 由 install-units 渲染）
+    docs/deployment.md                      部署边界、前置条件与排障
     docs/architecture.md、docs/README.md、README.md  整合说明
 - 我方既有代码的两处路径适配（cluster-viz 从仓库外移入仓库根）：
     acps_cluster/viz_live.py       DEFAULT_SCENARIO_DIR: parents[2] → parents[1]

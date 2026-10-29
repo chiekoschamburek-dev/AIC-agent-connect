@@ -128,6 +128,7 @@ class SkillScopedToolsHooks(WitHooks):
         self.audit_path = audit_path
 
     async def on_run_start(self, event) -> None:  # noqa: ANN001
+        """run 开始回调：初始化本次运行的钩子状态。"""
         if not self.non_public:
             return
         ctx = getattr(event, "context", None)

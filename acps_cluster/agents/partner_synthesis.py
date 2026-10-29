@@ -188,6 +188,7 @@ async def extract_digest(paper_text: str) -> PaperDigest:
 
 
 def build_synthesis_agent(provider) -> WitAgent:
+    """装配「研枢-Synthesis-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     ws_enabled = workspace_access_enabled("synthesis")
     capabilities = [extract_digest]
     hooks: list = []

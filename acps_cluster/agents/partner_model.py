@@ -122,6 +122,7 @@ MODEL_CAPABILITIES = [model_info, model_predict]
 
 
 def build_model_agent(provider) -> WitAgent:
+    """装配「研枢-Model-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     public_skills, has_non_public = capability_visibility(MODEL_CAPABILITIES)
     pep_hooks = build_pep_hooks(
         capabilities=MODEL_CAPABILITIES,

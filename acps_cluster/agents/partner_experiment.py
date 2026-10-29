@@ -616,6 +616,7 @@ EXPERIMENT_CAPABILITIES = [
 
 
 def build_experiment_agent(provider) -> WitAgent:
+    """装配「研枢-Experiment-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     ws_enabled = workspace_access_enabled("experiment")
     capabilities = list(EXPERIMENT_CAPABILITIES)
     extra_hooks: list = []

@@ -1,4 +1,4 @@
-﻿"""AutoResearch 闭环真实业务（A 系列）：证据驱动的假设迭代环。
+"""AutoResearch 闭环真实业务（A 系列）：证据驱动的假设迭代环。
 
 链路（真实 LLM + 真实沙盒执行）：leader（auto_research 激活 + 证据账本打卡）
   → frontier.detect 产方向 → 构造可证伪假设 → exp.run（持委托 token 沙盒执行）
@@ -210,6 +210,7 @@ def ledger_audit(indep: dict, ledger_file: Path) -> dict:
 
 
 async def main() -> None:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     out = CLUSTER / "demo_run" / "autoresearch"
     out.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix="autoresearch-"))

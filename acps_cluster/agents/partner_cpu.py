@@ -90,6 +90,7 @@ async def cpu_env() -> dict:
     tags=["cpu", "compute", "status"],
 )
 async def cpu_status() -> dict:
+    """返回 CPU 资源的运行时状态与环境信息（公开能力）。"""
     if not RUNS_ROOT.is_dir():
         return {"runs": []}
     runs = []
@@ -144,6 +145,7 @@ CPU_CAPABILITIES = [cpu_env, cpu_status, cpu_run]
 
 
 def build_cpu_agent(provider) -> WitAgent:
+    """装配「研枢-CPU-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     public_skills, has_non_public = capability_visibility(CPU_CAPABILITIES)
     pep_hooks = build_pep_hooks(
         capabilities=CPU_CAPABILITIES,

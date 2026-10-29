@@ -453,6 +453,7 @@ class InboundProductFallbackHooks(WitHooks):
     _INPUT_NAMES = ("aip_request_input", "acps.aip.request_input")
 
     async def on_run_start(self, event) -> None:
+        """run 开始回调：初始化本次运行的钩子状态。"""
         ctx = getattr(event, "context", None)
         # 真实 HookContext 没有 tools 字段：run 的工具集在 config.tools（RunConfig），
         # tool_manager 是编译期快照。历史实现读 ctx.tools/event.tools，两处恒为 None，
@@ -493,6 +494,7 @@ class InboundProductFallbackHooks(WitHooks):
             state["awaiting_input"] = True
 
     async def on_run_end(self, event) -> None:
+        """run 收尾回调：落盘结果并处理异常/中止路径。"""
         state, payload = self._STATE.get(), _INBOUND_RESULT.get()
         self._STATE.set(None)
         _INBOUND_RESULT.set(None)

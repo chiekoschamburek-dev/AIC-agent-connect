@@ -5,8 +5,8 @@
 # 用法（在服务器上）：bash run_server_tests.sh
 set -uo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/opt/wit/my-project}"
-PY="${PY:-/opt/wit/venv/bin/python}"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+PY="${PY:-$PROJECT_DIR/.venv/bin/python}"
 
 cd "$PROJECT_DIR"
 echo "⚠ 服务器单测可能因身份差异假失败；先看是不是 PepConfigEnvTest 这类断言" >&2

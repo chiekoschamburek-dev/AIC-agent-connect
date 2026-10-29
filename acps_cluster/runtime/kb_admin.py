@@ -360,6 +360,7 @@ def cmd_seed(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     parser = argparse.ArgumentParser(description="知识库建库/迁移/真实语料导入")
     sub = parser.add_subparsers(dest="cmd", required=True)
 

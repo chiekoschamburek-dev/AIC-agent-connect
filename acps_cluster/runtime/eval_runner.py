@@ -202,6 +202,7 @@ def submit_predictions(bench_id: str, predictions, *, submitter: str = "?") -> d
 
 
 def validate_code_submission(raw: dict) -> tuple[dict | None, str | None]:
+    """校验评测提交的代码/文件结构与大小限制。"""
     if not isinstance(raw, dict):
         return None, "提交必须是 JSON 对象"
     bench_id = str(raw.get("benchmark") or "").strip()

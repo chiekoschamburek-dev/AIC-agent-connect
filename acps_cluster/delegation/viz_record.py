@@ -236,6 +236,7 @@ async def serve_partner(
     audit: Path | None = None, charters: list[dict] | None = None,
     cache_acs: list[dict] | None = None,
 ):
+    """启动一个伙伴实例用于可视化录制，返回 runtime 与 ACS。"""
     ws = fresh_ws(src_ws, tmp, f"{label}-{port}")
     if charters:
         d = ws / "acps" / "domains"
@@ -401,6 +402,7 @@ def assemble(sid: str, title: str, description: str, instruction: str,
              regions: list, agents_spec: list, raw: list[dict]) -> dict:
     # 回放节奏：真实任务动辄十几分钟，回放按 GAP×SCALE 重排——整体放慢、关键段（GPU 执行）
     # 再额外停留，保证"处理流程不要太快"。
+    """把采集到的事件/名册装配成 cluster-viz Scenario。"""
     scale = float(os.getenv("VIZ_REPLAY_SCALE", "2.5"))
     t = 0.0
     events = []
@@ -441,6 +443,7 @@ def agent_spec(id_: str, name: str, org: str, source: str, skills: list[str], ro
 # ═════════════════════════ 场景 B · 短链路（检索即成文） ═════════════════════════
 
 async def run_b(tmp: Path) -> dict:
+    """可视化剧本 B：短链路录制。"""
     out = CLUSTER / "demo_run" / "viz" / "b-short"
     rec = Rec("b-short", out)
     scout_audit = out / "scout-audit.jsonl"
@@ -533,6 +536,7 @@ def _metric_from_stdout(stdout: str) -> str:
 
 
 async def run_c(tmp: Path) -> dict:
+    """可视化剧本 C：鉴权/拒绝路径录制。"""
     out = CLUSTER / "demo_run" / "viz" / "c-auth"
     rec = Rec("c-auth", out)
     gpu_audit = out / "gpu-audit.jsonl"
@@ -719,6 +723,7 @@ async def run_c(tmp: Path) -> dict:
 # ═════════════════════════ 场景 A · 论文复现全链路 ═════════════════════════
 
 async def run_a(tmp: Path) -> dict:
+    """可视化剧本 A：完整协作链路录制。"""
     out = CLUSTER / "demo_run" / "viz" / "a-full"
     rec = Rec("a-full", out)
     scout_audit = out / "scout-audit.jsonl"
@@ -982,6 +987,7 @@ def regions_for(key: str) -> list[dict]:
 
 
 async def main() -> None:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     wanted = [a.lower() for a in sys.argv[1:]] or ["a", "b", "c"]
     tmp = Path(tempfile.mkdtemp(prefix="viz-record-"))
     results = {}

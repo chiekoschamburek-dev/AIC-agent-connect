@@ -46,6 +46,7 @@ TERMINAL = {"completed", "failed", "canceled", "rejected", "awaiting-completion"
 
 
 async def main() -> None:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     OUT.mkdir(parents=True, exist_ok=True)
     AUDIT.write_text("", encoding="utf-8")
     os.environ["ACPS_PEP_ENABLED"] = "1"

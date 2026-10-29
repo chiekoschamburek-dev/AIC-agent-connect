@@ -4,8 +4,8 @@
 # 只删显式列出的 task_id，绝不碰 feed-* 等真实任务。
 set -euo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/opt/wit/my-project}"
-PY="${PY:-/opt/wit/venv/bin/python}"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+PY="${PY:-$PROJECT_DIR/.venv/bin/python}"
 WIT_USER="${WIT_USER:-wit}"
 
 TASK_IDS=()

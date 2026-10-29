@@ -36,7 +36,8 @@ yanshu-AIC/
 │   └── wenji/                    # 问迹（团队自研问数/问答智能体，含其自有 frontend/）
 ├── cluster-viz/                  # 集群总览前端（React + Vite + ReactFlow）
 ├── guard-api/                    # guard 的 HTTP 接口层（FastAPI；独立进程或挂载 supervisor）
-├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、运行手册
+├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、部署/运行手册
+├── deploy.sh                     # 一键部署入口（preflight/init/build/install-units/start/stop/status/logs）
 ├── project.md                    # 项目总览、实验与量化证据
 ├── requirements.txt / pyproject.toml
 ├── vendor/acps_sdk-*.whl         # 随仓库分发（MulanPSL-2.0）；wit_framework 不分发
@@ -278,6 +279,23 @@ guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有�
 
 环境：Python ≥ 3.12（开发验证用 3.13）、Node ≥ 20（仅前端）。
 
+### Linux 一键部署
+
+```bash
+./deploy.sh preflight                  # 环境/依赖/配置自检
+./deploy.sh init                       # venv + 依赖 + .env.production 模板
+$EDITOR acps_cluster/deploy/.env.production
+./deploy.sh build --with-tests         # 前端构建 + 语法编译 + 全量测试
+sudo ./deploy.sh install-units         # 渲染并安装 systemd 单元
+sudo ./deploy.sh start                 # supervisor + 伙伴 + workspace + AMP + 定时器
+./deploy.sh status
+```
+
+边界：平台账号注册、CA 证书、`ws-*/acps/` 身份与真实密钥需人工准备，`preflight` 会逐项检查。
+完整说明（前置条件、单元清单、guard/viz、故障排查）见 [docs/deployment.md](docs/deployment.md)。
+
+### 本地开发 / 只跑测试
+
 ```bash
 # 1) 依赖
 python -m pip install -r requirements.txt      # 需要 wit_framework 时先从官方渠道装入
@@ -349,6 +367,7 @@ cat partners/designer/SUBMISSION_README.md
 | 文档 | 内容 |
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | 架构、创新点映射、模块职责、适配层设计、验证结果 |
+| [docs/deployment.md](docs/deployment.md) | 一键部署：前置条件、子命令、systemd 单元、guard/viz、边界与排障 |
 | [docs/PEP_design.md](docs/PEP_design.md) | PEP 准入设计（任务级 + 周期级） |
 | [docs/RFC_delegation_domain_draft.md](docs/RFC_delegation_domain_draft.md) | 委托与协作域 RFC |
 | [docs/workspace-partner.md](docs/workspace-partner.md) | 工作区资源实例：四分区、task_id 作用域 |

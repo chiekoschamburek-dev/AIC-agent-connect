@@ -251,6 +251,7 @@ async def scout_memory_stats() -> dict:
     tags=["research", "scout", "memory"],
 )
 async def scout_memory_search(query: str, max_results: int = 5) -> list:
+    """在本地论文记忆库中按主题检索（不联网，毫秒级）。"""
     mem = _memory()
     if mem is None:
         return []
@@ -289,6 +290,7 @@ SCOUT_CAPABILITIES = [
 
 
 def build_scout_agent(provider) -> WitAgent:
+    """装配「研枢-Scout-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     ws_enabled = workspace_access_enabled("scout")
     capabilities = list(SCOUT_CAPABILITIES)
     hooks: list = []

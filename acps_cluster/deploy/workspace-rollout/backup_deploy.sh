@@ -5,8 +5,8 @@
 #        --name ws-partner --stop "wit-yanshu@supervisor.service"
 set -euo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/opt/wit/my-project}"
-PY="${PY:-/opt/wit/venv/bin/python}"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+PY="${PY:-$PROJECT_DIR/.venv/bin/python}"
 WIT_USER="${WIT_USER:-wit}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -43,7 +43,7 @@ mapfile -t REQ < <(grep -v '^[[:space:]]*#' "$FILES" | sed '/^[[:space:]]*$/d')
 
 cd "$PROJECT_DIR"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-BK="/opt/wit/predeploy-$NAME-$STAMP"
+BK="/tmp/predeploy-$NAME-$STAMP"
 mkdir -p "$BK"
 
 echo "== 1) 停服务 =="

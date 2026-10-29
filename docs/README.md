@@ -26,6 +26,8 @@
 
 | 文档 | 用途 |
 |---|---|
+| [deployment.md](deployment.md) | 一键部署：前置条件、子命令、systemd、guard/viz、排障 |
+| [run-guard.md](run-guard.md) | 运行中守卫：规则/阈值/中止链路/observe-enforce |
 | [agent-aic-roster.md](agent-aic-roster.md) | agent 身份（AIC）清单与平台验收记录 |
 | [amp-compliance-and-gaps.md](amp-compliance-and-gaps.md) | AMP 上报合规、差距与整改 |
 | [platform-request-amp-heartbeat.md](platform-request-amp-heartbeat.md) | 平台侧心跳请求口径 |

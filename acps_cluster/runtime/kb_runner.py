@@ -449,6 +449,7 @@ def _field_type_error(name: str, value: Any) -> str | None:
 
 
 def validate_ingest(records: Any) -> str | None:
+    """校验知识库写入请求的字段、类型与规模。"""
     records = as_list(records)
     if not isinstance(records, list) or not records:
         return "records 必须是非空数组"

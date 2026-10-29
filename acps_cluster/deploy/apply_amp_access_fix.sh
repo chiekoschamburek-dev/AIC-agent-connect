@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 一键修复"排行榜调用量为 0"的计量断点（在服务器上以 root 执行）。
 #
-#   bash /opt/wit/my-project/acps_cluster/deploy/apply_amp_access_fix.sh [--dry-run]
+#   bash acps_cluster/deploy/apply_amp_access_fix.sh [--dry-run]
 #
 # 做四件事：
 #   1. 给 14 个 agent 模块挂 AmpAccessLoggingHooks（幂等补丁，带 .bak）
@@ -12,8 +12,9 @@
 # 设计原则：**先试点、后全量**。默认只重启 writer，确认有数据再全量。
 set -uo pipefail
 
-CL=/opt/wit/my-project/acps_cluster
-PY=/opt/wit/venv/bin/python
+ROOT="${ACPS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+CL="$ROOT/acps_cluster"
+PY="${ACPS_PY:-$ROOT/.venv/bin/python}"
 DRY=""
 [ "${1:-}" = "--dry-run" ] && DRY="--dry-run"
 
@@ -25,7 +26,7 @@ echo "=============================================="
 echo " 1/5  备份关键文件"
 echo "=============================================="
 STAMP=$(date +%Y%m%d-%H%M%S)
-BAK=/opt/wit/amp-access-fix-backup-$STAMP
+BAK=/tmp/amp-access-fix-backup-$STAMP
 mkdir -p "$BAK"
 cp -a "$CL"/agents/supervisor.py "$CL"/agents/partner_*.py "$BAK"/ 2>/dev/null
 cp -a "$CL"/deploy/wit-yanshu@.service "$BAK"/ 2>/dev/null
@@ -82,7 +83,7 @@ echo " 5/5  下一步（人工确认）"
 echo "=============================================="
 cat <<'TIP'
   ① 打一次真实调用给 writer（经 mTLS 的 AIP 委派，不是本机脚本），然后：
-       tail -1 /opt/wit/my-project/acps_cluster/ws-writer/logs/amp_access_*.jsonl | python3 -m json.tool
+       tail -1 "$CL"/ws-writer/logs/amp_access_*.jsonl | python3 -m json.tool
      期望看到 log_type=access，且 body 里有 caller / callee。
 
   ② 看转发器有没有投出去：
@@ -97,10 +98,10 @@ cat <<'TIP'
 
   回滚：
        # 代码侧（.bak 精确还原）
-       cd /opt/wit/my-project/acps_cluster && sudo -u wit /opt/wit/venv/bin/python deploy/patch_amp_access.py --revert
+       cd "$CL" && sudo -u wit "$PY" deploy/patch_amp_access.py --revert
        # 转发器
        systemctl disable --now wit-amp-access-sender.service
        # 全套回滚（含 systemd 单元）
-       cp -a /opt/wit/amp-access-fix-backup-*/. /opt/wit/my-project/acps_cluster/deploy/ 2>/dev/null
+       cp -a /tmp/amp-access-fix-backup-*/. "$CL/deploy/" 2>/dev/null
        systemctl daemon-reload && systemctl restart wit-yanshu@writer
 TIP

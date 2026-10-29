@@ -477,6 +477,7 @@ def ws_write(root: Path, task_id: str, rel: str, content: str, *,
 
 def ws_read(root: Path, task_id: str, rel: str, *,
             max_bytes: int = DEFAULT_MAX_READ) -> dict:
+    """读取任务工作区文件（task_id 作用域 + 大小上限）。"""
     d, err = _task_dir(task_id, root)
     if err:
         return {"ok": False, "error": "invalid-task-id", "reason": err}
@@ -501,6 +502,7 @@ def ws_read(root: Path, task_id: str, rel: str, *,
 
 
 def ws_list(root: Path, task_id: str, rel: str = "", *, depth: int = 2) -> dict:
+    """列出任务工作区目录树（四分区，深度受限）。"""
     d, err = _task_dir(task_id, root)
     if err:
         return {"ok": False, "error": "invalid-task-id", "reason": err}
@@ -569,6 +571,7 @@ def ws_list(root: Path, task_id: str, rel: str = "", *, depth: int = 2) -> dict:
 
 def ws_gc(root: Path, task_id: str = "", *, older_than_days: int = 0,
           actor: str = "") -> dict:
+    """回收过期任务工作区（保留期与配额约束）。"""
     removed: list[str] = []
     if task_id:
         d, err = _task_dir(task_id, root)
@@ -630,6 +633,7 @@ def _read_readme_head(target: Path) -> str:
 
 def ws_clone_repo(root: Path, task_id: str, url: str, *, branch: str = "",
                   actor: str = "") -> dict:
+    """克隆公开仓库到任务工作区 repo/ 分区（SSRF 防线）。"""
     d, err = _task_dir(task_id, root)
     if err:
         return {"ok": False, "error": "invalid-task-id", "reason": err}
@@ -866,6 +870,7 @@ WS_CAPABILITIES = [
 
 
 def build_workspace_agent(provider) -> WitAgent:
+    """装配「研枢-Workspace-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     public_skills, has_non_public = capability_visibility(WS_CAPABILITIES)
     pep_hooks = build_pep_hooks(
         capabilities=WS_CAPABILITIES,
@@ -972,6 +977,7 @@ async def _serve_local() -> None:
 
 
 async def main() -> None:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     parser = argparse.ArgumentParser()
     parser.add_argument("--local", action="store_true", help="本地直连模式（路线 B，不起 registry/CA）")
     parser.add_argument("--gc-task", default="", help="运维：按 task_id 精确删除工作区后退出")

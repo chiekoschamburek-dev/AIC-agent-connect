@@ -1,4 +1,4 @@
-﻿"""RunGuardHooks：运行中守卫的规则与中止行为（离线，不联网）。"""
+"""RunGuardHooks：运行中守卫的规则与中止行为（离线，不联网）。"""
 
 from __future__ import annotations
 

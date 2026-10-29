@@ -434,6 +434,7 @@ class Recorder:
                        note=f"计划 {len(subtasks)} 步", t=self.t + 0.2)
 
     def tool_request(self, name: str, args: Any, tool_call: Any = None) -> None:
+        """记录一次工具调用请求到可视化事件流。"""
         args = _as_dict(args)
         if name == "plan_gate":
             self.plan(args.get("plan") or args)
@@ -501,6 +502,7 @@ class Recorder:
         return marked
 
     def tool_response(self, name: str, response: Any, tool_call: Any = None) -> None:
+        """记录一次工具返回结果到可视化事件流。"""
         if name in DELEGATE_TOOLS:
             key = str(getattr(tool_call, "id", None) or id(tool_call))
             pending = self._pending.pop(key, None)

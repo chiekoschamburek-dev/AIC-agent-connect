@@ -102,6 +102,7 @@ async def detect_contradictions(
 
 
 def build_contradiction_agent(provider) -> WitAgent:
+    """装配「研枢-Contradiction-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     ws_enabled = workspace_access_enabled("contradiction")
     capabilities = [detect_contradictions]
     hooks: list = []

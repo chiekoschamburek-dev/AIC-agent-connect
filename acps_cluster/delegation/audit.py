@@ -55,6 +55,7 @@ def audit_log(
     reason: str | None = None,
     extra: dict[str, Any] | None = None,
 ) -> None:
+    """追加一条 PEP/委托审计记录（不阻塞主流程）。"""
     record: dict[str, Any] = {
         "ts": _utc_now(),
         "decision": decision,

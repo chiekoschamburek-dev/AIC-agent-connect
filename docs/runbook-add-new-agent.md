@@ -79,10 +79,10 @@ cd /opt/wit/my-project/acps_cluster
 # 1) 用平台 CA 按目标 AIC 直接签发证书（写到 -idswitch 副本）
 sudo -u wit TARGET_AIC=<新AIC> SOURCE_WS=$PWD/ws-mynew TEST_WS=$PWD/ws-mynew-idswitch \
   PUBLIC_ENDPOINT=https://192.0.2.10:<端口>/rpc \
-  /opt/wit/venv/bin/python deploy/discovery_diagnostics/switch_step2_try_ca_issue.py
+  /opt/wit/venv/bin/python deploy/archive/discovery_diagnostics/switch_step2_try_ca_issue.py
 
 # 2) 应用身份（写 enrollment.json 三处 AIC + 用平台权威 ACS 覆盖 acs.final.json）
-sudo -u wit /opt/wit/venv/bin/python deploy/discovery_diagnostics/switch_step4_apply_identity.py \
+sudo -u wit /opt/wit/venv/bin/python deploy/archive/discovery_diagnostics/switch_step4_apply_identity.py \
   --ws ws-mynew --aic <新AIC> --creds-prefix MYNEW
 
 # 3) 搬证书材料到线上工作区（**这一步漏了就是"服务自称新 AIC、证书却是旧的"**）

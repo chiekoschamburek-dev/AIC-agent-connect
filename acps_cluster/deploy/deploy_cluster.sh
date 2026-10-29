@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # 研枢集群第二批部署：scout/synthesis/writer/critic 四个常驻伙伴 + supervisor 运行脚本
-# 在阿里云服务器上以 root 执行：bash /opt/wit/my-project/acps_cluster/deploy/deploy_cluster.sh
+# 在阿里云服务器上以 root 执行：bash acps_cluster/deploy/deploy_cluster.sh
 # 幂等：可反复执行；首次会提示补 .env.production，填好后再跑一遍即可
 set -euo pipefail
 
-BASE=/opt/wit
-PROJ=$BASE/my-project
-VENV=$BASE/venv
-CLUSTER=$PROJ/acps_cluster
+ROOT="${ACPS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+VENV="$ROOT/.venv"
+CLUSTER="$ROOT/acps_cluster"
 ENVFILE=$CLUSTER/deploy/.env.production
 
 cd "$CLUSTER"
@@ -34,7 +33,7 @@ if [ ! -x "$VENV/bin/python" ]; then
   "$PY" -m venv "$VENV"
 fi
 "$VENV/bin/pip" install -q --upgrade pip
-"$VENV/bin/pip" install -q -r "$PROJ/requirements.txt"
+"$VENV/bin/pip" install -q -r "$ROOT/requirements.txt"
 echo "[2/5] 依赖检查完成"
 
 # 3) 集群配置：仅当缺失才追加（保护已填好的 arxiv 配置）
@@ -80,7 +79,7 @@ for name in scout synthesis writer critic contradiction frontier experiment supe
   systemctl enable --now "wit-yanshu@$name" >/dev/null
   echo "  已启动 wit-yanshu@$name"
 done
-chown -R wit:wit "$PROJ"
+chown -R wit:wit "$ROOT"
 chmod 600 "$ENVFILE"
 echo "[5/5] 完成。看日志：journalctl -u wit-yanshu@scout -f"
 echo "  首次预期『注册未就绪: pending_review』，每 5 分钟自动重试，审核通过后自动上线"

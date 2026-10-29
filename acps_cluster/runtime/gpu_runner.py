@@ -202,6 +202,7 @@ def docker_available() -> bool:
 
 
 def build_docker_args(spec: JobSpec, run_id: str, input_dir: Path, output_dir: Path) -> list[str]:
+    """按沙盒硬边界构造 docker run 参数。"""
     args = [
         "docker", "run", "--rm",
         f"--name=gpu-run-{run_id}",

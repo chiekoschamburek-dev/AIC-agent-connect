@@ -4,7 +4,7 @@
 #   bash restart_units.sh --units "wit-workspace.service wit-yanshu@scout.service ..."
 set -euo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/opt/wit/my-project}"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 UNITS=()
 TIMEOUT="${TIMEOUT:-600}"
 

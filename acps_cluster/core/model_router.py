@@ -214,6 +214,7 @@ class FallbackProvider:
         self._primary_down_until = 0.0
 
     async def complete(self, request: ModelRequest) -> ModelResponse:
+        """非流式补全：调用底层 provider 并返回完整响应。"""
         if not self._primary_skippable():
             last = _LAST_SERVED.get()
             req = _strip_reasoning(request) if last not in (None, "primary") else request
@@ -247,6 +248,7 @@ class FallbackProvider:
     async def stream(self, request: ModelRequest) -> AsyncIterator[ModelStreamEvent]:
         # 流式一旦开始吐字就不能中途换路（会产出半截重复内容），
         # 因此只在"第一个事件之前"回退。
+        """流式补全：逐片段产出模型响应。"""
         if not self._primary_skippable():
             try:
                 agen = self._primary.stream(request)

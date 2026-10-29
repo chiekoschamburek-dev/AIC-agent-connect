@@ -77,11 +77,11 @@ sudo -u wit env \
   CREDS_PREFIX=WORKSPACE \
   TARGET_AIC=1.2.156.3088.1.BUPT.VTF97R.N9M0PW.ZB1CII.0B3X \
   PUBLIC_ENDPOINT=https://8.160.176.215:8470/rpc \
-  /opt/wit/venv/bin/python deploy/discovery_diagnostics/switch_step2_try_ca_issue.py
+  /opt/wit/venv/bin/python deploy/archive/discovery_diagnostics/switch_step2_try_ca_issue.py
 
 # 2) 写回身份：review.metadata.active、authoritativeAcs、registrationId、
 #    acpsConfig 与 acsFingerprint 全部按平台记录重算
-sudo -u wit /opt/wit/venv/bin/python deploy/discovery_diagnostics/switch_step4_apply_identity.py \
+sudo -u wit /opt/wit/venv/bin/python deploy/archive/discovery_diagnostics/switch_step4_apply_identity.py \
   --ws ws-workspace --aic 1.2.156.3088.1.BUPT.VTF97R.N9M0PW.ZB1CII.0B3X \
   --creds-prefix WORKSPACE --port 8470
 ```
@@ -115,8 +115,8 @@ workspace 重启不应把 scout/supervisor 踢下线。
 ```bash
 sudo -u wit /opt/wit/venv/bin/python deploy/check_new_agent.py --ws ws-workspace
 # 部署前必须全绿（workspace 已加入两个校验器）
-python deploy/discovery_diagnostics/verify_overlay_matches_registered.py
-python deploy/discovery_diagnostics/verify_projection_stability.py
+python deploy/archive/discovery_diagnostics/verify_overlay_matches_registered.py
+python deploy/archive/discovery_diagnostics/verify_projection_stability.py
 ```
 
 ## ACS 投影对齐（重要）

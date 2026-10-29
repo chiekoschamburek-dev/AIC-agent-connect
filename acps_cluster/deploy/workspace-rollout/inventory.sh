@@ -3,8 +3,8 @@
 # 用法（在服务器上）：bash inventory.sh [deploy_files.txt]
 set -euo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/opt/wit/my-project}"
-PY="${PY:-/opt/wit/venv/bin/python}"
+PROJECT_DIR="${PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+PY="${PY:-$PROJECT_DIR/.venv/bin/python}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FILES="${1:-$SCRIPT_DIR/deploy_files.txt}"
 
@@ -39,4 +39,4 @@ for p in workspace supervisor scout experiment synthesis writer critic contradic
 done
 
 echo "== 备份目录（最近 5 个）=="
-ls -dt /opt/wit/predeploy-* 2>/dev/null | head -5 || echo "  (none)"
+ls -dt /tmp/predeploy-* 2>/dev/null | head -5 || echo "  (none)"

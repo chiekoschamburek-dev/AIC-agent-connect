@@ -73,6 +73,7 @@ def _extract_json(text: str) -> dict:
     tags=["research", "review"],
 )
 async def review_paper(paper: str, materials: str = "") -> ReviewResult:
+    """审查论文并返回阻塞/建议意见（critic 的核心能力）。"""
     resp = await llm_tools.chat(
         system=(
             "你是严格的学术审稿人。审查给定论文，只输出一个 JSON 对象：\n"
@@ -133,6 +134,7 @@ async def citation_verify_capability(draft: str, references: str) -> dict:
 
 
 def build_critic_agent(provider) -> WitAgent:
+    """装配「研枢-Critic-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     ws_enabled = workspace_access_enabled("critic")
     capabilities = [review_paper, citation_verify_capability]
     hooks: list = []

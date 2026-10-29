@@ -1,6 +1,8 @@
+# 模板：由 deploy.sh install-units 渲染 __ACPS_ROOT__ / __ACPS_PY__ 后安装；
+# 不要直接把本文件拷进 /etc/systemd/system。
 [Unit]
 Description=Wit ACPs Yanshu Task Feeder (dispatch real AIP tasks to accumulate access counts)
-Documentation=file:///opt/wit/my-project/docs/task-feeder.md
+Documentation=file://__ACPS_ROOT__/docs/task-feeder.md
 After=network-online.target wit-yanshu@scout.service
 Wants=network-online.target
 
@@ -8,7 +10,7 @@ Wants=network-online.target
 Type=simple
 User=wit
 Group=wit
-WorkingDirectory=/opt/wit/my-project/acps_cluster
+WorkingDirectory=__ACPS_ROOT__/acps_cluster
 
 # 收尾批次（2026-10-19 14:xx 需求）：**再跑 10 个就结束**
 # - 5 个 deep research（4 步：designer → scout → synthesis → writer，模板里 designer 在第 1 步）
@@ -17,7 +19,7 @@ WorkingDirectory=/opt/wit/my-project/acps_cluster
 # 想再来一轮：systemctl start wit-task-feeder
 # **只派给 supervisor**：平台排行榜按 caller 侧 span 计数，脚本直连伙伴
 # 只留被调方记录、平台不认。
-ExecStart=/opt/wit/venv/bin/python /opt/wit/my-project/acps_cluster/runtime/feed_tasks.py \
+ExecStart=__ACPS_PY__ __ACPS_ROOT__/acps_cluster/runtime/feed_tasks.py \
     --targets supervisor \
     --round-size 10 --rounds 1 --order random \
     --include-heavy --heavy-per-round 5 --designer-per-round 0 \
@@ -28,7 +30,7 @@ TimeoutStopSec=30
 
 NoNewPrivileges=true
 ProtectSystem=full
-ReadWritePaths=/opt/wit/my-project/acps_cluster
+ReadWritePaths=__ACPS_ROOT__/acps_cluster
 
 [Install]
 WantedBy=multi-user.target

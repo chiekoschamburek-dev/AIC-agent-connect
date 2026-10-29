@@ -46,7 +46,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-CLUSTER_DEFAULT = "/opt/wit/my-project/acps_cluster"
+CLUSTER_DEFAULT = str(Path(__file__).resolve().parents[1])
 
 
 def parse_ts(value: str) -> datetime | None:

@@ -23,7 +23,7 @@ from pathlib import Path
 
 import httpx
 
-CLUSTER = Path(os.getenv("YANSHU_CLUSTER_DIR", "/opt/wit/my-project/acps_cluster"))
+CLUSTER = Path(os.getenv("YANSHU_CLUSTER_DIR", str(Path(__file__).resolve().parents[1])))
 ACS_BASE = "https://wt.ioa.pub/registry-server/acps-atr-v2/acs/"
 DISCOVER = "https://wt.ioa.pub/discovery/acps-adp-v2/discover"
 MIRROR_DIR = Path("/var/log/acps-amp/yanshu")

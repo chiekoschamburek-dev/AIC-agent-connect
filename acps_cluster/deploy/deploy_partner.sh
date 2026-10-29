@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # 在阿里云服务器上执行：bash deploy/deploy_partner.sh
-# 前提：my-project/ 已上传到 /opt/wit/；deploy/.env.production 已填好占位符
+# 前提：仓库已上传到服务器；deploy/.env.production 已填好占位符
 set -euo pipefail
 
-BASE=/opt/wit
-PROJ=$BASE/my-project
-VENV=$BASE/venv
-CLUSTER=$PROJ/acps_cluster
+ROOT="${ACPS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+VENV="$ROOT/.venv"
+CLUSTER="$ROOT/acps_cluster"
 
 cd "$CLUSTER"
 
@@ -33,7 +32,7 @@ if [ ! -x "$VENV/bin/python" ]; then
   "$PY" -m venv "$VENV"
 fi
 "$VENV/bin/pip" install -q --upgrade pip
-"$VENV/bin/pip" install -q -r "$PROJ/requirements.txt"
+"$VENV/bin/pip" install -q -r "$ROOT/requirements.txt"
 echo "[3/5] 依赖安装完成：$("$VENV/bin/pip" show wit-framework | head -2 | tr '\n' ' ')"
 
 # 4) 环境变量检查（只查空值，不打印值避免泄露密钥）

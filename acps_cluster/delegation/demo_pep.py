@@ -302,6 +302,7 @@ async def _cancel(caller_aic: str, session_id: str, response: dict, port: int) -
 
 
 async def phase_s234(out: Path, tmp_root: Path) -> None:
+    """运行 PEP 演示的 S2/S3/S4 阶段并输出对比。"""
     print("\n──── 阶段二：S2 / S2b / S3 / S4（ACPS_PEP_ENABLED=1）────")
     audit = out / "audit-pep-on.jsonl"
     runtime = await _serve(PORT_PEP_ON, enabled=True, audit_path=audit, tmp_root=tmp_root)
@@ -532,6 +533,7 @@ async def phase_outbound(out: Path, tmp_root: Path) -> None:
 
 
 async def main() -> None:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     out = Path(os.getenv("PEP_DEMO_OUT", str(CLUSTER / "demo_run" / "pep")))
     out.mkdir(parents=True, exist_ok=True)
     tmp_root = Path(os.getenv("TEMP", "/tmp")) / f"pep-demo-{uuid.uuid4().hex[:8]}"

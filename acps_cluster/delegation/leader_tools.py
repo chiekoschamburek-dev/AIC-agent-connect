@@ -48,6 +48,7 @@ def build_delegate_continue_tool(
     store = vault if vault is not None else DEFAULT_TOKEN_VAULT
 
     async def delegate_continue(arguments: dict | str) -> dict[str, Any]:
+        """向运行中的伙伴任务注入令牌并继续执行。"""
         args = arguments if isinstance(arguments, dict) else {"task_ref": str(arguments)}
         task_ref = str(args.get("task_ref") or "").strip()
         jtis = _as_str_list(args.get("jtis")) or _as_str_list(args.get("jti"))
@@ -185,6 +186,7 @@ class DelegationLeaderHooks(WitHooks):
         return self._signing
 
     async def on_run_start(self, event: RunStartEvent) -> None:
+        """run 开始回调：初始化本次运行的钩子状态。"""
         ctx = event.context
         if self._mount_issuer:
             try:

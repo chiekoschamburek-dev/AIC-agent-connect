@@ -95,6 +95,7 @@ HPC_CAPABILITIES = [hpc_info, hpc_jobs, hpc_submit, hpc_result]
 
 
 def build_hpc_agent(provider) -> WitAgent:
+    """装配「研枢-HPC-Partner」agent：模型、工具与 hooks 的公开构建入口。"""
     public_skills, has_non_public = capability_visibility(HPC_CAPABILITIES)
     pep_hooks = build_pep_hooks(
         capabilities=HPC_CAPABILITIES,

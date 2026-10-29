@@ -1,4 +1,4 @@
-﻿"""对比：平台认为"在线"的 agent vs 我们（不在线）的 ACS 字段差异。
+"""对比：平台认为"在线"的 agent vs 我们（不在线）的 ACS 字段差异。
 
 平台公开接口：GET /registry-server/acps-atr-v2/acs/{aic}（无需登录）
 只读：只 GET 公开 ACS。

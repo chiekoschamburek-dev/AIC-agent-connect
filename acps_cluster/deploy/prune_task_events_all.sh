@@ -5,8 +5,9 @@
 # 建议由 wit-task-prune.timer（周日 04:00）调用；手动演练：bash deploy/prune_task_events_all.sh --dry-run
 set -uo pipefail
 
-CL=/opt/wit/my-project/acps_cluster
-PY=/opt/wit/venv/bin/python
+ROOT="${ACPS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+CL="$ROOT/acps_cluster"
+PY="${ACPS_PY:-$ROOT/.venv/bin/python}"
 KEEP_DAYS="${KEEP_DAYS:-7}"
 KEEP_PER_TASK="${KEEP_PER_TASK:-50}"
 APPLY="--apply"

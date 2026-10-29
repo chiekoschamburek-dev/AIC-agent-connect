@@ -1,0 +1,17 @@
+# 模板：由 deploy.sh install-units 渲染 __ACPS_ROOT__ / __ACPS_PY__ 后安装；
+# 不要直接把本文件拷进 /etc/systemd/system。
+[Unit]
+Description=ACPS Guard API（只读旁路 HTTP 接口）
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__ACPS_ROOT__
+EnvironmentFile=-__ACPS_ROOT__/acps_cluster/deploy/.env.production
+Environment=PYTHONPATH=__ACPS_ROOT__/guard-api
+ExecStart=/bin/sh -c 'exec __ACPS_PY__ -m guard_api --db "${ACPS_GUARD_DB:-__ACPS_ROOT__/acps_cluster/ws-supervisor/acps/aip-tasks.sqlite3}" --port "${ACPS_GUARD_API_PORT:-8778}"'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

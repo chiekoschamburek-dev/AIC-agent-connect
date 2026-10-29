@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 用 wit 用户手动跑一次 Supervisor：注册→(等审核)→上线→执行任务→退出（不常驻）
-#   bash /opt/wit/my-project/acps_cluster/deploy/run_supervisor.sh "研究任务文本"
+#   bash acps_cluster/deploy/run_supervisor.sh "研究任务文本"
 # 输出同时写入 ws-supervisor/supervisor_run.log
 set -uo pipefail
 
@@ -11,7 +11,9 @@ if [ "$(id -un)" != "wit" ]; then
   exit 1
 fi
 
-CLUSTER=/opt/wit/my-project/acps_cluster
+ROOT="${ACPS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+CLUSTER="$ROOT/acps_cluster"
+PY="${ACPS_PY:-$ROOT/.venv/bin/python}"
 cd "$CLUSTER"
 
 set -a
@@ -23,12 +25,12 @@ rm -f ws-supervisor/logs/*.jsonl   # 重启时 AMP 心跳 journal 校验会失�
 
 # 预热 discovery 缓存：平台的发现接口与 wit 2.1.0 客户端不兼容（onlyAvailable 字段已移除 → 400），
 # 不预热的话委派会报 "Partner has no discovered Direct JSON-RPC endpoint"
-/opt/wit/venv/bin/python deploy/seed_discovery.py || echo ">> 缓存预热失败或不完整（rc≠0 = 有伙伴缺项，见上方 ⚠ 缺 N 项）：委派这些伙伴会解析不到端点"
+"$PY" deploy/seed_discovery.py || echo ">> 缓存预热失败或不完整（rc≠0 = 有伙伴缺项，见上方 ⚠ 缺 N 项）：委派这些伙伴会解析不到端点"
 
 TASK="${1:-调研 GNN 在知识图谱补全中的最新进展，写一篇带引用的 mini survey 初稿并送审}"
 LOG=ws-supervisor/supervisor_run.log
 
-/opt/wit/venv/bin/python supervisor.py "$TASK" 2>&1 | tee "$LOG"
+"$PY" agents/supervisor.py "$TASK" 2>&1 | tee "$LOG"
 status="${PIPESTATUS[0]}"
 
 if grep -q "注册未就绪" "$LOG"; then

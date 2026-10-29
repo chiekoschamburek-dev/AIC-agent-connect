@@ -360,6 +360,7 @@ class PaperMemory:
         return [dict(r) for _, r in scored[:limit]]
 
     def stats(self) -> dict[str, Any]:
+        """返回记忆库统计信息（条数、来源、TTL）。"""
         cur = self._con.execute(
             "SELECT COUNT(*) n, MIN(fetched_at) first, MAX(refreshed_at) last FROM papers")
         row = cur.fetchone()

@@ -3,8 +3,8 @@
 
 在服务器上执行（root 或 wit 均可，除非某项需要读别人家目录）：
 
-    /opt/wit/venv/bin/python deploy/preflight_check.py
-    /opt/wit/venv/bin/python deploy/preflight_check.py --json
+    python deploy/preflight_check.py
+    python deploy/preflight_check.py --json
 
 ## 为什么需要它
 
@@ -358,7 +358,7 @@ def check_kafka() -> None:
         record("OK", "Kafka 客户端", f"kafka-python 可用")
     except ImportError:
         record("FAIL", "Kafka 客户端", "缺 kafka-python：access 转发器无法投递",
-               "/opt/wit/venv/bin/pip install kafka-python")
+               "python -m pip install kafka-python")
 
 
 def check_state_dir() -> None:

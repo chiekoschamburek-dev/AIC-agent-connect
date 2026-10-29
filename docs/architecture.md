@@ -55,6 +55,7 @@
 | 互联机制 | `acps_cluster/delegation/`（pep.py / token.py / client.py / bridge.py / domain_manifest.py / grant.py / visibility.py / reconciliation.py / quota.py） |
 | 衍生机制 | 三级能力边界（各 partner 的 `capability_visibility`）、`acps_cluster/core/discovery_metadata.py`、`acps_cluster/core/arg_shapes.py` |
 | 框架与运行时 | `acps_cluster/core/bootstrap.py`（.env / 模型路由 / LLM 硬闸）、`acps_cluster/deploy/amp_*.py`、`partners/designer/src/amp_kafka_forwarder.py`、`requirements.txt`（WIT 只声明依赖） |
+| 部署 | `deploy.sh`（preflight/init/build/install-units/start/stop/status/logs）、`acps_cluster/deploy/*.service` 模板、`docs/deployment.md` |
 | 前端 viz | `cluster-viz/`、`acps_cluster/core/viz_live.py`、`acps_cluster/delegation/viz_record.py` |
 
 ---

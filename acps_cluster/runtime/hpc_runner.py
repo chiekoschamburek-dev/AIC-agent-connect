@@ -89,6 +89,7 @@ def list_jobs(*, limit: int = 20) -> list[dict]:
 
 
 def validate_job(raw: dict) -> tuple[dict | None, str | None]:
+    """校验作业输入（文件、时限、资源）并返回规范化 spec。"""
     if not isinstance(raw, dict):
         return None, "作业必须是 JSON 对象"
     name = str(raw.get("name") or "").strip()

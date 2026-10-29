@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # 研枢集群：一键上线（模型 → 计量 → 转发 → 派发）全链路自检与部署。
 #
-#   bash /opt/wit/my-project/acps_cluster/deploy/go_live.sh              # 自检 + 试点
-#   bash /opt/wit/my-project/acps_cluster/deploy/go_live.sh --dry-run    # 只看会做什么
-#   bash /opt/wit/my-project/acps_cluster/deploy/go_live.sh --full       # 试点通过后全量
-#   bash /opt/wit/my-project/acps_cluster/deploy/go_live.sh --verify     # 只做验收，不改任何东西
+#   bash acps_cluster/deploy/go_live.sh              # 自检 + 试点
+#   bash acps_cluster/deploy/go_live.sh --dry-run    # 只看会做什么
+#   bash acps_cluster/deploy/go_live.sh --full       # 试点通过后全量
+#   bash acps_cluster/deploy/go_live.sh --verify     # 只做验收，不改任何东西
 #
 # 设计原则（都是踩过的坑换来的）：
 #   1. **先自检，再动手**：任何一项阻塞都不往下走，避免"跑到第 5 步才发现第 1 步没做"；
@@ -13,8 +13,10 @@
 #   4. **幂等**：重复执行不会重复改（补丁脚本自己判断）。
 set -uo pipefail
 
-CL=/opt/wit/my-project/acps_cluster
-PY=/opt/wit/venv/bin/python
+ROOT="${ACPS_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+CL="$ROOT/acps_cluster"
+PY="${ACPS_PY:-$ROOT/.venv/bin/python}"
+[ -x "$PY" ] || PY="$(command -v python3)"
 MODE=preview
 FULL=0
 VERIFY_ONLY=0
@@ -57,7 +59,7 @@ if [ "$PRE_RC" -eq 1 ]; then
   echo ">> 有阻塞项。上面每条都写了怎么修；修完重跑本脚本。"
   echo "   常见三项的修法："
   echo "     python3 deploy/patch_amp_access.py          # 挂计量钩子 + 收窄重启清理"
-  echo "     /opt/wit/venv/bin/pip install kafka-python  # access 转发器依赖"
+  echo "     "$PY" -m pip install kafka-python  # access 转发器依赖"
   echo "     ACPS_MODEL_PRIMARY=none                     # 网关不可达时改走保底"
   exit 1
 fi
@@ -90,7 +92,7 @@ fi
 # ─────────────────────────────────────────────────────────────
 step "阶段 1/5  备份"
 STAMP=$(date +%Y%m%d-%H%M%S)
-BAK=/opt/wit/yanshu-golive-backup-$STAMP
+BAK=/tmp/yanshu-golive-backup-$STAMP
 mkdir -p "$BAK"
 cp -a "$CL"/agents/supervisor.py "$CL"/agents/partner_*.py "$BAK"/ 2>/dev/null
 cp -a "$CL"/bootstrap.py "$CL"/model_router.py "$CL"/llm_tools.py "$BAK"/ 2>/dev/null
@@ -200,7 +202,7 @@ else
       systemctl daemon-reload && systemctl enable --now wit-task-feeder
 
  回滚:
-      cp -a /opt/wit/yanshu-golive-backup-*/. /opt/wit/my-project/acps_cluster/
+      cp -a /tmp/yanshu-golive-backup-*/. "$CL/"
       systemctl disable --now wit-amp-access-sender
       systemctl restart wit-yanshu@writer
 NEXT

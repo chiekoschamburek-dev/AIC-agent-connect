@@ -98,6 +98,7 @@ def build_provider():
 # 抛错后 wit 会按自己的错误路径处理（本次调用的工具/任务以失败收尾），
 # 于是「卡死」变成「失败」——失败是可观测、可重试、可如实上报的，卡死不是。
 def with_response_deadline(provider):  # noqa: ANN001, ANN202
+    """with_response_deadline 的公开实现。"""
     if os.getenv("ACPS_LLM_DEADLINE", "1").lower() in ("0", "false", "no", "off"):
         return provider
     # 幂等：重复包装会让 _stream 调到自己（无限递归），这里加标记挡住

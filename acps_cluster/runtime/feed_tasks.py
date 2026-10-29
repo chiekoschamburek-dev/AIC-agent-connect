@@ -920,6 +920,7 @@ def heavy_quota_of(args) -> int | None:
 
 def run_once(args, ledger: Ledger, specs: list[dict], *, limit: int,
              rng: random.Random) -> dict:
+    """执行一轮任务派发/消费（守护循环的单步）。"""
     used = ledger.used()
     picks = next_tasks(specs, TOPICS, used, limit, rng,
                        order=getattr(args, "order", "random"),
@@ -996,6 +997,7 @@ def run_once(args, ledger: Ledger, specs: list[dict], *, limit: int,
 
 
 def main(argv: list[str] | None = None) -> int:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     ap = argparse.ArgumentParser(
         description="研枢集群任务派发器（真实 mTLS，主题去重，累积平台调用量）")
     ap.add_argument("--caller", default="supervisor", help="用哪个工作区证书当调用方")

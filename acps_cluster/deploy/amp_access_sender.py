@@ -143,7 +143,7 @@ def make_producer(broker: str):
     try:
         from kafka import KafkaProducer  # noqa: PLC0415
     except ImportError:
-        print("✘ 缺少 kafka-python（应在 /opt/wit/venv 中）：pip install kafka-python",
+        print("✘ 缺少 kafka-python（当前虚拟环境）：pip install kafka-python",
               file=sys.stderr)
         raise SystemExit(3)
     return KafkaProducer(

@@ -14,7 +14,7 @@
 
 > ⚠️ **2026-10-11 重要更正**：下表中 **writer / synthesis / experiment 三个 AIC 已变**。
 > **唯一权威**以各工作区 `acps/acs.final.json` 里的 `aic` 为准（平台注册用的就是它）。
-> 核对脚本：`deploy/discovery_diagnostics/acs_vs_heartbeat_aic.py`。
+> 核对脚本：`deploy/archive/discovery_diagnostics/acs_vs_heartbeat_aic.py`。
 >
 > 2026-10-11 更正后的当前值：
 >

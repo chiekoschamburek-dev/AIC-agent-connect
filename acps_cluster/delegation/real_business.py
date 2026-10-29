@@ -66,6 +66,7 @@ async def _serve_scout(provider, root: Path, audit: Path):
 
 
 async def main() -> None:
+    """命令行入口：解析参数并执行本模块的主流程。"""
     task = " ".join(sys.argv[1:]) or TASK
     out = CLUSTER / "demo_run" / "pep" / "real_business"
     out.mkdir(parents=True, exist_ok=True)
