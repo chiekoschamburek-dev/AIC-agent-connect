@@ -342,27 +342,7 @@ cat partners/designer/SUBMISSION_README.md
 
 ---
 
-## 四、安全与合规
-
-**一律不入库**（`.gitignore` + 推送前人工核验）：
-
-- 密钥与证书：真实 `.env`（只允许 `.example`）、`tokens/`、`*.pem`、`*.token`、
-  `ws-*/acps/grants/`、`.campus_key`；
-- 中间/运行产物：`__pycache__`、`.venv`、`node_modules`、`dist`、`*.log`、`output/`、
-  `datasets/`、`demo_run/`、`ws-*` 运行时数据、`_archive/`、`_audit/`、`eval-private/`；
-- 二进制 wheel：`wit_framework`、交付包里的 `wheels/`（`acps_sdk` 例外，随仓库分发）；
-- `partners/wenji` 为团队自研模块（无独立 `.git`），与集群共用本仓库版本管理。
-
-**许可证**：本仓库代码以 **MulanPSL-2.0** 发布，全文见 [LICENSE](LICENSE)；
-上游组件、扩展组件的来源与许可状态见 [NOTICE](NOTICE)。
-
-**问迹与集群的协作**：问迹作为团队伙伴登记在 `acps_cluster/core/cluster_roster.py`，
-由集群 Supervisor 通过 AIP Discovery 发现并调用；问迹自身也可作为 Leader 调用集群伙伴。
-对接方式与验证命令见 [partners/wenji/INTEGRATION.md](partners/wenji/INTEGRATION.md)。
-
----
-
-## 五、文档索引
+## 四、文档索引
 
 | 文档 | 内容 |
 |---|---|
@@ -382,19 +362,3 @@ cat partners/designer/SUBMISSION_README.md
 | [docs/run-guard.md](docs/run-guard.md) | 运行中守卫：规则、阈值、中止链路、observe/enforce 与回放校准 |
 | [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md) | 设计 agent 提交说明 |
 | [partners/wenji/README.md](partners/wenji/README.md) | 问迹（多模态可解释问答 agent） |
-
----
-
-## 六、已知限制
-
-- 干净克隆不含 dev CA 私钥、平台快照、评测私有数据与 `ws-*` 运行时状态，
-  相关用例会 **skip**（不是 fail）；需要完整覆盖时按
-  [docs/runbook-add-new-agent.md](docs/runbook-add-new-agent.md) 铸造 dev 身份。
-- ACS 声明稿不在仓库内：`deploy/make_acs.py` 按当前代码投影生成，
-  再交 `deploy/validate_acs.py` 校验。
-- `delegation/` 仅保留被复现脚本与测试引用的两个 demo（`demo_pep.py`、
-  `demo_autoresearch.py`）；其余演示脚本已精简，验收以测试与真实链路复现为准。
-- guard 目前是规则型检测，阈值来自首轮真实任务基线，尚未在大规模标注数据集上
-  统计 Precision / Recall；其结果只作异常筛查，不作攻击定论。
-- `wit_framework` 不随仓库分发，因此 CI 在缺少该 wheel 时会跳过测试并给出告警。
-- 各组件各自的运行依赖（PostgreSQL/pgvector、Docker、Kafka）需按各自 README 准备。
