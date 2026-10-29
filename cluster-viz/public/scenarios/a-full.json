@@ -21,6 +21,15 @@
    "y": 40,
    "w": 420,
    "h": 300
+  },
+  {
+   "id": "yanshu-infra",
+   "name": "基础设施（资源 agent）",
+   "color": "#f59e0b",
+   "x": 700,
+   "y": 380,
+   "w": 420,
+   "h": 280
   }
  ],
  "agents": [
@@ -83,6 +92,21 @@
    "source": "domain",
    "skills": [
     "gpu.run"
+   ]
+  },
+  {
+   "id": "workspace",
+   "name": "任务工作区",
+   "role": "partner",
+   "kind": "resource",
+   "org": "yanshu-infra",
+   "source": "roster",
+   "skills": [
+    "ws.create",
+    "ws.write",
+    "ws.read",
+    "ws.list",
+    "ws.clone_repo"
    ]
   }
  ],
@@ -238,6 +262,36 @@
    "t": 32.5
   },
   {
+   "t": 34.75,
+   "type": "agent_up",
+   "agent": {
+    "id": "workspace",
+    "name": "任务工作区",
+    "role": "partner",
+    "kind": "resource",
+    "org": "yanshu-infra",
+    "source": "roster",
+    "skills": [
+     "ws.create",
+     "ws.write",
+     "ws.read",
+     "ws.list",
+     "ws.clone_repo"
+    ]
+   }
+  },
+  {
+   "t": 35.0,
+   "type": "ws_zone",
+   "task": "论文复现",
+   "zones": [
+    "repo",
+    "products",
+    "scratch",
+    "shared"
+   ]
+  },
+  {
    "type": "token",
    "kind": "delegation",
    "issuer": "sup",
@@ -296,6 +350,14 @@
    "t": 56.75
   },
   {
+   "t": 57.0,
+   "type": "ws_file",
+   "actor": "workspace",
+   "zone": "repo",
+   "path": "repo/gnn-citation-net",
+   "note": "仓库克隆完成"
+  },
+  {
    "type": "state",
    "agent": "writer",
    "taskId": "t2",
@@ -345,6 +407,15 @@
    "name": "实验报告.md",
    "state": "final",
    "t": 80.5
+  },
+  {
+   "t": 81.0,
+   "type": "ws_file",
+   "actor": "supervisor",
+   "zone": "products",
+   "path": "products/实验报告.md",
+   "bytes": 4096,
+   "note": "ws.write"
   },
   {
    "type": "pep",
@@ -444,6 +515,15 @@
    "name": "复现报告.md",
    "state": "final",
    "t": 122.75
+  },
+  {
+   "t": 123.0,
+   "type": "ws_file",
+   "actor": "supervisor",
+   "zone": "products",
+   "path": "products/复现报告.md",
+   "bytes": 18432,
+   "note": "ws.write"
   },
   {
    "type": "state",

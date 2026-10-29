@@ -6,7 +6,15 @@ import type { Region } from '../types'
 import { EdgesOverlay } from './EdgesOverlay'
 import { nodeTypes } from './nodes'
 
-export function CanvasView({ state, regions }: { state: UIState; regions: Region[] }) {
+export function CanvasView({
+  state,
+  regions,
+  onOpenDomain,
+}: {
+  state: UIState
+  regions: Region[]
+  onOpenDomain?: (id: string) => void
+}) {
   const nodes: Node[] = useMemo(() => {
     const ns: Node[] = []
     for (const r of regions) {
@@ -64,14 +72,14 @@ export function CanvasView({ state, regions }: { state: UIState; regions: Region
         type: 'treaty',
         position: { x: 640, y: 24 + ti * 150 },
         width: 300,
-        height: d.reconciledUses !== undefined ? 110 : 84,
+        height: d.charter ? 126 : d.reconciledUses !== undefined ? 110 : 84,
         style: { width: 300 },
-        data: { domain: d },
+        data: { domain: d, onOpen: onOpenDomain },
       })
       ti += 1
     }
     return ns
-  }, [state, regions])
+  }, [state, regions, onOpenDomain])
 
   return (
     <ReactFlow

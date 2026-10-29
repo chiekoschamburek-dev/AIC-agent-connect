@@ -1,13 +1,13 @@
 import type { Scenario } from '../types'
-import { REGIONS, AGENTS } from './common'
+import { REGIONS, AGENTS, INFRA_REGION, LAB_CHARTER, WS_AGENT } from './common'
 
 // 剧本 A：论文复现全链路（域授权嵌套 + 真实训练 + 对账）
 export const scenarioRepro: Scenario = {
   title: 'A · 论文复现全链路',
   description: '选题→检索→设计→执行→分析→成文→审阅，算力走协作域授权',
   instruction: '复现一篇 GNN 引用网络论文：检索文献、设计实验、协作域授权调 GPU 训练、数据分析、撰写并审阅复现报告。',
-  regions: REGIONS,
-  agents: AGENTS.filter((a) => a.id !== 'outsider'),
+  regions: [...REGIONS, INFRA_REGION],
+  agents: [...AGENTS.filter((a) => a.id !== 'outsider'), WS_AGENT],
   events: [
     { t: 0.2, type: 'instruction', text: '复现一篇 GNN 引用网络论文（全链路）' },
     { t: 0.8, type: 'state', agent: 'sup', state: 'planning' },
@@ -59,8 +59,19 @@ export const scenarioRepro: Scenario = {
     { t: 9.2, type: 'agent_up', agent: AGENTS.find((a) => a.id === 'critic')! },
     { t: 9.8, type: 'state', agent: 'sup', state: 'idle', note: '编排就绪' },
 
-    { t: 10.4, type: 'domain', action: 'create', domainId: 'yanshu-edge-lab', revision: 1 },
+    {
+      t: 10.4,
+      type: 'domain',
+      action: 'create',
+      domainId: 'yanshu-edge-lab',
+      revision: 1,
+      charter: LAB_CHARTER,
+    },
     { t: 11.2, type: 'token', kind: 'grant', issuer: 'edge-leader', holder: 'sup', domain: 'yanshu-edge-lab', maxUses: 5, label: '域级 Grant · 配额 5 · 7 天' },
+
+    // 任务工作区（资源 agent）按需上线：第一次用到文件总线才出现，随后面板开四分区
+    { t: 11.8, type: 'agent_up', agent: WS_AGENT },
+    { t: 12.0, type: 'ws_zone', task: '论文复现', zones: ['repo', 'products', 'scratch', 'shared'] },
 
     { t: 12.2, type: 'delegate', from: 'sup', to: 'scout', taskId: 't1', skill: 'arxiv.search', label: '检索文献' },
     { t: 12.4, type: 'state', agent: 'scout', taskId: 't1', state: 'working' },
@@ -84,6 +95,7 @@ export const scenarioRepro: Scenario = {
     { t: 25.5, type: 'metric', agent: 'gpu', key: 'loss', value: '0.27' },
     { t: 26.5, type: 'state', agent: 'gpu', taskId: 't3', state: 'awaiting-completion' },
     { t: 27.0, type: 'product', agent: 'exp', name: 'metrics.json', state: 'final' },
+    { t: 27.2, type: 'ws_file', actor: 'supervisor', zone: 'products', path: 'products/metrics.json', bytes: 512, note: 'ws.write' },
     { t: 27.4, type: 'state', agent: 'exp', taskId: 't3', state: 'completed' },
 
     { t: 28.0, type: 'delegate', from: 'sup', to: 'data', taskId: 't4', skill: 'data.analyze', label: '数据分析' },
@@ -92,6 +104,7 @@ export const scenarioRepro: Scenario = {
     { t: 30.0, type: 'state', agent: 'data', taskId: 't4', state: 'completed' },
 
     { t: 30.6, type: 'delegate', from: 'sup', to: 'writer', taskId: 't5', skill: 'paper.write', label: '撰写报告' },
+    { t: 30.7, type: 'ws_file', actor: 'workspace', zone: 'repo', path: 'repo/gnn-citation-net', note: '仓库克隆完成' },
     { t: 30.8, type: 'state', agent: 'writer', taskId: 't5', state: 'working' },
     { t: 32.0, type: 'product', agent: 'writer', name: '复现报告.md', state: 'draft' },
     { t: 33.0, type: 'delegate', from: 'sup', to: 'critic', taskId: 't6', skill: 'paper.review', label: '审阅' },
@@ -100,6 +113,7 @@ export const scenarioRepro: Scenario = {
     { t: 35.0, type: 'product', agent: 'writer', name: '复现报告.md', state: 'final' },
     { t: 35.4, type: 'state', agent: 'writer', taskId: 't5', state: 'completed' },
     { t: 35.6, type: 'state', agent: 'critic', taskId: 't6', state: 'completed' },
+    { t: 35.8, type: 'ws_file', actor: 'supervisor', zone: 'products', path: 'products/复现报告-v1.md', bytes: 18432, note: 'ws.write' },
 
     { t: 36.4, type: 'reconcile', domain: 'yanshu-edge-lab', totalUses: 1 },
     { t: 37.4, type: 'done', summary: '复现完成：loss 0.27，报告通过审阅；全程授权留痕，双签对账。' },

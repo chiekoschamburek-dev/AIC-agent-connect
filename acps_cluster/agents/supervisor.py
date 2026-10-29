@@ -20,6 +20,7 @@
 
 import asyncio
 import base64
+import hashlib
 import json
 import mimetypes
 import os
@@ -171,6 +172,14 @@ ResourceDispatchAuthHooks 会按目标伙伴自动签发令牌并附在出站 Da
 令牌原文**不会进入你的上下文**，你不需要、也不要自己签发或复述令牌。
 **不要用 `acps_delegate_authenticated`**（顶层已摘除，选它必然参数报错）；
 **不要用 `acps_delegate_public` 调这些能力**（它明确拒绝受保护能力）。
+
+- **资源节点（cpu/gpu/eval/kb/model/hpc）统一用 `resource_call`**：
+  `resource_call(partner="gpu", skill="gpu.run", args_json="{\"files\":{...},\"entrypoint\":[\"python\",\"main.py\"]}")`。
+  代码会签令牌并组装静态路由 JSON；不要再用 `acps_delegate` 给资源节点发自然语言。
+  返回 `task_ref` 后用 `wait_partner` 等待；
+- **资源节点的非公开能力（cpu.run / gpu.run / gpu.data.fetch / kb.query / kb.ingest）
+  的 request 必须是 JSON**：`{"skill":"cpu.run","args":{...}}`。
+  资源节点开了静态路由时会直接执行，不再让它的 LLM 解析自然语言。
 
 - 之后照常用 **`wait_partner(task_ref=...)`** 等待终态；
 - **展示能力**（`cpu.env`、`cpu.status`、`gpu.env`、`gpu.status`、`gpu.data.list`、
@@ -913,6 +922,94 @@ def _attach_deliver_files(products: list, *, deliver: Path | None = None,
     if attached:
         logger(f"[supervisor] 已附 {len(attached)} 个交付文件（FileDataItem / 内联 bytes）",
                flush=True)
+    return attached
+
+
+def _attach_text_files(products: list, *, min_chars: int | None = None,
+                       max_kb: int = 256, logger=print) -> int:
+    """把长文本产物自动生成同名 `.md` 文件，作为 AIP `FileDataItem` 附回同一产物。
+
+    - 开关：`ACPS_SUPERVISOR_ATTACH_TEXT_FILES`（默认关，行为不变）
+    - 阈值：`ACPS_SUPERVISOR_ATTACH_TEXT_MIN_CHARS`（默认 1500 字符）
+    - 上限：`ACPS_SUPERVISOR_ATTACH_MAX_KB`（默认 256KB，AIP 内联上限 512KB）
+    - 文本仍保留；附文件只是多一个可下载的 `file` data item（平台/叮当可当附件渲染）
+    """
+    if os.getenv("ACPS_SUPERVISOR_ATTACH_TEXT_FILES", "0").strip().lower() not in {
+            "1", "true", "yes", "on"}:
+        return 0
+    if min_chars is None:
+        try:
+            min_chars = max(1, int(os.getenv("ACPS_SUPERVISOR_ATTACH_TEXT_MIN_CHARS", "1500")))
+        except ValueError:
+            min_chars = 1500
+    limit = max_kb * 1024
+    attached = 0
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+        key = "data_items" if "data_items" in product else "dataItems"
+        items = product.get(key)
+        if not isinstance(items, list):
+            continue
+        texts = [d.get("text") for d in items
+                 if isinstance(d, dict) and d.get("type") == "text"
+                 and isinstance(d.get("text"), str) and d.get("text")]
+        if not texts:
+            continue
+        text = "\n\n".join(texts)
+        if len(text) < min_chars:
+            continue
+        if len(text.encode("utf-8")) > limit:
+            logger(f"[supervisor] 文本产物超 {max_kb}KB，跳过文件附件", flush=True)
+            continue
+        base = str(product.get("name") or product.get("id") or "deliverable")
+        name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", base).strip()[:80] or "deliverable"
+        name = f"{name}.md"
+        if any(isinstance(d, dict) and d.get("type") == "file"
+               and d.get("name") == name for d in items):
+            continue
+        mode = os.getenv("ACPS_SUPERVISOR_ATTACH_TEXT_MODE", "bytes").strip().lower()
+        if mode == "uri":
+            file_dir = os.getenv("ACPS_SUPERVISOR_FILE_DIR", "").strip()
+            file_base = os.getenv("ACPS_SUPERVISOR_FILE_BASE_URL", "").strip()
+            if not file_base:
+                viz_base = os.getenv("ACPS_VIZ_BASE_URL", "").strip().rstrip("/")
+                file_base = f"{viz_base}/files" if viz_base else ""
+            if file_dir and file_base:
+                digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:10]
+                filename = f"{re.sub(r'[^A-Za-z0-9._-]+', '-', name).strip('-') or 'deliverable'}-{digest}.md"
+                target = Path(file_dir) / filename
+                try:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(text.encode("utf-8"))
+                    os.chmod(target, 0o644)
+                except OSError as exc:
+                    logger(f"[supervisor] 交付文件落盘失败，退回内联 bytes: {exc}", flush=True)
+                else:
+                    from urllib.parse import quote  # noqa: PLC0415
+                    url = f"{file_base.rstrip('/')}/{quote(filename)}"
+                    items.append({
+                        "type": "file",
+                        "name": name,
+                        "mime_type": "text/markdown; charset=utf-8",
+                        "uri": url,
+                    })
+                    first_text = next((d for d in items if isinstance(d, dict)
+                                       and d.get("type") == "text"), None)
+                    if first_text is not None:
+                        first_text["text"] = (str(first_text.get("text") or "")
+                                              + f"\n\n📎 文件下载：{url}")
+                    attached += 1
+                    continue
+        items.append({
+            "type": "file",
+            "name": name,
+            "mime_type": "text/markdown; charset=utf-8",
+            "bytes": base64.b64encode(text.encode("utf-8")).decode("ascii"),
+        })
+        attached += 1
+    if attached:
+        logger(f"[supervisor] 已把 {attached} 个长文本产物附为 .md 文件", flush=True)
     return attached
 
 
@@ -2174,6 +2271,10 @@ class SupervisorRunHooks(WitHooks):
             if attached:
                 self._trace_write({"event": "deliver_files_attached",
                                    "files": len(attached), "path": "flush"})
+            text_files = _attach_text_files(products)
+            if text_files:
+                self._trace_write({"event": "text_files_attached",
+                                   "files": text_files, "path": "flush"})
             submit_handler = state.get("handler")
             if not callable(submit_handler):
                 return
@@ -2354,6 +2455,10 @@ class SupervisorRunHooks(WitHooks):
         if attached:
             self._trace_write({"event": "deliver_files_attached",
                                "files": len(attached), "path": "auto"})
+        text_files = _attach_text_files([product])
+        if text_files:
+            self._trace_write({"event": "text_files_attached",
+                               "files": text_files, "path": "auto"})
         try:
             out = await handler({"products": [product]})
             if attached:
@@ -3178,6 +3283,20 @@ def _make_authenticated_delegate_tool(roster: list[cluster_roster.RosterMember])
             return {"ok": False,
                     "error": "缺少必填参数：partner_aic / request / skill_id（受保护能力必须指明 skill_id）"}
 
+        # 2026-10-29：静态资源节点（CPU/GPU）默认不再跑 LLM。调用方给 args_json 时，
+        # 把请求改写成确定性路由能识别的 JSON（skill + args），对端直接发 ToolCall；
+        # 不传则保留自然语言（对端若开了 LLM 兜底仍可用）。
+        raw_args = args.get("args_json")
+        if raw_args not in (None, ""):
+            try:
+                payload_args = raw_args if isinstance(raw_args, dict) else json.loads(str(raw_args))
+            except (TypeError, ValueError) as exc:
+                return {"ok": False, "error": f"args_json 不是合法 JSON：{exc}"}
+            if not isinstance(payload_args, dict):
+                return {"ok": False, "error": "args_json 必须是 JSON 对象"}
+            request = json.dumps({"skill": skill_id, "args": dict(payload_args)},
+                                 ensure_ascii=False)
+
         # ①' 标量闸门（2026-10-16）：目标必须真实存在且确实声明该能力——plan_gate 的
         # 两条硬约束下沉到这里，全标量比较，provider 丢数组时也不会卡住编排。
         # 拒绝时**不签发令牌**：编造的 AIC 连一次签名都不该拿到。
@@ -3275,7 +3394,9 @@ def _make_authenticated_delegate_tool(roster: list[cluster_roster.RosterMember])
             "向**受保护**伙伴（CPU/GPU/KB 资源类）发起任务，并自动附上委托令牌——"
             "这些伙伴的非公开能力必须持令牌才能被准入，leader 也不例外。"
             "参数：partner_aic（目标伙伴 AIC）、skill_id（要调用的能力，如 cpu.run / gpu.run / "
-            "gpu.data.fetch / kb.query / kb.ingest）、request（任务全文）。"
+            "gpu.data.fetch / kb.query / kb.ingest）、request（任务全文）、"
+            'args_json（可选：结构化参数 JSON，如 {"files": {...}, "entrypoint": [...]}；'
+            "资源节点开了静态路由时直接执行、不跑 LLM）。"
             "返回 task_ref，用 wait_partner 等待。公开能力（cpu.env / gpu.status / kb.schema 等）"
             "不需要走本工具，直接委派即可。"
         ),
@@ -3285,8 +3406,86 @@ def _make_authenticated_delegate_tool(roster: list[cluster_roster.RosterMember])
                 "partner_aic": {"type": "string", "description": "目标伙伴 AIC"},
                 "skill_id": {"type": "string", "description": "要调用的非公开能力 id"},
                 "request": {"type": "string", "description": "任务全文（完整指令）"},
+                "args_json": {"type": "string",
+                              "description": "可选的结构化参数 JSON（静态资源节点直接执行）"},
             },
             "required": ["partner_aic", "skill_id", "request"],
+        },
+        handler=handler,
+    )
+
+
+def _make_resource_call_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
+    """资源节点专用：结构化调用 CPU/GPU/eval/KB，不再依赖模型写自然语言。
+
+    内部复用 `_make_authenticated_delegate_tool` 的令牌签发/出站逻辑，只是把
+    request 固定成静态路由认识的 JSON：
+    `{"skill": "...", "args": {...}}`。
+    """
+    delegate = _make_authenticated_delegate_tool(roster)
+
+    async def handler(arguments: dict | str) -> dict:
+        args = arguments if isinstance(arguments, dict) else {"args_json": str(arguments)}
+        partner = str(args.get("partner") or args.get("partner_aic") or "").strip()
+        skill = str(args.get("skill") or args.get("skill_id") or "").strip()
+        raw = args.get("args_json", "{}")
+        if not partner or not skill:
+            return {"ok": False, "error": "缺少必填参数：partner / skill"}
+        try:
+            payload = raw if isinstance(raw, dict) else json.loads(str(raw or "{}"))
+        except (TypeError, ValueError) as exc:
+            return {"ok": False, "error": f"args_json 不是合法 JSON：{exc}"}
+        if not isinstance(payload, dict):
+            return {"ok": False, "error": "args_json 必须是 JSON 对象"}
+
+        member = cluster_roster.resolve_member(roster, partner_aic=partner)
+        if member is None:
+            return {"ok": False, "error": f"名册里找不到资源伙伴：{partner}"}
+        if member.key not in {"cpu", "gpu", "eval", "kb", "model", "hpc"}:
+            return {"ok": False, "error": f"{member.key} 不是资源节点；研究伙伴请用 acps_delegate"}
+        if skill not in tuple(member.capabilities or ()):
+            return {"ok": False, "error": f"{member.key} 未声明能力：{skill}"}
+
+        # 2026-10-29：资源节点新 AIC 可能还没进本机发现缓存；先 discovery 一次，
+        # 否则 aip_delegate 会直接报 "Partner has no discovered Direct JSON-RPC endpoint"。
+        try:
+            from acps_cluster.delegation.bridge import current_runtime  # noqa: PLC0415
+
+            rt0 = current_runtime()
+            if rt0 is not None and hasattr(rt0, "aip_discover"):
+                await rt0.aip_discover(member.aic or partner, limit=5)
+        except Exception:  # noqa: BLE001
+            pass
+
+        request = json.dumps({"skill": skill, "args": payload}, ensure_ascii=False)
+        out = await delegate.handler({
+            "partner_aic": partner,
+            "skill_id": skill,
+            "request": request,
+        })
+        if isinstance(out, dict) and out.get("ok"):
+            out["payload_mode"] = "static-json"
+            out["note"] = ("已按静态路由发送（技能+args JSON，对端不跑 LLM）。"
+                           "接着用 wait_partner(task_ref=...) 等待终态。")
+        return out
+
+    return Tool(
+        name="resource_call",
+        description=(
+            "调用资源节点（cpu/gpu/eval/kb/model/hpc）的确定性入口。参数：partner（名册 key，"
+            "如 cpu/gpu）、skill（能力 id，如 cpu.run/gpu.run/cpu.env）、args_json（JSON 字符串，"
+            "如 {\"files\":{\"main.py\":\"...\"},\"entrypoint\":[\"python\",\"main.py\"]}）。"
+            "返回 task_ref，用 wait_partner 等待。资源节点开启静态路由时直接执行，不跑对端 LLM；"
+            "不要再用 acps_delegate 给资源节点发自然语言。"
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "partner": {"type": "string", "description": "资源节点名册 key，如 cpu / gpu"},
+                "skill": {"type": "string", "description": "能力 id，如 cpu.run / gpu.env"},
+                "args_json": {"type": "string", "description": "结构化参数 JSON 字符串，默认 {}"},
+            },
+            "required": ["partner", "skill"],
         },
         handler=handler,
     )
@@ -3326,6 +3525,11 @@ def _make_public_delegate_tool(
         # 受保护判定和真正出站都用**解析后的 AIC**，否则填 "cpu" 就绕过了闸门。
         member = cluster_roster.resolve_member(roster, partner_aic=partner_aic)
         aic = (member.aic if member is not None and member.aic else partner_aic)
+        # 2026-10-29：资源节点的公开展示能力（cpu.env/gpu.status/...）不需要参数，
+        # 自动改写成静态路由可识别的 JSON，避免再跑对端 LLM。
+        if member is not None and member.key in {"cpu", "gpu", "eval", "kb", "model", "hpc"} \
+                and skill_id:
+            request = json.dumps({"skill": skill_id, "args": {}}, ensure_ascii=False)
         skills = _protected_table().get(aic) or []
         if skills:
             public = [c for c in (member.capabilities if member is not None else ())
@@ -3977,6 +4181,8 @@ def build_run_config(roster: list[cluster_roster.RosterMember]) -> RunConfig:
         # 带令牌委派：受保护伙伴（CPU/GPU/KB 的非公开能力）必须持令牌才准入，
         # 且按 2026-10-11 的要求连 leader 也不例外（白名单对这些 agent 关闭）。
         _make_authenticated_delegate_tool(roster),
+        # 资源节点确定性调用：模型只填 skill/args_json，代码组装静态路由 JSON。
+        _make_resource_call_tool(roster),
         # L2 作业化交路（受理-作业-取件）：复杂长任务不挂前端等待
         _make_check_job_tool(),
         # 公开能力委派：入参全标量，替代内置 acps_delegate（后者的数组 request 会被

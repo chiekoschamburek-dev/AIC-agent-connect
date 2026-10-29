@@ -1,5 +1,5 @@
 import type { Scenario } from '../types'
-import { REGIONS, AGENTS } from './common'
+import { REGIONS, AGENTS, LAB_CHARTER } from './common'
 
 // 剧本 C：授权戏剧——拦截、签发、急停、配额、对账（PEP/CDAP 专场）
 export const scenarioAuth: Scenario = {
@@ -18,7 +18,7 @@ export const scenarioAuth: Scenario = {
     { t: 3.0, type: 'pep', caller: 'outsider', target: 'gpu', skill: 'gpu.run', decision: 'deny', rule: 'no-credential · 无凭据直连' },
     { t: 4.6, type: 'pep', caller: 'outsider', target: 'gpu', skill: 'gpu.run', decision: 'deny', rule: 'issuer-not-authorized · 自签令牌' },
 
-    { t: 6.2, type: 'domain', action: 'create', domainId: 'yanshu-edge-lab', revision: 1 },
+    { t: 6.2, type: 'domain', action: 'create', domainId: 'yanshu-edge-lab', revision: 1, charter: LAB_CHARTER },
     { t: 7.0, type: 'token', kind: 'grant', issuer: 'edge-leader', holder: 'sup', domain: 'yanshu-edge-lab', maxUses: 2, label: '域级 Grant · 配额 2' },
     { t: 8.0, type: 'token', kind: 'delegation', issuer: 'sup', holder: 'exp', domain: 'yanshu-edge-lab', skill: 'gpu.run', label: '派生 Task Token' },
     { t: 8.8, type: 'delegate', from: 'sup', to: 'exp', taskId: 't1', skill: 'exp.run', label: '训练 #1' },

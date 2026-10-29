@@ -373,16 +373,24 @@ async def serve_partner(
     default_port: int,
     creds_prefix: str,
     runtime_cls: type[WitRuntime] = WitRuntime,
+    static_prefix: str | None = None,
 ) -> None:
     """注册→(等审核)→领证书→mTLS 常驻服务；未就绪时以退出码 2 结束，交给 systemd 重试。
 
     runtime_cls 允许伙伴在 ACS 投影上做最小差异（workspace 的已批 ACS certificate
     为空，需要裁掉代码默认的 altNames），不影响证书请求本身。
+    static_prefix 非空且 `ACPS_<PREFIX>_STATIC_ROUTER=1` 时，用确定性路由 provider
+    包住真实 provider：结构化 JSON 直接调能力，解析失败才按
+    `ACPS_<PREFIX>_LLM_FALLBACK` 决定是否回落 LLM。
     """
     from acps_cluster.core import bootstrap  # noqa: PLC0415  (触发 .env 加载)
+    from acps_cluster import static_router  # noqa: PLC0415
 
     port = int(os.getenv(port_env, str(default_port)))
-    provider = bootstrap.build_provider()
+    base_provider = bootstrap.build_provider()
+    provider = base_provider
+    if static_prefix and static_router.enabled(static_prefix):
+        provider = static_router.wrap(static_prefix, base_provider)
     agent = build_agent(provider)
     runtime = runtime_cls(agent, workspace=workspace, acps=build_acps_config(port))
     try:

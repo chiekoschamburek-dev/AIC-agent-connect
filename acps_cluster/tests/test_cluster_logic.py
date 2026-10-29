@@ -568,10 +568,12 @@ class SupervisorPlaybookTest(unittest.TestCase):
         # 模型提供方丢空后必然失败的内置 acps_delegate）；
         # 2026-10-16 起新增 submit_job / check_job（L2 作业化交路：受理-作业-取件，
         # 复杂长任务不挂前端等待——秒级回执 + 后台跑 + 「查作业」取件）
+        # 2026-10-29 起新增 resource_call（资源节点结构化调用：skill+args_json → 静态路由）
         self.assertEqual(names, {"plan_gate", "review_gate", "product_gate",
                                  "deep_research", "auto_research", "wait_partner",
                                  "wait_many", "acps_delegate_authenticated",
-                                 "acps_delegate_public", "submit_job", "check_job"})
+                                 "acps_delegate_public", "resource_call",
+                                 "submit_job", "check_job"})
         self.assertEqual(cfg.max_steps, 200)  # 2026-10-05 起默认 200(环境可配 ACPS_SUPERVISOR_MAX_STEPS)
         # wait_partner 的单次预算（360s）必须小于工具超时，否则会被框架打断
         self.assertGreater(cfg.tool_timeout_seconds, 360)

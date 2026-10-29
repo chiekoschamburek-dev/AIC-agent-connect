@@ -1,13 +1,14 @@
-import type { UIProduct, UIState, UIWsFile } from './engine'
-import { PRODUCT_LABEL, SOURCE_LABEL, type VizEvent } from './types'
+import type { UIProduct, UIState, UIDiscovered } from './engine'
+import {
+  PRODUCT_LABEL, SOURCE_LABEL, SOURCE_SHORT, STATE_LABEL, type SourceKind, type VizEvent,
+} from './types'
 import { cleanInstruction } from './text'
 
-const ZONES = ['repo', 'products', 'scratch', 'shared'] as const
-const ZONE_LABEL: Record<(typeof ZONES)[number], string> = {
-  repo: '📎 repo（只读参考）',
-  products: '📦 products（产物归档·版本化）',
-  scratch: '✏️ scratch（个人草稿）',
-  shared: '🤝 shared（协作总线）',
+const SOURCE_CLASS: Record<SourceKind, string> = {
+  wutong: 'src-wutong',
+  roster: 'src-roster',
+  domain: 'src-domain',
+  teammate: 'src-teammate',
 }
 
 function eventLine(e: VizEvent): { icon: string; cls: string; text: string } {
@@ -31,7 +32,9 @@ function eventLine(e: VizEvent): { icon: string; cls: string; text: string } {
         text: `PEP ${e.decision === 'allow' ? '放行' : '拒绝'} ${e.caller}→${e.target} · ${e.rule}`,
       }
     case 'state':
-      return { icon: '⚙️', cls: '', text: `${e.agent} → ${e.state}${e.note ? `（${e.note}）` : ''}` }
+      // 与画布节点徽章用同一份中文映射：台账直接插值英文枚举会两边不一致。
+      // taskId 一并展示，多任务并发时能归因到具体任务
+      return { icon: '⚙️', cls: '', text: `${e.agent}${e.taskId ? ` · ${e.taskId}` : ''} → ${STATE_LABEL[e.state] ?? e.state}${e.note ? `（${e.note}）` : ''}` }
     case 'product':
       return { icon: '📄', cls: 'lv-product', text: `产物《${e.name}》${PRODUCT_LABEL[e.state]}（${e.agent}）` }
     case 'domain': {
@@ -43,9 +46,14 @@ function eventLine(e: VizEvent): { icon: string; cls: string; text: string } {
     case 'reconcile':
       return { icon: '🧾', cls: 'lv-allow', text: `对账：${e.domain} 共 ${e.totalUses} 次调用 · 双方签名` }
     case 'ws_zone':
-      return { icon: '🗂️', cls: 'lv-plan', text: `任务工作区已开辟：${e.task}（${e.zones.join('/')}）` }
+      return {
+        icon: '🗂️', cls: 'lv-plan',
+        text: `任务工作区分区：${e.task}（${e.zones.join('/')}）${e.by ? ` · ${e.by}` : ''}`,
+      }
     case 'ws_file':
-      return { icon: '🗂️', cls: 'lv-product', text: `工作区写入 [${e.zone}] ${e.path}（${e.actor}）` }
+      // note 是后端特意准备的区分文案（"委派已下发" vs "克隆完成"），必须展示，
+      // 否则同一仓库的两行在界面上无法区分语义（2026-10-27 审查）
+      return { icon: '🗂️', cls: 'lv-product', text: `工作区写入 [${e.zone}] ${e.path}（${e.actor}${e.note ? ` · ${e.note}` : ''}）` }
     case 'done':
       return { icon: '🏁', cls: 'lv-allow', text: e.summary }
     default:
@@ -53,16 +61,40 @@ function eventLine(e: VizEvent): { icon: string; cls: string; text: string } {
   }
 }
 
-export function Ledger({ state, seek }: { state: UIState; seek: (t: number) => void }) {
+export function Ledger({ state, time, seek }: { state: UIState; time: number; seek: (t: number) => void }) {
+  // 同一 (task, 调用方) 的 ws_zone 只显示第一条（旧 scenario 可能录了多条重复事件）
+  const seenZones = new Set<string>()
+  const rows = state.ledger
+    .filter((e) => e.t >= 0)
+    .filter((e) => {
+      if (e.type !== 'ws_zone') return true
+      // 同一 task 可能先后被 supervisor 与不同 partner 使用：按 (task, by) 去重，
+      // 让每个调用方各留一行；同一方重复声明仍然只显示一次（2026-10-28）。
+      const key = `${e.task}|${e.by ?? ''}`
+      if (seenZones.has(key)) return false
+      seenZones.add(key)
+      return true
+    })
+  // 当前时刻所在的行（最后一个 t <= time 的事件）：跳转后给出位置反馈，
+  // 也让实时模式"跳了又被挂钟拉回"的现象可见
+  let activeIndex = -1
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].t <= time) activeIndex = i
+    else break
+  }
   return (
     <div className="ledger">
       <div className="panel-title">事件台账（点击跳转）</div>
       <div className="ledger-list">
         {state.ledger.length === 0 && <div className="ledger-empty">按 ▶ 开始演示</div>}
-        {state.ledger.filter((e) => e.t >= 0).map((e, i) => {
+        {rows.map((e, i) => {
           const l = eventLine(e)
           return (
-            <div key={i} className={`ledger-row ${l.cls}`} onClick={() => seek(e.t + 0.01)}>
+            <div
+              key={i}
+              className={`ledger-row ${l.cls} ${i === activeIndex ? 'active' : ''}`}
+              onClick={() => seek(e.t + 0.01)}
+            >
               <span className="ledger-t">{e.t.toFixed(1)}s</span>
               <span className="ledger-icon">{l.icon}</span>
               <span className="ledger-text">{l.text}</span>
@@ -74,27 +106,34 @@ export function Ledger({ state, seek }: { state: UIState; seek: (t: number) => v
   )
 }
 
-export function WorkspacePanel({ files, task }: { files: UIWsFile[]; task?: string }) {
-  const byZone = new Map<string, UIWsFile[]>()
-  for (const zone of ZONES) byZone.set(zone, [])
-  for (const f of [...files].sort((a, b) => a.t - b.t)) byZone.get(f.zone)?.push(f)
+// 发现候选栏：discover 事件不再只进台账。候选按 AIC 去重；同名 agent 上线后
+// 打绿标，演示时能清楚看到"发现 → 上线 → 委派"的过渡（2026-10-29 补齐）。
+export function DiscoveryBar({ items, agents }: {
+  items: UIDiscovered[]
+  agents: UIState['agents']
+}) {
+  if (items.length === 0) return null
+  const onlineNames = new Set(Object.values(agents).map((a) => a.name))
   return (
-    <div className="wszones">
-      <div className="panel-title">任务工作区{task ? `（${task}）` : ''}</div>
-      <div className="wszone-grid">
-        {ZONES.map((zone) => {
-          const list = byZone.get(zone) ?? []
+    <div className="discovery-bar" aria-label={`发现候选 ${items.length} 个`}>
+      <span className="discovery-title">发现候选 <b>{items.length}</b></span>
+      <div className="discovery-list">
+        {items.map((item) => {
+          const online = onlineNames.has(item.name)
+          const skills = (item.skills ?? []).slice(0, 2).join(' / ')
           return (
-            <div key={zone} className={`wszone wszone-${zone}`}>
-              <div className="wszone-title">{ZONE_LABEL[zone]}</div>
-              {list.length === 0 && <div className="wszone-empty">空</div>}
-              {list.map((f) => (
-                <div key={f.path + f.t} className="wsfile" title={f.sha256 ? `sha256 ${f.sha256.slice(0, 12)}…` : undefined}>
-                  <span className="wsfile-path">{f.path}</span>
-                  <span className="wsfile-meta">{f.actor}{f.bytes != null ? ` · ${f.bytes}B` : ''}</span>
-                </div>
-              ))}
-            </div>
+            <span
+              key={item.aic}
+              className={`discovery-chip ${online ? 'online' : ''}`}
+              title={`${item.name} · ${item.aic}\n能力：${(item.skills ?? []).join(' / ') || '—'}\n最近查询：${item.query}`}
+            >
+              <span className={`discovery-source ${SOURCE_CLASS[item.source] ?? ''}`}>
+                {SOURCE_SHORT[item.source] ?? item.source}
+              </span>
+              <span className="discovery-name">{item.name}</span>
+              {online && <span className="discovery-online">已上线</span>}
+              {skills && <span className="discovery-skills">{skills}</span>}
+            </span>
           )
         })}
       </div>

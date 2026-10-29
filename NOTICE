@@ -81,6 +81,13 @@
     deploy.sh                               一键部署入口（preflight/init/build/install-units/start/stop/status/logs）
     acps_cluster/deploy/*.service            systemd 模板（__ACPS_ROOT__/__ACPS_PY__ 由 install-units 渲染）
     docs/deployment.md                      部署边界、前置条件与排障
+    acps_cluster/static_router.py           资源节点确定性路由（结构化 args → ToolCall，默认不跑 LLM）
+    acps_cluster/tests/test_static_router.py / test_resource_call.py / test_attach_text_files.py
+                                            静态路由、resource_call、长文本附件测试
+    docs/static-resource-router.md          静态路由设计、实测与边界
+    docs/inbound-result-delivery-aip-submit.md  入站产物交付（aip_submit / 附件）
+    docs/guard-redteam-2026-10-29.md         guard 红队注入实验（含逃逸结论）
+    guard-api/redteam/                      红队注入脚本与可复现事件流
     docs/architecture.md、docs/README.md、README.md  整合说明
 - 我方既有代码的两处路径适配（cluster-viz 从仓库外移入仓库根）：
     acps_cluster/viz_live.py       DEFAULT_SCENARIO_DIR: parents[2] → parents[1]

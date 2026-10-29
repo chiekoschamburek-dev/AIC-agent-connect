@@ -273,6 +273,19 @@ guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有�
 - 回放校准：18/18 成功作业零误杀，3/3 卡到 TTL 的作业被 `progress-stall` 捕获；
 - 细节见 [docs/run-guard.md](docs/run-guard.md)。
 
+### 8. 静态资源路由（CPU/GPU/KB）
+
+资源 agent 的能力执行是纯代码，LLM 只负责“自然语言 → 能力参数”。`acps_cluster/static_router.py`
+把这一步换成**结构化 JSON → ToolCall**：
+
+- 调用方用 `resource_call(partner="gpu", skill="gpu.run", args_json=...)`，或在 AIP
+  `commandParams` 里给 `{"skillId": "...", "args": {...}}`；
+- provider 按 `skillId` 找能力工具，并按 `input_schema` fail-closed 校验参数；
+- 解析失败才可选回落 LLM（`ACPS_<PREFIX>_LLM_FALLBACK=1`）。
+
+CPU/GPU 已实测不再为每次调用跑 LLM；KB `kb.schema` 静态路由 318ms。
+细节与边界见 [docs/static-resource-router.md](docs/static-resource-router.md)。
+
 ---
 
 ## 三、快速开始
@@ -360,5 +373,8 @@ cat partners/designer/SUBMISSION_README.md
 | [acps_cluster/guard/README.md](acps_cluster/guard/README.md) | 三维事件通信风险检测器 |
 | [guard-api/README.md](guard-api/README.md) | guard HTTP API：端点、鉴权、supervisor 挂载 |
 | [docs/run-guard.md](docs/run-guard.md) | 运行中守卫：规则、阈值、中止链路、observe/enforce 与回放校准 |
+| [docs/static-resource-router.md](docs/static-resource-router.md) | 静态资源路由：结构化 args → 能力，默认不跑 LLM（CPU/GPU/KB） |
+| [docs/inbound-result-delivery-aip-submit.md](docs/inbound-result-delivery-aip-submit.md) | 入站产物交付：aip_submit、长文本附 .md、uri 模式 |
+| [docs/guard-redteam-2026-10-29.md](docs/guard-redteam-2026-10-29.md) | guard 红队注入实验：A/B/C/N 四组与逃逸结论 |
 | [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md) | 设计 agent 提交说明 |
 | [partners/wenji/README.md](partners/wenji/README.md) | 问迹（多模态可解释问答 agent） |

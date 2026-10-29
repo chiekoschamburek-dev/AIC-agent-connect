@@ -1,0 +1,62 @@
+{
+  "scenes": [
+    {
+      "tag": "A",
+      "desc": "朴素外传：base64 高熵分片",
+      "events": 6,
+      "jsonl": "redteam\\out\\a-A.jsonl",
+      "score": 30,
+      "level": "MEDIUM",
+      "findings": [
+        {
+          "channel": "storage",
+          "rule": "encoded_high_entropy_blob",
+          "score": 30,
+          "detail": "found 5 encoded blob(s), max entropy 7.76 bits/byte"
+        }
+      ]
+    },
+    {
+      "tag": "B",
+      "desc": "时序调制：0/1 交替节拍",
+      "events": 11,
+      "jsonl": "redteam\\out\\b-B.jsonl",
+      "score": 25,
+      "level": "LOW",
+      "findings": [
+        {
+          "channel": "timing",
+          "rule": "alternating_interval_pattern",
+          "score": 25,
+          "detail": "alternating groups differ by 100%"
+        }
+      ]
+    },
+    {
+      "tag": "C",
+      "desc": "规避版：切段+抖动+分片+单调",
+      "events": 13,
+      "jsonl": "redteam\\out\\c-C.jsonl",
+      "score": 0,
+      "level": "LOW",
+      "findings": []
+    },
+    {
+      "tag": "N",
+      "desc": "正常对照：业务轮询（等间隔）",
+      "events": 13,
+      "jsonl": "redteam\\out\\n-N.jsonl",
+      "score": 20,
+      "level": "LOW",
+      "findings": [
+        {
+          "channel": "timing",
+          "rule": "over_regular_intervals",
+          "score": 20,
+          "detail": "12 intervals have CV 0.000"
+        }
+      ]
+    }
+  ],
+  "live": []
+}

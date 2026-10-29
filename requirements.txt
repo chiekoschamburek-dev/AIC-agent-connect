@@ -31,3 +31,6 @@ jcs>=0.2.0
 # 标准库（asyncio/json/pathlib/re/os/sys/time/datetime/dataclasses/typing/
 # collections.abc/xml.etree）不列入。
 # acps_cluster/group（消息队列群组）如需启用，追加：aio-pika>=10.0.1,<11
+
+# 服务器 SQLite 3.26 不支持生成列/FTS5 trigram；Linux 上优先用新版 pysqlite3
+pysqlite3-binary>=0.5.4.post2; platform_system == 'Linux'

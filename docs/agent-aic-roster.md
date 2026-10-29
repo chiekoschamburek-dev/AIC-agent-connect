@@ -1,5 +1,17 @@
 # agent 身份清单（2026-10-09 16:50 快照，8 个）
 
+> **2026-10-29 增量**：CPU / GPU 两个资源 agent 已从本地 dev 身份切到平台注册
+> **v1.1.0**（补 `certificate.altNames.ip=8.160.176.215`），旧 dev AIC 弃用：
+>
+> | 工作区 | 新 AIC | 端点 | 说明 |
+> |---|---|---|---|
+> | cpu | `1.2.156.3088.1.BUPT.VTF97R.OOP399.93QK82.06BB` | `https://8.160.176.215:8462/rpc` | 服务器 0.0.0.0:8462，Docker 沙盒 |
+> | gpu | `1.2.156.3088.1.BUPT.VTF97R.V0XUC3.9JWIVI.135X` | `https://8.160.176.215:8460/rpc` | 本机 RTX 5060 + 反向隧道；服务器 `wit-gpu-tunnel-proxy` 暴露 8460 |
+>
+> 两者都已真实跑通：CPU `cpu.run` exit=0（stdout `hello-cpu-run`，产物
+> `output/result.txt`），GPU `gpu.run` exit=0（`cuda=True` / RTX 5060 / 产物
+> `output/gpu.txt`）。平台已批记录不可更新，现场启动时直接复用已有证书/ACS。
+
 > 当前名册已扩到 17 条（1 leader + 16 partner），以 `cluster_roster.ROSTER` 与各工作区
 > `acps/acs.final.json` 为准；本文仅保留当时的平台验收记录。
 >

@@ -42,7 +42,7 @@ from wit.hooks.acps.amp import AmpAccessLoggingHooks  # noqa: E402
 from acps_cluster.core.aip_guard import AipPartnerGuardHooks
 from acps_cluster.delegation import build_pep_hooks, capability_visibility, split_pep_hooks  # noqa: E402
 
-WORKSPACE = Path(__file__).resolve().parents[1] / "ws-gpu"
+WORKSPACE = Path(os.getenv("ACPS_GPU_WORKSPACE", "") or (Path(__file__).resolve().parents[1] / "ws-gpu"))
 GPU_PORT_ENV = "ACPS_GPU_PORT"
 GPU_PORT_DEFAULT = 8460
 
@@ -249,6 +249,7 @@ async def main() -> None:
         port_env=GPU_PORT_ENV,
         default_port=GPU_PORT_DEFAULT,
         creds_prefix="GPU",
+        static_prefix="GPU",
     )
 
 

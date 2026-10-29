@@ -289,6 +289,14 @@ async def experiment_pipeline(
         f"{fetch_hint}"
         f"实验代码（调用 {compute_skill} 时把这些文件原样作为 files 参数传入，不要改写）：\n{code_blocks}"
     )
+    if spec.get("mode") != "fetch":
+        # 2026-10-29：静态资源路由（GPU 默认不跑 LLM）——普通实验直接给结构化 args，
+        # 不再让对端模型从代码块里猜 files/entrypoint；fetch 模式需要先 gpu.data.fetch
+        # 再 gpu.run 两步，保留自然语言交给对端（可回落到 LLM）。
+        task_text = json.dumps({
+            "skill": compute_skill,
+            "args": {"files": files, "entrypoint": ["python", "main.py"]},
+        }, ensure_ascii=False)
     try:
         result = await runtime.aip_delegate(
             state,

@@ -210,6 +210,7 @@ async def main() -> None:
         port_env=CPU_PORT_ENV,
         default_port=CPU_PORT_DEFAULT,
         creds_prefix="CPU",
+        static_prefix="CPU",
     )
 
 

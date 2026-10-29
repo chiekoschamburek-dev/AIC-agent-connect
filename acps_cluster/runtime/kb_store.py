@@ -27,7 +27,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import sqlite3
+try:  # 服务器 Python 自带 SQLite 3.26（不支持生成列 / FTS5 trigram）
+    import pysqlite3 as sqlite3  # type: ignore[import-not-found]
+except ImportError:  # 本地/CI 用标准库（新版 SQLite）
+    import sqlite3
 import time
 from pathlib import Path
 from typing import Any, Iterator

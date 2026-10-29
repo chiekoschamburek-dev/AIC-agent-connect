@@ -1010,6 +1010,7 @@ async def main() -> None:
         default_port=WS_PORT_DEFAULT,
         creds_prefix="WORKSPACE",
         runtime_cls=WorkspaceRuntime,
+        static_prefix="WORKSPACE",
     )
 
 

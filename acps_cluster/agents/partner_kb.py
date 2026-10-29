@@ -194,6 +194,7 @@ async def main() -> None:
         port_env=KB_PORT_ENV,
         default_port=KB_PORT_DEFAULT,
         creds_prefix="KB",
+        static_prefix="KB",
     )
 
 
