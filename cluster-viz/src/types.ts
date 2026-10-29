@@ -10,6 +10,7 @@ export type AgentState =
   | 'awaiting-completion'
   | 'completed'
   | 'rejected'
+  | 'failed'
 
 export type ProductState = 'draft' | 'reviewing' | 'final'
 
@@ -85,7 +86,7 @@ export type VizEvent =
       note?: string
     }
   | { t: number; type: 'ws_zone'; task: string; zones: string[] }
-  | { t: number; type: 'done'; summary: string }
+  | { t: number; type: 'done'; summary: string; status?: 'done' | 'failed' }
 
 export interface Scenario {
   title: string
@@ -112,6 +113,7 @@ export const STATE_LABEL: Record<AgentState, string> = {
   'awaiting-completion': '等待产物',
   completed: '已完成',
   rejected: '已拒绝',
+  failed: '失败',
 }
 
 export const PRODUCT_LABEL: Record<ProductState, string> = {

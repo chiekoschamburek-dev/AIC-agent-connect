@@ -72,8 +72,12 @@
 - 本仓库新增（我方）：
     acps_cluster/guard_adapter.py           guard → supervisor 只读旁路适配层（CLI/留档）
     guard-api/                              guard 的 HTTP 接口层（FastAPI；独立进程或挂载 supervisor）
+    acps_cluster/agents/supervisor.py 内的 RunGuardHooks
+                                            运行中守卫（事中止损；observe/enforce，默认 observe）
+    docs/run-guard.md                       运行中守卫规则/阈值/中止链路说明
     acps_cluster/covert_event_guard.py      兼容 shim（一行转发）
     acps_cluster/tests/test_guard_adapter.py 适配层测试
+    acps_cluster/tests/test_run_guard.py    运行中守卫测试
     docs/architecture.md、docs/README.md、README.md  整合说明
 - 我方既有代码的两处路径适配（cluster-viz 从仓库外移入仓库根）：
     acps_cluster/viz_live.py       DEFAULT_SCENARIO_DIR: parents[2] → parents[1]

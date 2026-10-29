@@ -550,26 +550,48 @@ class Recorder:
                            note=state_name or None)
             self._write()
 
-    def finish(self, summary: str = "") -> None:
+    def finish(self, summary: str = "", status: str = "done") -> None:
+        """收尾落 done 事件；status="failed" 表示本次 run 失败/异常终止。
+
+        为什么需要 status：此前无论 run 成败都画"全绿已完成"，空产出、提交失败、
+        异常退出被系统性伪装成成功（2026-10-27 审查）。已 done 后再以 failed 调用
+        （兜底提交失败等升级路径）会原地改写 done 事件并补发 sup 失败状态。
+        """
         text = str(summary or "").strip().replace("\n", " ")[:300]
-        # 收尾兜底：仍停在 working 的伙伴一律置 completed。
-        # 委派与等待的字段对不上时映射会失败，没有这道兜底界面上就永远是"工作中"。
-        for aid in list(self.agents):
-            if aid == "sup":
-                continue
-            if self._states.get(aid) in ("working", "planning"):
-                self._emit("state", agent=aid, state="completed", note="伙伴已交付")
+        failed = str(status or "done").strip().lower() == "failed"
         if self._done:
             for event in reversed(self.events):
                 if event.get("type") == "done":
-                    if text:
+                    if failed and event.get("status") != "failed":
+                        event["status"] = "failed"
+                        if text:
+                            event["summary"] = text
+                        self._emit("state", agent="sup", state="failed",
+                                   note=text or "任务失败")
+                    elif text:
                         event["summary"] = text
                     break
             self._write()
             return
         self._done = True
-        self._emit("state", agent="sup", state="completed", note="本次 run 收尾")
-        self._emit("done", summary=text or "本次协作结束")
+        # 收尾兜底：仍停在 working 的伙伴一律置终态。
+        # 委派与等待的字段对不上时映射会失败，没有这道兜底界面上就永远是"工作中"。
+        # run 失败时不能把没交付的伙伴翻成"已完成"——那正是本次要修的伪装。
+        for aid in list(self.agents):
+            if aid == "sup":
+                continue
+            if self._states.get(aid) in ("working", "planning"):
+                if failed:
+                    self._emit("state", agent=aid, state="failed", note="run 失败，未确认交付")
+                else:
+                    self._emit("state", agent=aid, state="completed", note="伙伴已交付")
+        if failed:
+            self._emit("state", agent="sup", state="failed",
+                       note=text or "本次 run 失败")
+            self._emit("done", summary=text or "本次协作异常结束", status="failed")
+        else:
+            self._emit("state", agent="sup", state="completed", note="本次 run 收尾")
+            self._emit("done", summary=text or "本次协作结束", status="done")
         self._write()
 
 

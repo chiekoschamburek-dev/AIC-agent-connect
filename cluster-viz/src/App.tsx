@@ -309,7 +309,11 @@ export default function App() {
       <div className="main">
         <div className="canvas-wrap">
           <CanvasView state={state} regions={scenario.regions} />
-          {state.doneSummary && <div className="done-banner">🏁 {state.doneSummary}</div>}
+          {state.doneSummary && (
+            <div className={`done-banner ${state.doneStatus === 'failed' ? 'failed' : ''}`}>
+              {state.doneStatus === 'failed' ? '⛔' : '🏁'} {state.doneSummary}
+            </div>
+          )}
         </div>
         <aside className="side">
           <ProductPanel products={state.products} />

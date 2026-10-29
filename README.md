@@ -243,6 +243,35 @@ Supervisor / 人工复核
 **适配层不改变 PEP 语义**：不签发、不撤销、不改令牌、不改域策略、不自动阻断。
 报告里 `disposition: "advisory-only"`、`pep_semantics: "untouched"` 是显式契约。
 
+### 运行中守卫（RunGuardHooks）：把"事后审计"变成"过程中止损"
+
+guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有建议权；运行中守卫
+（`RunGuardHooks`，priority 20）在 supervisor / 作业进程内按代码侧观测实时判定，
+`ACPS_RUN_GUARD=enforce` 时可以中止 run、`aip_fail` 如实上报、viz 标 failed。
+
+| 层 | 位置 | 能看到什么 | 能否处置 |
+|---|---|---|---|
+| PEP | 准入点 | 身份 / 令牌 / 域策略 / 配额 | 拦截或放行 |
+| `guard-api` / `guard_adapter` | 只读旁路 | 已完成任务的历史事件 | **不能**（advisory-only） |
+| `RunGuardHooks` | 运行进程内 | 当前 run 的工具响应、步数、错误、等待轮次、墙钟 | **能**：中止 + `aip_fail` + viz failed |
+
+规则与默认阈值（全部代码侧观测，不靠模型自觉）：
+
+| 规则 | 默认 | 触发 |
+|---|---|---|
+| `wall-clock` | 13800s | run 墙钟超限（4h TTL 前 10 分钟收尸） |
+| `no-activity` | 1500s | 没有任何工具/步活动 |
+| `progress-stall` | 5400s | 长时间没有实际推进（无产物、无新委派、状态不变） |
+| `error-streak` | 8 | 连续 8 次工具报错 |
+| `repeat-loop` | 16 | 同一非等待工具 + 同参数重复 16 次 |
+| `step-budget` | 195 | 已用步数 ≥195（max_steps 200） |
+| `partner-not-finishing` | 30 | 同一 `task_ref` 等待/查询 30 轮未收尾 |
+
+- 模式：`ACPS_RUN_GUARD=observe`（默认，只落审计）/ `enforce`（真中止）/ `off`；
+- 审计：`<workspace>/logs/run-guard-audit.jsonl` + run-trace `run_guard_abort`；
+- 回放校准：18/18 成功作业零误杀，3/3 卡到 TTL 的作业被 `progress-stall` 捕获；
+- 细节见 [docs/run-guard.md](docs/run-guard.md)。
+
 ---
 
 ## 五、快速开始
@@ -331,6 +360,7 @@ cat partners/designer/SUBMISSION_README.md
 | [docs/runbook-add-new-agent.md](docs/runbook-add-new-agent.md) | 新增 agent 的铸造/注册/验收 |
 | [acps_cluster/guard/README.md](acps_cluster/guard/README.md) | 三维事件通信风险检测器 |
 | [guard-api/README.md](guard-api/README.md) | guard HTTP API：端点、鉴权、supervisor 挂载 |
+| [docs/run-guard.md](docs/run-guard.md) | 运行中守卫：规则、阈值、中止链路、observe/enforce 与回放校准 |
 | [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md) | 设计 agent 提交说明 |
 | [partners/wenji/README.md](partners/wenji/README.md) | 问迹（多模态可解释问答 agent） |
 

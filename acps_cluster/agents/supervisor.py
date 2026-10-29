@@ -806,6 +806,8 @@ def build_supervisor_agent(provider) -> WitAgent:
             SupervisorRunHooks(),
             # 作业生命周期硬闸：受理后只允许收尾；超预算只允许改道/收尾
             JobLifecycleFenceHooks(),
+            # 运行中守卫：卡住/空转/错误连击/重复循环时中止并如实上报（observe 先灰度）
+            RunGuardHooks(),
             # 同步预算时钟：高频本地工具也带"已进行/剩余"，别等 400s 长阻塞才看到改道提示
             BudgetClockHooks(),
             # 出站关单兜底：模型取到产物却忘了发 complete 时，run 正常收尾后代签一次
@@ -1770,6 +1772,10 @@ def _make_wait_partner_tool(
     )
 
 
+# 运行中守卫的跨钩子中止标记（RunGuardHooks 置位，wrap_tool_call/on_run_end 读取）。
+_RUN_GUARD_ABORT: ContextVar[dict | None] = ContextVar("yanshu_run_guard_abort", default=None)
+
+
 class SupervisorRunHooks(WitHooks):
     """把需要当次运行 state 的本地工具挂到 leader 的每一次 run 上（与 DelegationLeaderHooks 同款）。
 
@@ -1796,12 +1802,29 @@ class SupervisorRunHooks(WitHooks):
         except Exception as exc:  # noqa: BLE001
             print(f"[viz] 工作流链接追加失败（忽略）: {type(exc).__name__}: {exc}", flush=True)
 
-    def _viz_finish(self, summary: str = "") -> None:
+    def _viz_finish(self, summary: str = "", status: str = "done") -> None:
         rec = self._VIZ.get()
         if rec is None:
             return
         try:
-            rec.finish(summary)  # type: ignore[attr-defined]
+            rec.finish(summary, status=status)  # type: ignore[attr-defined]
+        except Exception as exc:  # noqa: BLE001
+            print(f"[viz] 工作流收尾失败（忽略）: {type(exc).__name__}: {exc}", flush=True)
+
+    def _viz_finish_aborted(self) -> None:
+        """wrap_run 的 finally 兜底：on_run_end 没跑到（异常/取消）时按失败收口。
+
+        正常收尾时 on_run_end 已经 finish 过（finished=True），这里是无操作——
+        绝不能把正常完成的 run 改成失败。进程被 os._exit 强杀时 finally 也不会
+        执行，那条路由 jobs_runner 看门狗的 mark_run_failed 收口。
+        """
+        rec = self._VIZ.get()
+        if rec is None:
+            return
+        try:
+            if getattr(rec, "finished", True):
+                return
+            rec.finish("本次 run 异常退出", status="failed")  # type: ignore[attr-defined]
         except Exception as exc:  # noqa: BLE001
             print(f"[viz] 工作流收尾失败（忽略）: {type(exc).__name__}: {exc}", flush=True)
 
@@ -2047,14 +2070,25 @@ class SupervisorRunHooks(WitHooks):
         wit 在 run_finalize 读 `.status` 直接 `AttributeError`，表现为
         「Agent execution failed.」（2026-10-11 实测踩坑，见 run-trace 的 `aip_submit_flush`）。
         所以这里只 `await` 一个独立方法，把返回值原样让出去。
+
+        可视化收尾必须区分"正常返回"与"异常退出"：`on_run_end` 在 `wrap_run`
+        **之后**才触发（wit 先拿到 handler 返回值再发 run_end）。若在 finally 里
+        只看 `rec.finished`，正常 run 也永远为 False，于是每次都会先写一条
+        `failed("本次 run 异常退出")`；随后 `on_run_end` 的 done 只能改摘要、
+        改不回状态——线上所有成功任务都显示"失败"（2026-10-28 实测）。
         """
+        returned = False
         try:
-            return await handler()
+            result = await handler()
+            returned = True
+            return result
         finally:
             try:
                 await self._flush_buffered_submit()
             finally:
-                self._viz_finish("")
+                # 正常返回时把收口交给 on_run_end；只有异常/取消才在这里判失败。
+                if not returned:
+                    self._viz_finish_aborted()
 
     async def _flush_buffered_submit(self) -> None:
         """把缓冲的产物合并成一次正式提交。**绝不 raise**（收尾失败不能毁掉整次 run）。"""
@@ -2214,7 +2248,30 @@ class SupervisorRunHooks(WitHooks):
                            "iterations": getattr(res, "iterations", None),
                            "final_text": text[:400]})
         # 先落 done（不依赖后面是否提前 return）；wrap_run 的 finally 会做幂等兜底。
-        self._viz_finish(text)
+        # 失败终态要如实上板：此前无论 run 成败 viz 一律画"全绿已完成"（2026-10-27 审查）。
+        abort = _RUN_GUARD_ABORT.get()
+        if abort is not None:
+            reason = f"运行守卫中止（{abort.get('rule')}）：{abort.get('reason')}"
+            state = self._SUBMIT_STATE.get()
+            self._SUBMIT_STATE.set(None)
+            fail = state.get("fail_handler") if isinstance(state, dict) else None
+            already_ok = bool(isinstance(state, dict) and state.get("ok"))
+            if callable(fail) and not already_ok:
+                try:
+                    await fail({"reason": reason})
+                    self._trace_write({"event": "aip_fail_auto", "ok": True,
+                                       "reason": "run-guard", "detail": reason[:300]})
+                except Exception as exc:  # noqa: BLE001
+                    self._trace_write({"event": "aip_fail_auto", "ok": False,
+                                       "reason": "run-guard",
+                                       "error": f"{type(exc).__name__}: {exc}"})
+            self._viz_finish(reason, status="failed")
+            _RUN_GUARD_ABORT.set(None)
+            return
+        run_status = str(getattr(res, "status", None) or "").lower()
+        exhausted = any(k in run_status for k in ("budget", "limit", "exhaust", "max_step", "steps"))
+        viz_status = "done" if (not run_status or run_status in ("completed", "success") or exhausted) else "failed"
+        self._viz_finish(text, status=viz_status)
 
         # ── 兜底提交：只在"没成功提交过"或"成功提交的内容明显更短"时才补交 ──
         # 背景：AIP 任务**只接受一次** aip_submit（第二次起报
@@ -2722,6 +2779,231 @@ class BudgetClockHooks(WitHooks):
             if note:
                 out["budget_note"] = note
         return out
+
+
+def _run_guard_mode() -> str:
+    mode = str(os.getenv("ACPS_RUN_GUARD", "observe") or "observe").strip().lower()
+    return mode if mode in {"off", "observe", "enforce"} else "observe"
+
+
+def _run_guard_int(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(name, str(default))))
+    except ValueError:
+        return default
+
+
+class RunGuardHooks(WitHooks):
+    """运行中守卫：在任务执行过程中检测异常并中止，而不是等作业超时/人来看。
+
+    与 guard-api 的分工：
+    - guard-api（`ACPS_GUARD_API_PORT`）是只读旁路，扫历史事件、advisory-only，
+      没有运行中上下文，也没有处置权；
+    - 本 hook 在 supervisor/作业进程内，按代码侧观测（工具响应、步数、等待轮次、
+      错误连击）实时判定；`ACPS_RUN_GUARD=enforce` 时中止并走 aip_fail 如实上报，
+      observe 时只落审计（默认，先灰度校准阈值）。
+
+    只处理"卡住/空转"这类运行异常，不做内容质量评分；质量仍由 critic/product_gate
+    与 guard-api 的事后扫描负责。
+    """
+
+    id = "yanshu.run-guard"
+    priority = 20
+    _STATE: ContextVar[dict | None] = ContextVar("yanshu_run_guard_state", default=None)
+    _WAIT_TOOLS = frozenset({"wait_partner", "wait_many", "acps_task", "acps.task"})
+    _ALLOW_ON_ABORT = frozenset({"aip_fail"})
+
+    async def on_run_start(self, event) -> None:  # noqa: ANN001
+        _RUN_GUARD_ABORT.set(None)
+        now = time.monotonic()
+        self._STATE.set({
+            "started": now,
+            "last_activity": now,
+            "last_progress": now,
+            "progress_states": {},
+            "steps": 0,
+            "errors": 0,
+            "repeat": {},
+            "waits": {},
+            "abort": None,
+            "submitted": False,
+        })
+
+    async def wrap_tool_call(self, ctx, tool_call, handler):  # noqa: ANN001, ANN202
+        st = self._STATE.get()
+        abort = _RUN_GUARD_ABORT.get()
+        name = str(getattr(tool_call, "name", None) or "")
+        if abort is not None and _run_guard_mode() == "enforce" and st is not None:
+            if name in self._ALLOW_ON_ABORT:
+                return await handler(tool_call)
+            return {
+                "ok": False,
+                "error": "run-guard-abort",
+                "rule": abort.get("rule"),
+                "reason": abort.get("reason"),
+                "hint": ("运行守卫已中止本 run：立即调用 aip_fail 上报异常并结束，"
+                         "不要再委派/等待/重试。"),
+            }
+        return await handler(tool_call)
+
+    async def on_step_end(self, event) -> None:  # noqa: ANN001
+        st = self._STATE.get()
+        if st is None:
+            return
+        try:
+            st["steps"] = max(int(st.get("steps") or 0), int(getattr(event, "step", 0) or 0))
+        except (TypeError, ValueError):
+            st["steps"] = int(st.get("steps") or 0) + 1
+        st["last_activity"] = time.monotonic()
+        self._check(st)
+
+    async def on_tool_response(self, event) -> None:  # noqa: ANN001
+        st = self._STATE.get()
+        if st is None:
+            return
+        name = str(getattr(getattr(event, "tool_call", None), "name", None) or "")
+        if not name:
+            name = str(getattr(getattr(event, "tool", None), "name", None) or "")
+        resp = getattr(event, "response", None)
+        now = time.monotonic()
+        st["last_activity"] = now
+        status = str((resp or {}).get("status") if isinstance(resp, dict) else "") or ""
+        if status == "error" or (isinstance(resp, dict) and resp.get("error")):
+            st["errors"] = int(st.get("errors") or 0) + 1
+        else:
+            st["errors"] = 0
+        args = getattr(getattr(event, "tool_call", None), "arguments", None)
+        if name == "aip_submit" and status == "success":
+            st["submitted"] = True
+        self._note_progress(st, name, resp, args)
+        if name in self._WAIT_TOOLS:
+            refs = []
+            if isinstance(args, dict):
+                if args.get("task_ref"):
+                    refs = [str(args["task_ref"])]
+                elif isinstance(args.get("task_refs"), list):
+                    refs = [str(r) for r in args["task_refs"]]
+            for ref in refs:
+                waits = st.setdefault("waits", {})
+                waits[ref] = int(waits.get(ref) or 0) + 1
+        elif name and name not in ("aip_submit", "aip_fail", "aip_request_input"):
+            try:
+                sig = name + "|" + json.dumps(args, ensure_ascii=False, sort_keys=True,
+                                              default=str)[:400]
+            except Exception:  # noqa: BLE001
+                sig = name + "|" + str(args)[:400]
+            repeat = st.setdefault("repeat", {})
+            repeat[sig] = int(repeat.get(sig) or 0) + 1
+        self._check(st)
+
+    def _note_progress(self, st: dict, name: str, resp: object, args: object) -> None:
+        """把"真的推进了任务"的响应记为进度（长任务可以跑很久，但要一直在前进）。
+
+        进度信号：成功提交、工作区写入/克隆/建区、新委派、产品闸门通过、
+        等待/查询里某个 task_ref 的状态发生变化（working→awaiting/completed）或有产物。
+        只等不推进（反复 working、内容不变）不会续命，由 progress-stall 兜底。
+        """
+        if not isinstance(resp, dict) or str(resp.get("status") or "") != "success":
+            return
+        result = resp.get("result") if isinstance(resp.get("result"), dict) else {}
+        if name in ("aip_submit", "ws.write", "ws.create", "ws.clone_repo",
+                    "product_gate", "review_gate"):
+            st["last_progress"] = time.monotonic()
+            return
+        if name in _DELEGATION_TOOL_NAMES:
+            st["last_progress"] = time.monotonic()
+            return
+        if name in self._WAIT_TOOLS:
+            refs: list[str] = []
+            if isinstance(args, dict):
+                if args.get("task_ref"):
+                    refs = [str(args["task_ref"])]
+                elif isinstance(args.get("task_refs"), list):
+                    refs = [str(r) for r in args["task_refs"]]
+            state = str(result.get("state") or "")
+            products = result.get("products") or []
+            states = st.setdefault("progress_states", {})
+            for ref in refs:
+                changed = state and state != states.get(ref)
+                if changed:
+                    states[ref] = state
+                if changed or products:
+                    st["last_progress"] = time.monotonic()
+                    break
+
+    def _check(self, st: dict) -> None:
+        if st.get("abort"):
+            return
+        now = time.monotonic()
+        wall = _run_guard_int("ACPS_GUARD_WALL_SECONDS", 13800)
+        idle = _run_guard_int("ACPS_GUARD_IDLE_SECONDS", 1500)
+        progress_limit = _run_guard_int("ACPS_GUARD_PROGRESS_SECONDS", 5400)
+        repeat_limit = _run_guard_int("ACPS_GUARD_REPEAT_LIMIT", 16)
+        error_limit = _run_guard_int("ACPS_GUARD_ERROR_LIMIT", 8)
+        step_limit = _run_guard_int("ACPS_GUARD_STEP_LIMIT", 195)
+        wait_limit = _run_guard_int("ACPS_GUARD_WAIT_LIMIT", 30)
+
+        elapsed = now - float(st.get("started") or now)
+        if elapsed >= wall:
+            self._trigger(st, "wall-clock", f"本 run 已运行 {elapsed/60:.0f} 分钟（上限 {wall/60:.0f} 分钟）")
+            return
+        idle_s = now - float(st.get("last_activity") or now)
+        if idle_s >= idle:
+            self._trigger(st, "no-activity", f"{idle_s/60:.0f} 分钟没有任何工具/步活动")
+            return
+        progress_s = now - float(st.get("last_progress") or st.get("started") or now)
+        if progress_s >= progress_limit:
+            self._trigger(st, "progress-stall",
+                          f"{progress_s/60:.0f} 分钟没有实际推进（无产物/无状态变化）")
+            return
+        if int(st.get("errors") or 0) >= error_limit:
+            self._trigger(st, "error-streak", f"连续 {st['errors']} 次工具调用报错")
+            return
+        if int(st.get("steps") or 0) >= step_limit:
+            self._trigger(st, "step-budget", f"已用 {st['steps']} 步（上限 {step_limit}）")
+            return
+        for sig, count in (st.get("repeat") or {}).items():
+            if int(count) >= repeat_limit:
+                self._trigger(st, "repeat-loop", f"相同调用重复 {count} 次：{sig[:160]}")
+                return
+        for ref, count in (st.get("waits") or {}).items():
+            if int(count) >= wait_limit:
+                self._trigger(st, "partner-not-finishing",
+                              f"对 {ref} 已等待/查询 {count} 轮仍未收尾")
+                return
+
+    def _trigger(self, st: dict, rule: str, detail: str) -> None:
+        if st.get("abort"):
+            return
+        enforced = _run_guard_mode() == "enforce"
+        abort = {"rule": rule, "reason": detail, "enforced": enforced}
+        st["abort"] = abort
+        if enforced:
+            _RUN_GUARD_ABORT.set(abort)
+        record = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "rule": rule,
+            "detail": detail,
+            "mode": "enforce" if enforced else "observe",
+            "elapsed_s": round(time.monotonic() - float(st.get("started") or time.monotonic())),
+            "steps": st.get("steps"),
+            "errors": st.get("errors"),
+        }
+        self._audit(record)
+        try:
+            SupervisorRunHooks._trace_write({"event": "run_guard_abort", **record})
+        except Exception:  # noqa: BLE001
+            pass
+        print(f"[run-guard] {record['mode']} 触发 {rule}: {detail}", flush=True)
+
+    def _audit(self, record: dict) -> None:
+        try:
+            path = Path(WORKSPACE) / "logs" / "run-guard-audit.jsonl"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
 
 
 class JobLifecycleFenceHooks(WitHooks):

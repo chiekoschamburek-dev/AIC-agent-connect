@@ -163,6 +163,8 @@ html, body, #root {
   animation: pop 0.4s ease; z-index: 10; max-width: 70%;
 }
 
+.done-banner.failed { background: #7f1d1d; }
+
 /* ── 任务工作区四分区面板 ── */
 .wszones { border-bottom: 1px solid #e2e8f0; padding: 8px; max-height: 40%; overflow: auto; }
 .wszone-grid { display: flex; flex-direction: column; gap: 8px; }

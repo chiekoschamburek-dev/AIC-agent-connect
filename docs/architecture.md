@@ -208,6 +208,28 @@ export ACPS_GUARD_DB=acps_cluster/ws-supervisor/acps/aip-tasks.sqlite3
 在 `from __future__ import annotations` 下被 FastAPI 误判为 query，导致 token 模式全部 401），
 修复后 20 项 API 测试全过；该改动在 NOTICE 中记录。
 
+### 6.5 运行中守卫（RunGuardHooks）
+
+`guard-api` / `guard_adapter` 都只能看到**已经落库的历史事件**，只有建议权；
+`RunGuardHooks`（`acps_cluster/agents/supervisor.py`，priority 20）在 run 进程内按
+代码侧观测实时判定，`ACPS_RUN_GUARD=enforce` 时中止并如实上报：
+
+```text
+命中规则 → _RUN_GUARD_ABORT 置位（仅 enforce）
+        → wrap_tool_call 只放行 aip_fail，其余返回 error=run-guard-abort
+        → SupervisorRunHooks.on_run_end：fail_handler → AIP failed
+                                          _viz_finish(status="failed")
+        → 审计 <workspace>/logs/run-guard-audit.jsonl + run-trace run_guard_abort
+```
+
+规则：`wall-clock`（13800s）、`no-activity`（1500s）、`progress-stall`（5400s）、
+`error-streak`（8）、`repeat-loop`（16）、`step-budget`（195）、
+`partner-not-finishing`（30）。`progress-stall` 只认实际推进（提交/写工作区/新委派/
+闸门通过/等待状态变化），反复 `working` 不续命。默认 `observe`，建议先灰度校准阈值；
+详见 [run-guard.md](run-guard.md)。
+
+三层的分工是：PEP 管事前准入，RunGuard 管事中止损，guard-api/adapter 管事中事后取证。
+
 ---
 
 ## 7. 组件接入的接缝

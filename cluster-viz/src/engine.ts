@@ -59,6 +59,7 @@ export interface UIState {
   wsTask?: string
   ledger: VizEvent[]
   doneSummary?: string
+  doneStatus?: 'done' | 'failed'
 }
 
 export const emptyState = (instruction = ''): UIState => ({
@@ -173,16 +174,21 @@ function applyEvent(state: UIState, e: VizEvent): UIState {
       return { ...s, domains: { ...s.domains, [e.domain]: { ...d, reconciledUses: e.totalUses } } }
     }
     case 'done': {
-      // 收尾兜底：任务已结束，还挂在 working/planning 的伙伴一律视为已完成。
-      // 否则界面上会一直显示"工作中"（2026-10-19 实测：后端委派与等待的
-      // 任务引用字段对不上时，完成事件根本没发出来）。
+      // 收尾兜底：任务已结束，还挂在 working/planning 的伙伴按后端终态收口。
+      // 失败的 run 不能把没交付的伙伴翻成"已完成"——那会把失败伪装成成功
+      // （2026-10-27 审查；此前这里无条件翻 completed）。
+      const failed = e.status === 'failed'
       const agents = { ...s.agents }
       for (const [id, ag] of Object.entries(agents)) {
         if (ag.state === 'working' || ag.state === 'planning') {
-          agents[id] = { ...ag, state: 'completed' }
+          agents[id] = {
+            ...ag,
+            state: failed ? 'failed' : 'completed',
+            note: failed ? 'run 失败，未确认交付' : ag.note,
+          }
         }
       }
-      return { ...s, agents, doneSummary: e.summary }
+      return { ...s, agents, doneSummary: e.summary, doneStatus: e.status ?? 'done' }
     }
     default:
       return s
