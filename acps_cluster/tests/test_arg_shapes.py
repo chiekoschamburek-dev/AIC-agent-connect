@@ -19,7 +19,6 @@ for _p in (str(PROJECT_DIR), str(CLUSTER_DIR)):
 
 from acps_cluster.runtime import eval_runner  # noqa: E402
 from acps_cluster.runtime import kb_runner  # noqa: E402
-from acps_cluster.agents import partner_model  # noqa: E402
 from acps_cluster.core.arg_shapes import as_list  # noqa: E402
 from acps_cluster.core.cluster_roster import RosterMember, validate_plan  # noqa: E402
 from acps_cluster.runtime.gpu_runner import validate_job  # noqa: E402
@@ -97,11 +96,6 @@ class RunnerCoercionTest(unittest.TestCase):
     def test_eval_predictions字符串化后不再报数组错(self):
         msg = eval_runner.validate_predictions("b1", '["1", "0"]')
         self.assertNotEqual(msg, "predictions 必须是非空数组（0/1 标签按 input.csv 行序）")
-
-    def test_model_rows字符串化后进逐行校验(self):
-        self.assertEqual(partner_model.validate_batch('[{"x0":1}]'), "rows[0] 必须含 x0/x1 字段")
-        self.assertEqual(partner_model.validate_batch("随便"), "rows 必须是非空数组：[{x0, x1}, ...]")
-
 
 if __name__ == "__main__":
     unittest.main()

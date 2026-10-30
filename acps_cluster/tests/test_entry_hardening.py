@@ -78,12 +78,12 @@ class DomainStoreFailClosedTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             cfg = PepConfig(
                 enabled=True,
-                my_aic="eval.example",
-                domain_skills={"eval.submit": frozenset({"lab"})},
+                my_aic="kb.example",
+                domain_skills={"kb.query": frozenset({"lab"})},
                 domains_dir=Path(td) / "domains-not-there",
                 public_skills=frozenset({"agent.info"}),
             )
-            outcome = evaluate(_request(skill="eval.submit"), cfg)
+            outcome = evaluate(_request(skill="kb.query"), cfg)
             self.assertEqual(
                 (outcome.decision, outcome.rule), ("deny", "domain-store-missing")
             )
@@ -92,12 +92,12 @@ class DomainStoreFailClosedTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             cfg = PepConfig(
                 enabled=True,
-                my_aic="eval.example",
-                domain_skills={"eval.submit": frozenset({"lab"})},
+                my_aic="kb.example",
+                domain_skills={"kb.query": frozenset({"lab"})},
                 domains_dir=Path(td),
                 public_skills=frozenset({"agent.info"}),
             )
-            outcome = evaluate(_request(skill="eval.submit"), cfg)
+            outcome = evaluate(_request(skill="kb.query"), cfg)
             # 空目录 = 没有可验证章程，不是"目录丢了"；仍要求令牌，不能静默放行。
             self.assertEqual((outcome.decision, outcome.rule), ("deny", "no-credential"))
 
@@ -106,12 +106,12 @@ class DomainStoreFailClosedTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             cfg = PepConfig(
                 enabled=True,
-                my_aic="eval.example",
-                public_skills=frozenset({"eval.submit"}),
-                domain_skills={"eval.submit": frozenset({"lab"})},
+                my_aic="kb.example",
+                public_skills=frozenset({"kb.query"}),
+                domain_skills={"kb.query": frozenset({"lab"})},
                 domains_dir=Path(td),
             )
-            outcome = evaluate(_request(skill="eval.submit"), cfg)
+            outcome = evaluate(_request(skill="kb.query"), cfg)
             self.assertEqual((outcome.decision, outcome.rule), ("deny", "no-credential"))
 
 

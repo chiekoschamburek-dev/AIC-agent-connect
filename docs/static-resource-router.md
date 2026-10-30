@@ -68,7 +68,7 @@ ACPS_GPU_LLM_FALLBACK=1
   `resource_call(partner="gpu", skill="gpu.run", args_json="{\"files\":{...},\"entrypoint\":[\"python\",\"main.py\"]}")`。
   工具内部复用带令牌委派（自动签 `act=leader` 的令牌），把 request 固定成
   `{"skill":"<skill>","args":{...}}`；返回 `task_ref` 后 `wait_partner` 等待；
-- **supervisor 公开能力**：`acps_delegate_public` 对 cpu/gpu/eval/kb/model/hpc 的公开技能
+- **supervisor 公开能力**：`acps_delegate_public` 对 cpu/gpu/kb/hpc 的公开技能
   （`cpu.env`、`gpu.status`…）自动把 request 改写成
   `{"skill":"<skill>","args":{}}`，对端直接执行；
 - **supervisor 非公开能力**：继续用内置 `acps_delegate`（代码自动附令牌），但 request
@@ -123,7 +123,7 @@ ACPS_GPU_LLM_FALLBACK=1
 - 一次任务只路由**一个**能力调用；资源 agent 不需要多步推理。多步属于 supervisor/experiment。
 - 参数必须符合能力 `input_schema`；未知字段会被拒绝并返回允许字段，不会猜。
 - 自然语言请求在 `LLM_FALLBACK=0` 时会得到明确用法错误，而不是静默失败。
-- 目前覆盖 CPU/GPU/workspace/KB；eval 可复用同一 provider，KB 保留自然语言兜底。
+- 目前覆盖 CPU/GPU/workspace/KB；HPC 可复用同一 provider，KB 保留自然语言兜底。
 - GPU 本机进程的环境变量需在启动时设置（当前是会话内进程，持久化要另做服务/计划任务）。
 - 本机 `ws-gpu` 保留原 dev 身份给单测用；平台身份的 GPU 跑在独立工作区
   `ws-gpu-platform`，启动时用 `ACPS_GPU_WORKSPACE` 指定，避免测试与线上身份互相污染。
@@ -131,5 +131,5 @@ ACPS_GPU_LLM_FALLBACK=1
 ## 5. 后续
 
 1. 把 supervisor 对资源 agent 的委派从自然语言改成结构化 `args`；
-2. eval/KB 接入同一路由；
+2. HPC/KB 接入同一路由；
 3. 观察 `run-guard` 与静态路由的交互（资源调用不再产生模型步，超时规则更干净）。

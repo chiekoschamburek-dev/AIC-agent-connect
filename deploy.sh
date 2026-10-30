@@ -28,7 +28,7 @@ PY="${ACPS_PY:-$ACPS_ROOT/.venv/bin/python}"
 ENV_FILE="$ACPS_ROOT/acps_cluster/deploy/.env.production"
 STAGE="$ACPS_ROOT/.runtime/systemd"
 
-DEFAULT_PARTNERS="scout synthesis writer critic contradiction frontier experiment citation gpu cpu kb model eval"
+DEFAULT_PARTNERS="scout synthesis writer critic contradiction frontier experiment citation gpu cpu kb"
 DEFAULT_UNITS="wit-yanshu@supervisor wit-workspace wit-amp-mirror wit-amp-sender wit-task-feeder wit-task-prune.timer wit-ledger-report.timer"
 
 say()  { printf '\n=== %s ===\n' "$*"; }

@@ -627,26 +627,6 @@ CAPABILITY_FACADES: dict[str, CapabilityFacade] = {
             "run this batch job on a CPU sandbox",
         ),
     ),
-    "eval.submit": CapabilityFacade(
-        description=(
-            "基准评测提交：交预测或交代码，只回分数与名次；标签不下发、产物不回传、沙盒断网，防泄题。"
-        ),
-        tags=("模型评测", "基准测试", "打分", "benchmark", "evaluation", "leaderboard"),
-        examples=(
-            "帮我评测这个模型在基准上的效果",
-            "把我的预测提交到榜单打分",
-            "evaluate my model on the benchmark",
-        ),
-    ),
-    "model.predict": CapabilityFacade(
-        description="批量模型推理：传入行数据（数组），返回每行的标签与分数，单次上限 256 行；权重不出域，只暴露推理接口。",
-        tags=("模型推理", "批量预测", "打分", "model-inference", "prediction"),
-        examples=(
-            "用这个模型帮我批量预测",
-            "给这批样本打分",
-            "run batch inference with this model",
-        ),
-    ),
     "kb.query": CapabilityFacade(
         description=(
             "知识库与文献库查询：查文献、找论文、查资料、查数据；主题式全文检索（trigram 分词，"

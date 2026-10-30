@@ -657,7 +657,7 @@ def evaluate(
     # 于是"leader 也必须持令牌"与"leader 签的令牌有效"得以同时成立。
     if cfg.leader_direct_open and request.leader_aic and request.leader_aic in cfg.leader_aics:
         # 带上调用方指明的 skill：技能作用域（P0-3）按 `outcome.skill_hint` 绑定工具面，
-        # 不带的化 L1 直调的伙伴会只剩公开能力——白名单 leader 委派 `eval.submit` 时
+        # 不带的化 L1 直调的伙伴会只剩公开能力——白名单 leader 委派 `kb.query` 时
         # 对端 agent 因此"看不见"该能力，只好多交一句"无法提交"（2026-10-18 第 17 轮实测）。
         # 这不放宽 L1 语义：该 leader 本就允许直调本机，作用域仍限制在这一个被指明的能力上。
         return PepOutcome(
@@ -861,7 +861,7 @@ def evaluate(
     declared = frozenset(cfg.domain_skills.get(skill_key, ()))
     # 只有"代码声明了会员制"且"章程真的把该资产纳入管辖"时才强制域令牌。
     # 后者是访问控制权威，前者防止把一条演示章程当成对所有调用方式的封锁；
-    # 二者同时命中才说明这个部署确实在运营一个域（eval.submit / kb.query 等）。
+    # 二者同时命中才说明这个部署确实在运营一个域（kb.query / gpu.run 等）。
     required_domains = declared & policy_domains
     # fail-closed：代码声明该 skill 受域治理，但章程目录不见了/不可读 —— 不能当成
     # "没有域约束"直接放行（删目录或挂空目录即可让冻结、成员制、配额同时失效）。

@@ -357,30 +357,6 @@ class KbRoleTest(unittest.TestCase):
 class AttributionShellAndFeedbackTest(unittest.TestCase):
     """#1 归属可伪造 / #2 外壳可提前关闭 / #4 精确反馈可当标签预言机（2026-10-07 审查）。"""
 
-    def test_有对端时归属用mTLS身份而非自报名(self):
-        from unittest import mock
-
-        from acps_cluster.core import cluster_common
-        from acps_cluster.runtime import eval_runner
-        from acps_cluster.agents import partner_eval
-
-        captured = {}
-
-        def fake_submit(bench_id, preds, *, submitter="?"):
-            captured["submitter"] = submitter
-            return {"ok": True, "score": 0.9}
-
-        async def chain():
-            await cluster_common.PeerIdentityHooks().on_partner_request(
-                type("E", (), {"leader_aic": EXP_AIC})())
-            with mock.patch.object(eval_runner, "submit_predictions", side_effect=fake_submit):
-                return await partner_eval.eval_submit(mode="predictions", submitter="自称-别人")
-
-        out = asyncio.run(chain())
-        self.assertEqual(captured["submitter"], EXP_AIC)
-        self.assertTrue(out["submitterVerified"])
-        self.assertEqual(out["submitter"], EXP_AIC)
-
     def test_无对端时才用自报名并标未验证(self):
         from unittest import mock
 
@@ -405,12 +381,12 @@ class AttributionShellAndFeedbackTest(unittest.TestCase):
         self.assertEqual(captured["submitter"], "alice")
         self.assertFalse(out["submitterVerified"])
 
-    def test_eval与hpc也接了身份hook(self):
-        from acps_cluster.agents import partner_eval
+    def test_hpc接了身份hook(self):
         from acps_cluster.agents import partner_hpc
 
-        for agent in (partner_eval.build_eval_agent(None), partner_hpc.build_hpc_agent(None)):
-            self.assertIn("yanshu.peer-identity", [getattr(h, "id", "") for h in (agent.aip_hooks or [])])
+        agent = partner_hpc.build_hpc_agent(None)
+        self.assertIn("yanshu.peer-identity",
+                      [getattr(h, "id", "") for h in (agent.aip_hooks or [])])
 
     def test_外壳标记不被外部内容伪造(self):
         from acps_cluster.core.aip_guard import AipPartnerGuardHooks

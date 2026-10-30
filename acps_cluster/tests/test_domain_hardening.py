@@ -235,7 +235,7 @@ class DerivedBindingTest(unittest.TestCase):
             audit_path=self.tmp / "audit.jsonl",
             public_skills=frozenset(), has_non_public_skills=True,
             domains={DOMAIN: self.policy}, quota_path=self.quota,
-            # 与 eval/kb 同类：代码声明会员制 + 章程资产命中 → 普通令牌必须被拒
+            # 与 kb 同类：代码声明会员制 + 章程资产命中 → 普通令牌必须被拒
             domain_skills={"gpu.run": frozenset({DOMAIN})},
         )
         self.sc = LEADER

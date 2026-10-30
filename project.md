@@ -17,9 +17,7 @@
   supervisor(总控,自主调度)                edge-leader(管理 leader)
   scout/synthesis/writer/critic            ├─ gpu-partner(8460,沙盒+GPU)
   experiment(域内 consumer)                ├─ cpu-partner(8462,沙盒无卡)
-        │                                  ├─ eval-partner(8464,评测服务)
         └──── 双签域章程(合同对象) ────────┤
-                                           └─ model-partner(8467,算法托管)
 ```
 
 | 资源 | 执行底座 | 防泄露/隔离特性 |
@@ -63,11 +61,9 @@ AAC 定义了委托语义,官方 SDK **零实现**。本项目零侵入 wit/acps
 |---|---|---|
 | gpu-partner | 算力时间 | Docker 八条硬边界(白名单/断网/只读FS/非root/限额/时限) |
 | cpu-partner | 算力时间 | 同一沙盒,`use_gpu` 由代码侧决定(模型不可自选隔离级) |
-| eval-partner | 评测数据 | 防泄题三闸门:标签永不进容器/stdout 管制/产物不回传;8% 噪声确定性基准(满分不可达);渗透演示三路全挡且渗透者正常得分(**防泄题≠拒服务**) |
 | kb-partner | 私有语料 | 受限查询 DSL(无任意代码执行面)+ 行级过滤 + **字段级三档脱敏**(open/members/curator,越权字段静默丢弃并在 meta 列明) |
-| model-partner | 模型权重 | 权重不出域只暴露推理;输入域/批量校验;真实权重热替换位 |
 
-**验证**:各伙伴专项单测(全量 245 项);E 系列 9/9;域 grant 直调 eval.submit 真打分入榜、
+**验证**:各伙伴专项单测(全量 245 项);E 系列 9/9;域 grant 直调宿主评分入榜、
 kb.query 以 consumer 视角实测 curator 档零值泄露。
 
 ### 创新 3:域的构建——机构间授权成为协议对象,自然引出可见范围与三层能力
@@ -128,7 +124,7 @@ Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
 | 调度闸门位置 | 2026-10-16 起 `plan_gate` 由硬前置降为**可选自检**;同一批约束(伙伴必须真实存在、能力必须真由其声明、AIC 取权威值)下沉到委派点 `cluster_roster.check_delegation_target`,不通过则拒绝委派且不签发令牌。**动机**:现网实测模型提供方偶尔把 array 参数丢空,硬前置会让整段编排卡在闸门里(标量参数的委派点不受影响)。ACS 声明文案受指纹保护未改,故"代码侧闸门"的承诺改由委派点兑现。**同一动机的第二处收口**:内置 `acps_delegate` 的 `request` 是数组入参,丢空时框架在参数校验阶段就报 `AipError: Invalid high-level content input`(durationMs=0,请求根本没发出)→ 新增 leader 工具 `acps_delegate_public(partner_aic, skill_id, request)`(三个入参全 string,Part 列表在代码侧组装),同样先过委派点闸门、并**拒绝**受保护的非公开能力(指路 `acps_delegate`,代码侧自动附令牌);playbook 已改为让 leader 用公开工具发公开能力。**路线 B 收口(定案=探活,不做 provenance 标记)**:不在平台注册集合(覆盖表)里的成员即本地 dev 身份 + 反向隧道,其 `available` 只表示"解析得出 AIC",隧道未起时放过去的后果是传输层 ConnectError + 账本非终态垃圾行 + 白烧一轮;故委派点对其端点做 TCP 探活(`supervisor._endpoint_reachable`,0.8s)。两个"不探"边界:平台注册成员不探(存活由心跳反映、mTLS 握手自会暴露不可达)、覆盖表读不到时一律不探(不能因缺配置文件卡住所有委派) |
 | 演示场景 | PEP 16/16、域 11/11、商业域 10/10、知识库 9/9、评测 9/9、GPU G 系列 7/7、域×真GPU 4/4、两机构 5/5 |
 | DeepResearch 真实业务 | 六阶段闭环:9 篇真实文献检索→萃取→核验前置→11575 字符结构化综述→审稿对账;contradiction 缺失按纪律诚实降级 |
-| AutoResearch 真实成果 | 真 AIP 链路 18 轮收敛:leader→experiment→gpu(容器)→eval 全程走协议与委托令牌,**账本出现 `verdictSource=host-score`**(hostScore=0.9 ≥ 判据 0.85,宿主侧精确复算 0.9167/55-60),事后对账 `mismatches=[]`;基准 `demo-cls300sup`(容器内 train 240 行带 label / test 60 行无 label,测试标签不出宿主),`predictions.csv` 内容 sha256 `2e467f652f9f` 在第 12/13/14/16/18 轮逐字节一致;第 14/16 轮对账曾抓到"宿主 supported / 账本 inconclusive"的漏报,第 17 轮拿不到独立分数时如实记 `inconclusive` 且拒编数字。离线直调版(e2e)2 轮收敛同分 0.9167。详见技术报告附录二（五） |
+| AutoResearch 真实成果 | 真 AIP 链路 18 轮收敛:leader→experiment→gpu(容器)→宿主评分 全程走协议与委托令牌,**账本出现 `verdictSource=host-score`**(hostScore=0.9 ≥ 判据 0.85,宿主侧精确复算 0.9167/55-60),事后对账 `mismatches=[]`;基准 `demo-cls300sup`(容器内 train 240 行带 label / test 60 行无 label,测试标签不出宿主),`predictions.csv` 内容 sha256 `2e467f652f9f` 在第 12/13/14/16/18 轮逐字节一致;第 14/16 轮对账曾抓到"宿主 supported / 账本 inconclusive"的漏报,第 17 轮拿不到独立分数时如实记 `inconclusive` 且拒编数字。离线直调版(e2e)2 轮收敛同分 0.9167。详见技术报告附录二（五） |
 | 引用核验闭环 | 3 篇真实 arXiv 取源全成功(unverified=0):supported/misrepresented/fabricated 三态判定全部正确;review_gate 对账拦截漏报 |
 | 委托隧道加速 | 2.94–2.96×(脚本版，两轮实测)/1.73×(真实 LLM 版);leader 上下文 196KB→0,并行度 1→3 |
 | 资源实例 | 5 类底座 6 实例(GPU/CPU/评测/知识库/算法/HPC 网关);三档能力声明(public/橱窗/域内) |
@@ -146,7 +142,7 @@ Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
   (生产形态需 BEGIN IMMEDIATE 或单写者服务;已在 RFC §7 声明);
 - leader-LLM 长编排步数耗尽:DeepResearch 六阶段在单次 run 内步数紧张
   (wait_partner 已缓解等待轮询;跨 run 状态/检查点恢复为 wit 侧待力);
-- cpu/eval/model/kb 等本地实例未上平台(dev 身份,路线 B)。
+- cpu/kb 等本地实例未上平台(dev 身份,路线 B)。
 - AutoResearch 凭据算术未解:令牌 TTL 上限 600s 且 jti 单次使用,与"流水线内重试 + 长循环"
   天然冲突(第 18 轮 wall 5358s 内两次 `deny invalid-token`)。正解=每次出站现签 +
   会话内有界复用(`requireSessionBinding` 那条路),不是把 TTL 调大。

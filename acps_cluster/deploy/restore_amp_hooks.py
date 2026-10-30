@@ -31,9 +31,9 @@ SUPERVISOR_HOOK_BLOCK = """        # 作业 worker 与常驻 supervisor 的 acce
 
 PARTNERS = [
     "partner_citation.py", "partner_contradiction.py", "partner_cpu.py",
-    "partner_critic.py", "partner_eval.py", "partner_experiment.py",
+    "partner_critic.py", "partner_experiment.py",
     "partner_frontier.py", "partner_gpu.py", "partner_kb.py",
-    "partner_model.py", "partner_scout.py", "partner_synthesis.py",
+    "partner_scout.py", "partner_synthesis.py",
     "partner_writer.py",
 ]
 

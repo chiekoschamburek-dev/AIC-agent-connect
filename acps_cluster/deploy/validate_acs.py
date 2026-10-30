@@ -324,8 +324,6 @@ FILLED = {
     "acs.gpu-partner.filled.json": "partner_gpu",
     "acs.cpu-partner.filled.json": "partner_cpu",
     "acs.kb-partner.filled.json": "partner_kb",
-    "acs.eval-partner.filled.json": "partner_eval",
-    "acs.model-partner.filled.json": "partner_model",
 }
 
 

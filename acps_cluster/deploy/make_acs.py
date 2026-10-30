@@ -45,8 +45,6 @@ AGENTS: dict[str, tuple[str, str]] = {
     "experiment": ("acps_cluster.agents.partner_experiment", "build_experiment_agent"),
     "gpu": ("acps_cluster.agents.partner_gpu", "build_gpu_agent"),
     "cpu": ("acps_cluster.agents.partner_cpu", "build_cpu_agent"),
-    "model": ("acps_cluster.agents.partner_model", "build_model_agent"),
-    "eval": ("acps_cluster.agents.partner_eval", "build_eval_agent"),
     "kb": ("acps_cluster.agents.partner_kb", "build_kb_agent"),
     "hpc": ("acps_cluster.agents.partner_hpc", "build_hpc_agent"),
     "citation": ("acps_cluster.agents.partner_citation", "build_citation_agent"),

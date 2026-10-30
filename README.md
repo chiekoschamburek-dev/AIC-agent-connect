@@ -57,7 +57,7 @@ yanshu-AIC/
 
 ## 二、团队组件与创新点
 
-### 1. Agents（15 个参赛 agent + 1 个编排器）
+### 1. Agents（14 个参赛 agent + 1 个编排器）
 
 **工作流 agent（9）**
 
@@ -83,8 +83,7 @@ yanshu-AIC/
 | workspace-partner | `agents/partner_workspace.py`、`agents/partner_workspace_client.py` | 任务工作区：四分区存储资源实例化 + task_id 作用域 |
 
 **编排器**：`acps_cluster/agents/supervisor.py`（入口 `partner_supervisor.py`），负责发现 →
-计划 → 委派 → 等待产物 → 汇总。名册另含 `eval` / `model` 两个早期资源节点
-（`agents/partner_eval.py`、`agents/partner_model.py`），以及 `designer` / `wenji` 两个团队伙伴条目。
+计划 → 委派 → 等待产物 → 汇总。名册另含 `designer` / `wenji` 两个团队伙伴条目。
 
 **团队贡献 agent（2）**：`partners/designer/`（Research Designer）、`partners/wenji/`（问迹）。
 

@@ -36,12 +36,12 @@
           ▼
   ┌─────────────────────────────────────────────┐
   │ kb（知识库）  cpu（算力）  gpu（算力）        │
-  │ workspace（存储/工作区）  eval / model        │
+  │ workspace（存储/工作区）                      │
   └─────────────────────────────────────────────┘
 ```
 
 - 编排器：`acps_cluster/agents/supervisor.py`（入口 `acps_cluster/agents/partner_supervisor.py`）。
-- 名册：`acps_cluster/core/cluster_roster.py`（17 条：1 supervisor + 16 partner，
+- 名册：`acps_cluster/core/cluster_roster.py`（15 条：1 supervisor + 14 partner，
   含两个外部成员）。
 - 发现层元数据：`acps_cluster/core/discovery_metadata.py`。
 
@@ -51,7 +51,7 @@
 
 | 部分 | 关键实现 |
 |---|---|
-| agents | `acps_cluster/agents/partner_*.py`（工作流 9 + 资源 4 + eval/model）、`capabilities/*.py`、`partners/designer/`、`partners/wenji/` |
+| agents | `acps_cluster/agents/partner_*.py`（工作流 9 + 资源 4）、`capabilities/*.py`、`partners/designer/`、`partners/wenji/` |
 | 互联机制 | `acps_cluster/delegation/`（pep.py / token.py / client.py / bridge.py / domain_manifest.py / grant.py / visibility.py / reconciliation.py / quota.py） |
 | 衍生机制 | 三级能力边界（各 partner 的 `capability_visibility`）、`acps_cluster/core/discovery_metadata.py`、`acps_cluster/core/arg_shapes.py` |
 | 框架与运行时 | `acps_cluster/core/bootstrap.py`（.env / 模型路由 / LLM 硬闸）、`acps_cluster/deploy/amp_*.py`、`partners/designer/src/amp_kafka_forwarder.py`、`requirements.txt`（WIT 只声明依赖） |
@@ -291,7 +291,7 @@ export ACPS_GUARD_DB=acps_cluster/ws-supervisor/acps/aip-tasks.sqlite3
 |---|---|
 | `ws-*`、`tokens/`、`certs-backup-*`、`*.pem`、`.env`、`_dev-ca-chain.pem` | 运行时数据与凭据 |
 | `acs.*.filled.json` / `acs.*.resubmit.json` | 各 agent 的 ACS 声明稿快照；按需用 `deploy/make_acs.py` 生成，仓库只留发现层覆盖表与代码投影 |
-| `delegation/demo_*.py`（除 `demo_pep.py`、`demo_autoresearch.py`） | 演示脚本精简；保留的两个分别被复现脚本与测试引用 |
+| `delegation/demo_*.py`（除 `demo_pep.py`） | 演示脚本精简；保留的 `demo_pep.py` 被复现脚本引用 |
 | `datasets/`、`eval-private/`、`demo_run/`、`output/` | 大数据与评测私有标签 |
 | `_archive/`、`_audit/`、`__pycache__`、`.pytest_cache` | 中间产物 |
 | `vendor/wit_framework-*.whl`、`partners/designer/wheels/` | 二进制 wheel（WIT 只声明依赖） |

@@ -306,8 +306,8 @@ def check_amp_hooks() -> None:
     modules = [
         "supervisor", "partner_scout", "partner_synthesis", "partner_writer",
         "partner_critic", "partner_contradiction", "partner_frontier",
-        "partner_experiment", "partner_gpu", "partner_cpu", "partner_eval",
-        "partner_kb", "partner_model", "partner_citation",
+        "partner_experiment", "partner_gpu", "partner_cpu",
+        "partner_kb", "partner_citation",
     ]
     missing: list[str] = []
     present = 0

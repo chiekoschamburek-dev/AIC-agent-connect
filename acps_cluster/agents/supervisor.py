@@ -173,7 +173,7 @@ ResourceDispatchAuthHooks 会按目标伙伴自动签发令牌并附在出站 Da
 **不要用 `acps_delegate_authenticated`**（顶层已摘除，选它必然参数报错）；
 **不要用 `acps_delegate_public` 调这些能力**（它明确拒绝受保护能力）。
 
-- **资源节点（cpu/gpu/eval/kb/model/hpc）统一用 `resource_call`**：
+- **资源节点（cpu/gpu/kb/hpc）统一用 `resource_call`**：
   `resource_call(partner="gpu", skill="gpu.run", args_json="{\"files\":{...},\"entrypoint\":[\"python\",\"main.py\"]}")`。
   代码会签令牌并组装静态路由 JSON；不要再用 `acps_delegate` 给资源节点发自然语言。
   返回 `task_ref` 后用 `wait_partner` 等待；
@@ -3416,7 +3416,7 @@ def _make_authenticated_delegate_tool(roster: list[cluster_roster.RosterMember])
 
 
 def _make_resource_call_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
-    """资源节点专用：结构化调用 CPU/GPU/eval/KB，不再依赖模型写自然语言。
+    """资源节点专用：结构化调用 CPU/GPU/KB/HPC，不再依赖模型写自然语言。
 
     内部复用 `_make_authenticated_delegate_tool` 的令牌签发/出站逻辑，只是把
     request 固定成静态路由认识的 JSON：
@@ -3441,7 +3441,7 @@ def _make_resource_call_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
         member = cluster_roster.resolve_member(roster, partner_aic=partner)
         if member is None:
             return {"ok": False, "error": f"名册里找不到资源伙伴：{partner}"}
-        if member.key not in {"cpu", "gpu", "eval", "kb", "model", "hpc"}:
+        if member.key not in {"cpu", "gpu", "kb", "hpc"}:
             return {"ok": False, "error": f"{member.key} 不是资源节点；研究伙伴请用 acps_delegate"}
         if skill not in tuple(member.capabilities or ()):
             return {"ok": False, "error": f"{member.key} 未声明能力：{skill}"}
@@ -3472,7 +3472,7 @@ def _make_resource_call_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
     return Tool(
         name="resource_call",
         description=(
-            "调用资源节点（cpu/gpu/eval/kb/model/hpc）的确定性入口。参数：partner（名册 key，"
+            "调用资源节点（cpu/gpu/kb/hpc）的确定性入口。参数：partner（名册 key，"
             "如 cpu/gpu）、skill（能力 id，如 cpu.run/gpu.run/cpu.env）、args_json（JSON 字符串，"
             "如 {\"files\":{\"main.py\":\"...\"},\"entrypoint\":[\"python\",\"main.py\"]}）。"
             "返回 task_ref，用 wait_partner 等待。资源节点开启静态路由时直接执行，不跑对端 LLM；"
@@ -3527,7 +3527,7 @@ def _make_public_delegate_tool(
         aic = (member.aic if member is not None and member.aic else partner_aic)
         # 2026-10-29：资源节点的公开展示能力（cpu.env/gpu.status/...）不需要参数，
         # 自动改写成静态路由可识别的 JSON，避免再跑对端 LLM。
-        if member is not None and member.key in {"cpu", "gpu", "eval", "kb", "model", "hpc"} \
+        if member is not None and member.key in {"cpu", "gpu", "kb", "hpc"} \
                 and skill_id:
             request = json.dumps({"skill": skill_id, "args": {}}, ensure_ascii=False)
         skills = _protected_table().get(aic) or []

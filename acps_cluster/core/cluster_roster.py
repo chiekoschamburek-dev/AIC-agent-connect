@@ -230,7 +230,7 @@ ROSTER: tuple[RosterMember, ...] = (
         declared_capabilities=("paper.review",),
     ),
     # 2026-10-03 资源 agent 化第 2-4 实例（本地 dev 身份，模式同 gpu 路线 B）：
-    # cpu=纯 CPU 沙盒任务；eval=评测服务（数据不出域只发分数）；model=算法托管（权重不出域只推理）
+    # cpu=纯 CPU 沙盒任务；kb/workspace 见下。
     RosterMember(
         key="cpu",
         name="研枢-CPU-Partner",
@@ -240,26 +240,6 @@ ROSTER: tuple[RosterMember, ...] = (
         port_env="ACPS_CPU_PORT",
         default_port=8462,
         declared_capabilities=("cpu.run",),
-    ),
-    RosterMember(
-        key="eval",
-        name="研枢-Eval-Partner",
-        role="评测服务：基准橱窗公开、提交保险柜（标签不出域只发分数，支持预测/代码双模式）",
-        module="partner_eval",
-        workspace="ws-eval",
-        port_env="ACPS_EVAL_PORT",
-        default_port=8464,
-        declared_capabilities=("eval.submit",),
-    ),
-    RosterMember(
-        key="model",
-        name="研枢-Model-Partner",
-        role="算法托管：model.info 橱窗公开、model.predict 保险柜（权重不出域只暴露推理）",
-        module="partner_model",
-        workspace="ws-model",
-        port_env="ACPS_MODEL_PORT",
-        default_port=8467,
-        declared_capabilities=("model.predict",),
     ),
     RosterMember(
         key="kb",

@@ -90,7 +90,7 @@ sudo ./deploy.sh start
 | 单元 | 说明 |
 |---|---|
 | `wit-yanshu@supervisor` | 常驻 supervisor（收件箱 + AIP 8444） |
-| `wit-yanshu@<key>` | 伙伴实例：scout / synthesis / writer / critic / contradiction / frontier / experiment / citation / gpu / cpu / kb / model / eval |
+| `wit-yanshu@<key>` | 伙伴实例：scout / synthesis / writer / critic / contradiction / frontier / experiment / citation / gpu / cpu / kb |
 | `wit-workspace` | 工作区资源实例（8470） |
 | `wit-amp-mirror` / `wit-amp-sender` | AMP 心跳镜像与上报 |
 | `wit-task-feeder` | 任务派发器（可选） |

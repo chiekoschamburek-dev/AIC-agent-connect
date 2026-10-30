@@ -553,16 +553,16 @@ class PepDecisionTest(unittest.TestCase):
     def test_L1直调也带上被指明的skill(self):
         # 技能作用域（P0-3）按 `outcome.skill_hint` 绑定工具面。L1 不带 skill_hint 时，
         # 白名单 leader 委派过来的非公开能力在对端"看不见"，agent 只能回答"无法提交"
-        # （2026-10-18 第 17 轮实测：eval.submit 因此没被绑定）。
+        # （2026-10-18 第 17 轮实测：kb.query 因此没被绑定）。
         outcome = evaluate(
             _request(leader_aic=LEADER_AIC,
                      data_items=[{"type": "text", "text": "给这 60 个预测评分",
-                                  "metadata": {"skillId": "eval.submit"}}]),
+                                  "metadata": {"skillId": "kb.query"}}]),
             self.cfg,
             jti_registry=self.registry,
         )
         self.assertEqual(outcome.rule, "leader-allowlist")
-        self.assertEqual(outcome.skill_hint, "eval.submit")
+        self.assertEqual(outcome.skill_hint, "kb.query")
         # L1 的 skill 来自请求自报，不是签名令牌 claim
         self.assertEqual(outcome.skill_source, "self-declared")
 

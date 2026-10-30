@@ -154,6 +154,6 @@ ls -t ../cluster-viz/public/scenarios/run-*.json | head -1
 
 ## 已知边界（诚实口径）
 
-- leader 侧为代码侧确定性编排（与 demo_autoresearch_e2e 同款）；伙伴侧全部真实 LLM/沙盒。
+- leader 侧为代码侧确定性编排；伙伴侧全部真实 LLM/沙盒。
 - GPU 任务由 gpu 侧 LLM 转写任务文本为 JobSpec，偶发单次失败（重跑即恢复）。
 - 场景 JSON 的时间轴是重排的「叙事时间」，轨迹原文（trace-events.jsonl 实测墙钟 + 审计行）在 demo_run/viz/ 留档可查。

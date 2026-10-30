@@ -64,9 +64,7 @@ TARGETS = [
     "partner_experiment",
     "partner_gpu",
     "partner_cpu",
-    "partner_eval",
     "partner_kb",
-    "partner_model",
     "partner_citation",
 ]
 

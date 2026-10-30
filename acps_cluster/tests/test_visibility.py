@@ -5,7 +5,7 @@
 - `make_acs.build_skills` 不再剥掉 visibility/domains，并拦住两种漂移：
   域名缺失、注册版是 domain 但代码静默降级；
 - registry AgentSkill schema 接受这两个字段；
-- partner_eval 的代码声明能被 PEP 侧 `capability_domain_scopes` 看到。
+- partner_kb 的代码声明能被 PEP 侧 `capability_domain_scopes` 看到。
 
     python -m unittest acps_cluster.tests.test_visibility -v
 """
@@ -129,8 +129,8 @@ class _Agent:
 
 def _skill(**overrides) -> dict:
     base = {
-        "id": "eval.submit", "name": "提交评测", "description": "只回分数",
-        "version": "1.0.0", "tags": ["eval"],
+        "id": "kb.query", "name": "查询知识库", "description": "只回分数",
+        "version": "1.0.0", "tags": ["kb"],
     }
     base.update(overrides)
     return base
@@ -143,10 +143,10 @@ class AcsVisibilityTest(unittest.TestCase):
         cls.validate_acs = _load_script("validate_acs")
 
     def test_visibility与domains不再被SKILL_KEYS剥掉(self):
-        agent = _Agent(_skill(visibility="domain", domains=["yanshu-eval"]))
+        agent = _Agent(_skill(visibility="domain", domains=["yanshu-kb"]))
         skills = self.make_acs.build_skills(agent, [], "1.0.0")
         self.assertEqual(skills[0]["visibility"], "domain")
-        self.assertEqual(skills[0]["domains"], ["yanshu-eval"])
+        self.assertEqual(skills[0]["domains"], ["yanshu-kb"])
         self.assertNotIn("visibility", self.make_acs.build_skills(_Agent(_skill()), [], "1.0.0")[0])
 
     def test_domain可见但缺domains必须报错(self):
@@ -156,17 +156,17 @@ class AcsVisibilityTest(unittest.TestCase):
 
     def test_注册版domain不能静默降级(self):
         agent = _Agent(_skill())
-        carrier = [{"id": "eval.submit", "visibility": "domain", "domains": ["yanshu-eval"]}]
+        carrier = [{"id": "kb.query", "visibility": "domain", "domains": ["yanshu-kb"]}]
         with self.assertRaises(SystemExit):
             self.make_acs.build_skills(agent, carrier, "1.0.0")
 
-    def test_partner_eval声明能被代码侧解析且进入scopes(self):
-        from acps_cluster.agents import partner_eval
+    def test_partner_kb声明能被代码侧解析且进入scopes(self):
+        from acps_cluster.agents import partner_kb
 
-        declared = self.validate_acs.domain_visibility_from_module("partner_eval")
-        self.assertEqual(declared.get("eval.submit"), ["yanshu-eval"])
-        scopes = capability_domain_scopes(partner_eval.EVAL_CAPABILITIES)
-        self.assertEqual(scopes.get("eval.submit"), frozenset({"yanshu-eval"}))
+        declared = self.validate_acs.domain_visibility_from_module("partner_kb")
+        self.assertEqual(declared.get("kb.query"), ["yanshu-kb"])
+        scopes = capability_domain_scopes(partner_kb.KB_CAPABILITIES)
+        self.assertEqual(scopes.get("kb.query"), frozenset({"yanshu-kb"}))
 
     def test_registry_schema接受visibility字段(self):
         schema_path = PROJECT.parent / "ACPs-community/registry-server/app/agent/acsSchema.json"
@@ -180,7 +180,7 @@ class AcsVisibilityTest(unittest.TestCase):
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         agent_skill = schema["$defs"]["AgentSkill"]
         validator = Draft202012Validator(agent_skill)
-        validator.validate(_skill(visibility="domain", domains=["yanshu-eval"]))
+        validator.validate(_skill(visibility="domain", domains=["yanshu-kb"]))
         with self.assertRaises(ValidationError):
             validator.validate(_skill(visibility="domain"))
 
@@ -245,7 +245,7 @@ class AgentDiscoverabilityGuardTest(unittest.TestCase):
     """能力不可见 ≠ agent 不可见：每个 agent 至少保留一个 public 非 domain 能力。
 
     这是对“无可见能力则整个 agent 消失”这一副作用的守门：现有 agent 都有
-    `research.orchestrate` / `gpu.env` / `eval.benchmark_info` 之类的公开入口，
+    `research.orchestrate` / `gpu.env` / `kb.schema` 之类的公开入口，
     不需要额外加 `agent.info`，也不会改已注册 ACS。将来若新增一个纯 domain agent，
     这个测试会先失败，迫使显式选择“加 public profile 能力”或“接受 agent 隐身”。
     """
@@ -253,8 +253,8 @@ class AgentDiscoverabilityGuardTest(unittest.TestCase):
     AGENT_MODULES = (
         "supervisor", "partner_scout", "partner_writer", "partner_synthesis",
         "partner_critic", "partner_frontier", "partner_contradiction",
-        "partner_experiment", "partner_gpu", "partner_cpu", "partner_model",
-        "partner_eval", "partner_kb", "partner_hpc", "partner_citation",
+        "partner_experiment", "partner_gpu", "partner_cpu", "partner_kb",
+        "partner_hpc", "partner_citation",
     )
 
     @staticmethod
