@@ -59,7 +59,7 @@ class ResourceCallToolTest(unittest.TestCase):
             "partner": "gpu", "skill": "gpu.nope", "args_json": "{}",
         }))
         self.assertFalse(out["ok"])
-        self.assertIn("未声明能力", out["error"])
+        self.assertIn("未声明非公开能力", out["error"])
         self.assertEqual(captured, {})
 
     def test_非法args_json拒绝(self):

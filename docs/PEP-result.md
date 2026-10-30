@@ -2,6 +2,8 @@
 > 文中 `my-project/` 为仓库早期目录名，现对应 `yanshu-AIC/`；文中 `demo_run/` 下的
 > 产物目录未纳入版本控制，按 `project.md` 第七节「证据索引」的路径另行取用。
 > 引用关系：`RFC_delegation_domain_draft.md` §9、`PEP_design.md` 头部、`project.md` 第七节。
+>
+> **2026-10-30 注**：eval/model 两个早期资源节点已从仓库移除；本文保留当时实验记录，相关代码/域投影不再随仓库分发。
 
 # PEP 实现与测试结果
 

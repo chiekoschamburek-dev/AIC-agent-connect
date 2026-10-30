@@ -170,10 +170,10 @@ acps_delegate(partner_aic="<伙伴 AIC 或名册 key>", request="<完整任务�
 
 ResourceDispatchAuthHooks 会按目标伙伴自动签发令牌并附在出站 DataItem 上，
 令牌原文**不会进入你的上下文**，你不需要、也不要自己签发或复述令牌。
-**不要用 `acps_delegate_authenticated`**（顶层已摘除，选它必然参数报错）；
+**不要手工调用 `acps_delegate_authenticated`**（受保护能力统一走 `resource_call`）；
 **不要用 `acps_delegate_public` 调这些能力**（它明确拒绝受保护能力）。
 
-- **资源节点（cpu/gpu/kb/hpc）统一用 `resource_call`**：
+- **资源节点的非公开能力（cpu/gpu/kb/hpc）统一用 `resource_call`**：
   `resource_call(partner="gpu", skill="gpu.run", args_json="{\"files\":{...},\"entrypoint\":[\"python\",\"main.py\"]}")`。
   代码会签令牌并组装静态路由 JSON；不要再用 `acps_delegate` 给资源节点发自然语言。
   返回 `task_ref` 后用 `wait_partner` 等待；
@@ -2203,6 +2203,14 @@ class SupervisorRunHooks(WitHooks):
             state = self._SUBMIT_STATE.get()
             if not isinstance(state, dict):
                 return
+            if _RUN_GUARD_ABORT.get() is not None:
+                # 运行守卫已判中止：不能再把缓冲产物"补交成功"，否则 on_run_end
+                # 会看到 state.ok=True 而跳过 aip_fail，失败被伪装成已交付。
+                dropped = len(state.get("buffers") or [])
+                self._trace_write({"event": "aip_submit_flush_skipped",
+                                   "reason": "run-guard-abort",
+                                   "buffered_products": dropped})
+                return
             if state.get("awaiting_input"):
                 # 同 on_run_end：任务已进入等待调用方输入的合法中间态，收尾不代交。
                 dropped = len(state.get("buffers") or [])
@@ -3444,7 +3452,9 @@ def _make_resource_call_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
         if member.key not in {"cpu", "gpu", "kb", "hpc"}:
             return {"ok": False, "error": f"{member.key} 不是资源节点；研究伙伴请用 acps_delegate"}
         if skill not in tuple(member.capabilities or ()):
-            return {"ok": False, "error": f"{member.key} 未声明能力：{skill}"}
+            return {"ok": False, "error": (f"{member.key} 未声明非公开能力：{skill}；"
+                                                "公开能力（cpu.env/gpu.status/kb.schema 等）请用 "
+                                                "acps_delegate_public")}
 
         # 2026-10-29：资源节点新 AIC 可能还没进本机发现缓存；先 discovery 一次，
         # 否则 aip_delegate 会直接报 "Partner has no discovered Direct JSON-RPC endpoint"。
@@ -3473,7 +3483,7 @@ def _make_resource_call_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
         name="resource_call",
         description=(
             "调用资源节点（cpu/gpu/kb/hpc）的确定性入口。参数：partner（名册 key，"
-            "如 cpu/gpu）、skill（能力 id，如 cpu.run/gpu.run/cpu.env）、args_json（JSON 字符串，"
+            "如 cpu/gpu）、skill（非公开能力 id，如 cpu.run/gpu.run/kb.query）、args_json（JSON 字符串，"
             "如 {\"files\":{\"main.py\":\"...\"},\"entrypoint\":[\"python\",\"main.py\"]}）。"
             "返回 task_ref，用 wait_partner 等待。资源节点开启静态路由时直接执行，不跑对端 LLM；"
             "不要再用 acps_delegate 给资源节点发自然语言。"
@@ -3527,8 +3537,13 @@ def _make_public_delegate_tool(
         aic = (member.aic if member is not None and member.aic else partner_aic)
         # 2026-10-29：资源节点的公开展示能力（cpu.env/gpu.status/...）不需要参数，
         # 自动改写成静态路由可识别的 JSON，避免再跑对端 LLM。
+        # 只有本机配置了该节点的静态路由才改写；否则保留自然语言，避免对端未开启
+        # 静态路由时收到 JSON 反而解析失败（零配置行为不变）。
+        static_on = os.getenv(
+            f"ACPS_{member.key.upper()}_STATIC_ROUTER", "").strip().lower() in {
+                "1", "true", "yes", "on"} if member is not None else False
         if member is not None and member.key in {"cpu", "gpu", "kb", "hpc"} \
-                and skill_id:
+                and skill_id and static_on:
             request = json.dumps({"skill": skill_id, "args": {}}, ensure_ascii=False)
         skills = _protected_table().get(aic) or []
         if skills:

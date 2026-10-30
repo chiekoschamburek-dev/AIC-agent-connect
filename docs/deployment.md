@@ -51,7 +51,7 @@ $EDITOR acps_cluster/deploy/.env.production
 # 5) 安装 systemd 单元（渲染 __ACPS_ROOT__ / __ACPS_PY__）
 sudo ./deploy.sh install-units
 
-# 6) 启动（默认 supervisor + 13 个伙伴 + workspace + AMP + 定时器）
+# 6) 启动（默认 supervisor + 11 个伙伴 + workspace + AMP + 定时器）
 sudo ./deploy.sh start
 
 # 7) 查看状态

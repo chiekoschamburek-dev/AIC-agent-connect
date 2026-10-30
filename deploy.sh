@@ -223,7 +223,7 @@ stop() {
 }
 
 status() {
-  local units="$DEFAULT_UNITS wit-yanshu@supervisor wit-guard-api"
+  local units="$DEFAULT_UNITS wit-guard-api"
   for unit in $units; do
     printf '\n--- %s ---\n' "$unit"
     systemctl --no-pager --lines=0 status "$unit" 2>&1 | head -n 6 || true

@@ -282,7 +282,8 @@ guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有�
 - provider 按 `skillId` 找能力工具，并按 `input_schema` fail-closed 校验参数；
 - 解析失败才可选回落 LLM（`ACPS_<PREFIX>_LLM_FALLBACK=1`）。
 
-CPU/GPU 已实测不再为每次调用跑 LLM；KB `kb.schema` 静态路由 318ms。
+开启 `ACPS_CPU_STATIC_ROUTER=1` / `ACPS_GPU_STATIC_ROUTER=1` 后实测不再为每次调用跑 LLM；
+KB 开启 `ACPS_KB_STATIC_ROUTER=1` 后 `kb.schema` 静态路由 318ms。
 细节与边界见 [docs/static-resource-router.md](docs/static-resource-router.md)。
 
 ---

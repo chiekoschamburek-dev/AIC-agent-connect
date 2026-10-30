@@ -12,7 +12,7 @@
 > `output/result.txt`），GPU `gpu.run` exit=0（`cuda=True` / RTX 5060 / 产物
 > `output/gpu.txt`）。平台已批记录不可更新，现场启动时直接复用已有证书/ACS。
 
-> 当前名册已扩到 17 条（1 leader + 16 partner），以 `cluster_roster.ROSTER` 与各工作区
+> 当前名册为 15 条（1 leader + 14 partner），以 `cluster_roster.ROSTER` 与各工作区
 > `acps/acs.final.json` 为准；本文仅保留当时的平台验收记录。
 >
 > **2026-10-25 增量**（快照表仍为 10-09 的 8 agent 验收记录，增量以名册为准）：

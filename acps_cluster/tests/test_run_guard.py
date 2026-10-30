@@ -160,5 +160,28 @@ class RunGuardWrapTest(unittest.TestCase):
         self.assertTrue(asyncio.run(run())["ok"])
 
 
+class RunGuardFlushTest(unittest.TestCase):
+    """中止后不得再把缓冲产物补交成功（否则 on_run_end 会跳过 aip_fail）。"""
+
+    def test_abort时跳过缓冲提交(self):
+        called = []
+
+        async def submit(args):
+            called.append(args)
+            return {"ok": True}
+
+        state = {"buffers": [{"id": "p"}], "handler": submit, "ok": False}
+        supervisor.SupervisorRunHooks._SUBMIT_STATE.set(state)
+        supervisor._RUN_GUARD_ABORT.set({"rule": "wall-clock", "reason": "too long"})
+        try:
+            with mock.patch.object(supervisor.SupervisorRunHooks, "_trace_write",
+                                   lambda *a, **k: None):
+                asyncio.run(supervisor.SupervisorRunHooks()._flush_buffered_submit())
+        finally:
+            supervisor._RUN_GUARD_ABORT.set(None)
+            supervisor.SupervisorRunHooks._SUBMIT_STATE.set(None)
+        self.assertEqual(called, [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

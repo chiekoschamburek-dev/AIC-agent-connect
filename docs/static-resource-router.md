@@ -27,8 +27,10 @@ ACPS_GPU_STATIC_ROUTER=1
 ACPS_GPU_LLM_FALLBACK=1
 ```
 
-当前只接在 `_serve_existing` 路径（平台已批身份直接服务）；原来的
-`up_until_ready` 注册路径保持原样。
+本仓库接在 `cluster_common.serve_partner(static_prefix=...)` 的正常注册路径：
+CPU/GPU/KB/workspace 都可启用；服务器现场的 `_serve_existing` 未入库。
+
+默认是关闭的（`ACPS_<PREFIX>_STATIC_ROUTER` 默认 `0`）；不设置时仍走原 LLM 路径。
 
 结构化请求示例：
 
