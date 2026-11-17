@@ -430,7 +430,10 @@ async def serve() -> None:
     provider = bootstrap.build_provider()
     port = int(os.getenv("ACPS_SUPERVISOR_PORT", "8444"))
     roster = cluster_roster.load_roster()
-    runtime = WitRuntime(
+    runtime_cls = WitRuntime
+    if os.getenv("ACPS_ACS_FROM_FINAL", "").strip():
+        runtime_cls = cluster_common._runtime_with_registered_acs(WitRuntime, WORKSPACE)
+    runtime = runtime_cls(
         supervisor.build_supervisor_agent(provider),
         workspace=WORKSPACE,
         acps=cluster_common.build_acps_config(port),
@@ -443,16 +446,27 @@ async def serve() -> None:
     # 同生共死；db 缺省沿用本 ws 的任务库约定。挂载失败只降级、不阻断主管线。
     guard_api: tuple | None = None
     try:
-        result = await runtime.up_until_ready(
-            serve=True,
-            host=os.getenv("ACPS_SERVE_HOST", "127.0.0.1"),
-            port=port,
-            credentials=cluster_common.build_credentials("SUPERVISOR"),
-        )
-        if not result.ready:
-            print(f"[supervisor] 注册未就绪: {result.status} {result.next_action}", flush=True)
-            raise SystemExit(2)
-        aic = result.identity.aic if result.identity else "?"
+        if os.getenv("ACPS_SKIP_ENROLLMENT", "").strip():
+            status = await runtime.serve(
+                direct=True, group=False,
+                host=os.getenv("ACPS_SERVE_HOST", "127.0.0.1"),
+                port=port, amp=False,
+            )
+            print(f"[supervisor] 跳过注册直接服务: {status.status}", flush=True)
+            if status.status not in ("serving", "active"):
+                raise SystemExit(2)
+            aic = "?"
+        else:
+            result = await runtime.up_until_ready(
+                serve=True,
+                host=os.getenv("ACPS_SERVE_HOST", "127.0.0.1"),
+                port=port,
+                credentials=cluster_common.build_credentials("SUPERVISOR"),
+            )
+            if not result.ready:
+                print(f"[supervisor] 注册未就绪: {result.status} {result.next_action}", flush=True)
+                raise SystemExit(2)
+            aic = result.identity.aic if result.identity else "?"
         print(f"[supervisor] 常驻已上线 AIC={aic} 收件箱={INBOX}（投递 <名字>.txt 即可）", flush=True)
         guard_port = os.getenv("ACPS_GUARD_API_PORT", "").strip()
         if guard_port:

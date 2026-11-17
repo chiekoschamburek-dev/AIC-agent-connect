@@ -33,7 +33,7 @@ import sys
 import time
 from pathlib import Path
 
-BROKER_DEFAULT = "192.0.2.20:19092"
+BROKER_DEFAULT = "wt.ioa.pub:19092"
 TOPIC_DEFAULT = "amp.heartbeat"
 PROBE_TOPIC = "amp.external.smoke"
 

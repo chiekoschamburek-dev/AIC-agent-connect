@@ -79,7 +79,7 @@ sudo ./deploy.sh start
 | `./deploy.sh preflight` | 只检查 Python/Node/wheel/配置/systemd，不改文件 |
 | `./deploy.sh init [--with-guard-api]` | 建 `.venv`、装依赖、生成 `.env.production`、根 `.env` 符号链接 |
 | `./deploy.sh build [--skip-frontend] [--with-tests]` | compileall + 前端构建 + 可选测试 |
-| `sudo ./deploy.sh install-units` | 渲染并安装 `acps_cluster/deploy/*.service`（跳过队友的 `gjw-designer.service`） |
+| `sudo ./deploy.sh install-units` | 渲染并安装 `acps_cluster/deploy/ 下的 .service 和 .timer`（跳过队友的 `gjw-designer.service`） |
 | `sudo ./deploy.sh start [--with-guard-api] [--partners "scout writer"]` | `systemctl enable --now` 默认单元 + 伙伴实例 |
 | `sudo ./deploy.sh stop [--with-guard-api]` | 反向停止（先伙伴后 supervisor） |
 | `./deploy.sh status` | 逐单元状态摘要 |

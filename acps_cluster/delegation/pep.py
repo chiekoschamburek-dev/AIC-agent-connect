@@ -102,6 +102,11 @@ class PepConfig:
     # 显式入站白名单（AIC）：允许"未指名 skill"触发整链执行的调用方。
     # 与 leader_aics 分开，避免把"可触发编排"误当成"可签发令牌"。
     inbound_allow_aics: frozenset[str] = frozenset()
+    # 显式入站技能白名单（AIC → 技能集合）：只对**非域治理**技能生效。
+    # 用于入口能力（research.submit / research.status）这类写操作：只授权某个调用方的
+    # 某一项技能，而不是把"整链执行"权限整体放给它。域技能仍必须走 grant/令牌，
+    # 否则会绕过冻结/成员制/配额。
+    inbound_skill_allow: Mapping[str, frozenset[str]] = field(default_factory=dict)
     require_session_binding: bool = False
     max_token_ttl_seconds: int = MAX_TTL_SECONDS
     clock_skew_seconds: int = CLOCK_SKEW_SECONDS
@@ -175,6 +180,9 @@ class PepConfig:
             "unscopedEntryOpen": self.unscoped_entry_open(),
             "allowUnscopedPublicEntry": self.allow_unscoped_public_entry,
             "inboundAllowAics": sorted(self.inbound_allow_aics),
+            "inboundSkillAllow": {
+                aic: sorted(skills) for aic, skills in sorted(self.inbound_skill_allow.items())
+            },
             "unscopedPublicEntryOpen": self.unscoped_public_entry_open(),
             "requireSessionBinding": self.require_session_binding,
             "jtiMaxUses": JtiRegistry.max_uses(),
@@ -295,6 +303,27 @@ def _my_aic_from_workspace(workspace: Path) -> str:
     return ""
 
 
+def parse_inbound_skill_allow(raw: str) -> dict[str, frozenset[str]]:
+    """解析 `AIC=skill1,skill2;AIC2=skill3`（显式入站技能白名单）。
+
+    非法项（缺 `=`、AIC 为空、技能为空）跳过并告警，不阻断启动：配置写错不应让
+    agent 起不来，但也不能静默变成"全员放行"。
+    """
+    out: dict[str, frozenset[str]] = {}
+    for entry in str(raw or "").replace("\n", ";").split(";"):
+        text = entry.strip()
+        if not text:
+            continue
+        aic, sep, skills_raw = text.partition("=")
+        aic = aic.strip()
+        skills = frozenset(s.strip() for s in skills_raw.split(",") if s.strip())
+        if not sep or not aic or not skills:
+            print(f"[pep] 忽略非法入站技能白名单项：{text!r}", flush=True)
+            continue
+        out[aic] = out.get(aic, frozenset()) | skills
+    return out
+
+
 def load_pep_config(
     workspace: Path | str,
     *,
@@ -305,6 +334,7 @@ def load_pep_config(
     env: Mapping[str, str] | None = None,
     allow_unscoped_public_entry: bool | None = None,
     inbound_allow_aics: Iterable[str] | None = None,
+    inbound_skill_allow: Mapping[str, Iterable[str]] | None = None,
 ) -> PepConfig:
     """环境变量注入配置（沿用 cluster_common 惯例），见 PEP_design.md §4.3。
 
@@ -356,6 +386,20 @@ def load_pep_config(
                 else (env.get("ACPS_PEP_INBOUND_ALLOW_AICS") or "").split(",")
             )
             if str(part).strip()
+        ),
+        inbound_skill_allow=(
+            {
+                str(aic).strip(): frozenset(str(s).strip() for s in skills if str(s).strip())
+                for aic, skills in inbound_skill_allow.items()
+                if str(aic).strip()
+            }
+            if inbound_skill_allow is not None
+            else parse_inbound_skill_allow(";".join(
+                raw for raw in (
+                    env.get("ACPS_PEP_INBOUND_SKILL_ALLOW") or "",
+                    env.get("ACPS_SUPERVISOR_INBOUND_SKILL_ALLOW") or "",
+                ) if raw
+            ))
         ),
         # 资源类 agent 用 `ACPS_PEP_LEADER_DIRECT=0` 关掉"直调免令牌"通道，
         # 同时保留 `ACPS_PEP_LEADER_AICS`（承认 leader 的**签发资格**）——
@@ -693,6 +737,23 @@ def evaluate(
             skill_hint=skill,
             skill_source=SKILL_SOURCE_SELF_DECLARED,
         )
+
+    # 策略 1''（L1''）：显式入站**技能**白名单（按调用方 × 按技能）。
+    #
+    # 与 L1' 的区别：L1' 回答"这个调用方能不能触发整链执行"，是 agent 级布尔；
+    # 这里回答"这个调用方能不能调用这一项技能"，是技能级授权——入口能力
+    # （research.submit / research.status）是写操作，不该把整链权限一起放出去。
+    #
+    # 只对**非域治理**技能生效：域技能必须走 grant/令牌，否则会绕过冻结/成员制/配额。
+    # 放在域存储预检之后：域技能+章程缺失仍按 domain-store-missing 拒绝。
+    if skill is not None and request.leader_aic:
+        allowed_skills = cfg.inbound_skill_allow.get(str(request.leader_aic))
+        if allowed_skills and skill in allowed_skills and not cfg.skill_is_domain_governed(skill):
+            return PepOutcome(
+                "allow", "inbound-skill-allow",
+                skill_hint=skill,
+                skill_source=SKILL_SOURCE_SELF_DECLARED,
+            )
 
     # ── §11.3 步骤 3：token 校验 ──
     # 只取**发给本机**的令牌：一次委派可能同时携带任务令牌（aud=self）和工作区

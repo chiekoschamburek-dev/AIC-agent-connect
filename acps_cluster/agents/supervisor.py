@@ -35,6 +35,7 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from wit import (  # noqa: E402
+    AipPartnerTransformHooks,
     AcpsDirect,
     RunConfig,
     RunEndEvent,
@@ -56,6 +57,7 @@ from acps_cluster.core import bootstrap  # noqa: E402  (触发 .env 加载)
 from acps_cluster.core import cluster_common  # noqa: E402
 from acps_cluster.core import cluster_roster  # noqa: E402
 from acps_cluster.runtime import jobs_store  # noqa: E402  L2 作业化交路：jobs/<id>/ 目录台账
+from acps_cluster.agents import root_entry  # noqa: E402  多入口编排：research.submit/status（非公开）
 from acps_cluster.core import viz_live  # noqa: E402  本次 run 的工作流 Scenario + AIP 链接产物
 from acps_cluster.core.math_delimiters import normalize_math_delimiters  # noqa: E402
 from acps_cluster.core.discovery_metadata import (  # noqa: E402
@@ -705,6 +707,37 @@ def _make_product_gate_tool() -> Tool:
 _ORCH_MODES = {"standard", "deep-research", "auto-research"}
 
 
+async def _orchestrate_payload(task: str, mode: str = "standard") -> dict:
+    """`research.orchestrate` 的确定性实现（不碰模型、不发委托）。
+
+    单独抽出来是为了给**入站技能快速通道**复用：`@capability` 装饰后的对象不保证
+    仍是可直接 `await` 的普通函数（装饰器实现属于上游），而快速通道必须能直接执行。
+    """
+    roster = cluster_roster.load_roster()
+    members = [
+        {
+            "key": m.key,
+            "name": m.name,
+            "role": m.role,
+            "capabilities": list(m.capabilities),
+            "aic": m.aic,
+            "available": m.available,
+        }
+        for m in roster
+        if m.kind != "leader"
+    ]
+    return {
+        "ok": True,
+        "task": str(task or "")[:2000],
+        "mode": mode if mode in _ORCH_MODES else "standard",
+        "availableModes": sorted(_ORCH_MODES),
+        "partners": members,
+        "callableNow": [m["key"] for m in members if m["available"]],
+        "unavailable": [m["key"] for m in members if not m["available"]],
+        "note": "计划与派发由本 leader 的入站任务路径执行；本技能只做只读自检，不产生 LLM 调用。",
+    }
+
+
 @capability(
     id="research.orchestrate",
     description=(
@@ -732,38 +765,69 @@ async def research_orchestrate(task: str, mode: str = "standard") -> dict:
     `model_callable=False` —— 它绝不能出现在 leader 自己的工具列表里，否则 leader
     会去调用"给自己派活"的这个技能（递归 + 无意义消耗）。
     """
-    roster = cluster_roster.load_roster()
-    members = [
-        {
-            "key": m.key,
-            "name": m.name,
-            "role": m.role,
-            "capabilities": list(m.capabilities),
-            "aic": m.aic,
-            "available": m.available,
-        }
-        for m in roster
-        if m.kind != "leader"
-    ]
-    return {
-        "ok": True,
-        "task": str(task or "")[:2000],
-        "mode": mode if mode in _ORCH_MODES else "standard",
-        "availableModes": sorted(_ORCH_MODES),
-        "partners": members,
-        "callableNow": [m["key"] for m in members if m["available"]],
-        "unavailable": [m["key"] for m in members if not m["available"]],
-        "note": "计划与派发由本 leader 的入站任务路径执行；本技能只做只读自检，不产生 LLM 调用。",
-    }
+    return await _orchestrate_payload(task, mode)
+
+
+# 空串表示本机作业，None 表示 AIP 对端未验证，工具入参不能指定所有者。
+_JOB_OWNER: ContextVar[str | None] = ContextVar("yanshu_job_owner", default="")
+
+
+class JobOwnerHooks(AipPartnerTransformHooks):
+    id = "yanshu.job-owner"
+    priority = 55
+
+    async def on_partner_request(self, event) -> None:  # noqa: ANN001
+        peer = str(getattr(event, "leader_aic", "") or "").strip()
+        _JOB_OWNER.set(peer if getattr(event, "peer_verified", False) and peer else None)
+
+
+def _with_inbound_skill_fastpath(provider):
+    """给入站请求加"技能快速通道"。
+
+    入口能力 `research.submit` / `research.status` **始终**走确定性执行——受理与查询
+    不能交给模型自由发挥（否则"受理"会变成一次编排，回执语义失效）。只读的
+    `research.orchestrate` 仍由 `ACPS_SUPERVISOR_SKILL_FASTPATH=1` 灰度开启。
+
+    命中技能时直接执行、不跑 LLM；未指名或参数对不上时原样回落给模型，自然语言任务
+    的行为不变。
+    """
+    from acps_cluster.bidirectional.skill_entry import SkillFastPathProvider, enabled  # noqa: PLC0415
+
+    if provider is None:
+        return provider
+    from wit.kernel.messages import ModelResponse  # noqa: PLC0415
+
+    handlers = dict(root_entry.HANDLERS)
+    if enabled("SUPERVISOR"):
+        handlers["research.orchestrate"] = _orchestrate_payload
+    wrapped = SkillFastPathProvider(
+        handlers,
+        fallback=provider,
+        final_factory=ModelResponse.final,
+        prefix="SUPERVISOR",
+    )
+    print(
+        "[supervisor] 入站技能快速通道已启用："
+        f"{', '.join(wrapped.skills)}（对端指名时不调用 LLM）",
+        flush=True,
+    )
+    return wrapped
 
 
 def build_supervisor_agent(provider) -> WitAgent:
     """装配「研枢-Supervisor」agent：模型、工具与 hooks 的公开构建入口。"""
+    provider = _with_inbound_skill_fastpath(provider)
     roster = cluster_roster.load_roster()
     available = [m.key for m in roster if m.kind != "leader" and m.available]
-    public_skills, has_non_public = capability_visibility([research_orchestrate])
+    # 入口能力非公开（不进 ACS）；公开面仍只有 research.orchestrate 一项
+    entry_capabilities = [
+        research_orchestrate,
+        root_entry.research_submit,
+        root_entry.research_status,
+    ]
+    public_skills, has_non_public = capability_visibility(entry_capabilities)
     pep_hooks = build_pep_hooks(
-        capabilities=[research_orchestrate],
+        capabilities=entry_capabilities,
         workspace=WORKSPACE,
         public_skills=public_skills,
         has_non_public_skills=has_non_public,
@@ -805,9 +869,9 @@ def build_supervisor_agent(provider) -> WitAgent:
         ),
         instructions=_playbook(cluster_roster.render_roster_text(roster), available),
         model=provider,
-        # 唯一对外公开的只读能力：让平台/叮当这类调用方能列出来并指名；
-        # 它 model_callable=False，所以不会进 leader 自己的工具列表。
-        capabilities=apply_to_capabilities([research_orchestrate], agent_id="yanshu.supervisor"),
+        # 对外公开的只读能力 research.orchestrate（model_callable=False，不进 leader 工具列表）；
+        # research.submit / research.status 非公开（不进 ACS），只走授权入站 + 确定性执行。
+        capabilities=apply_to_capabilities(entry_capabilities, agent_id="yanshu.supervisor"),
         hooks=[
             AipDelegationHooks(),
             # 桥(runtime/state ContextVar 捕获):RunConfig.tools 里的 wait_partner/
@@ -840,7 +904,14 @@ def build_supervisor_agent(provider) -> WitAgent:
             *pep_run_hooks,
         ],
         # remedy-3 下发的 delegation token 不得进入模型上下文（cfg=None 纯删除，见 delegation/client.py）
-        aip_hooks=[AipPartnerGuardHooks(), *pep_aip_hooks],
+        aip_hooks=[
+            AipPartnerGuardHooks(),
+            JobOwnerHooks(),
+            # 入口身份：把"已验证调用方 AIC + 平台 taskId"写进 ContextVar，供
+            # research.submit/status 做幂等键与访问控制（未验证 → fail-closed）
+            root_entry.build_entry_hooks(),
+            *pep_aip_hooks,
+        ],
                 # 作业 worker 与常驻 supervisor 的 access journal 已按工作区隔离
                 # （ws-supervisor-job），两侧都能安全落账；需要临时关掉 access 记录时设
                 # ACPS_SUPERVISOR_NO_AMP_ACCESS=1（2026-10-24 随钩子恢复接线一起回归）。
@@ -1221,7 +1292,7 @@ def _make_wait_partner_bridge_tool() -> Tool:
 # 背景：叮当/前端的等待窗口 <20 分钟（两次实测：38.5 分钟与 ~20 分钟的任务均被判红），
 # 而复杂研究（DeepResearch/AutoResearch）天然小时级。交路：秒级受理回执（节点快速收口）
 # → detached 进程后台跑全量链路（jobs/<id>/ 落盘）→ 用户「查作业 <id>」秒级取件。
-# 作业进程只做出站委派、只写自己的作业目录（端口 8544 与常驻 8444 隔离）。
+# 作业进程只做出站委派、只写自己的作业目录（关闭对外监听）。
 def _in_job_mode() -> bool:
     """jobs_runner 拉起的后台作业进程：只做任务本身，不能再派生作业（防链式续命）。"""
     return bool(os.getenv("ACPS_JOB_REPORT_OUT", "").strip())
@@ -1261,6 +1332,9 @@ def _make_submit_job_tool() -> Tool:
 
     async def submit_job(arguments: dict | str) -> dict:
         """提交 L2 作业并记录回执，交由后台 worker 执行。"""
+        owner = _JOB_OWNER.get()
+        if owner is None:
+            return {"ok": False, "error": "受理作业需要已验证的调用方身份"}
         args = arguments if isinstance(arguments, dict) else {}
         question = str(args.get("question") or "").strip()
         mode = str(args.get("mode") or "custom").strip() or "custom"
@@ -1289,13 +1363,11 @@ def _make_submit_job_tool() -> Tool:
                     f"并发作业已达上限 {limit}：请等现有作业完成（查作业 list），"
                     f"或调高 ACPS_JOB_MAX_CONCURRENT。**不要**用 aip_submit 假称已受理")}
             try:
-                job_id, job_dir = jobs_store.create_job(jobs_root, question, mode)
+                job_id, job_dir = jobs_store.create_job(jobs_root, question, mode, owner_aic=owner)
             except Exception as exc:  # noqa: BLE001
                 return {"ok": False, "error": f"创建作业失败: {type(exc).__name__}: {exc}"}
             env = dict(os.environ)
             env["ACPS_JOB_REPORT_OUT"] = str(job_dir / "report.md")
-            # 显式覆盖（父进程 env 里通常已是 8444）：jobs_runner 也会再覆盖一次
-            env["ACPS_SUPERVISOR_PORT"] = os.getenv("ACPS_JOB_WORKER_PORT", "8544")
             try:
                 log_file = open(job_dir / "log.txt", "w", encoding="utf-8")  # noqa: SIM115
             except OSError as exc:
@@ -1304,7 +1376,7 @@ def _make_submit_job_tool() -> Tool:
                 return {"ok": False, "error": f"创建作业日志失败: {type(exc).__name__}: {exc}"}
             try:
                 proc = subprocess.Popen(
-                    [sys.executable, "jobs_runner.py", str(job_dir)],
+                    [sys.executable, str(Path(jobs_store.__file__).with_name("jobs_runner.py")), str(job_dir)],
                     cwd=str(Path(__file__).resolve().parents[1]), env=env,
                     stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
             except Exception as exc:  # noqa: BLE001
@@ -1351,15 +1423,18 @@ def _make_check_job_tool() -> Tool:
 
     async def check_job(arguments: dict | str) -> dict:
         """查询作业状态与产物；必要时补交或如实标失败。"""
+        owner = _JOB_OWNER.get()
+        if owner is None:
+            return {"ok": False, "error": "查询作业需要已验证的调用方身份"}
         args = arguments if isinstance(arguments, dict) else {}
         ref = str(args.get("job_ref") or args.get("job_id") or "").strip()
         if not ref or ref.lower() in ("list", "ls", "列表"):
-            return {"ok": True, "jobs": jobs_store.list_jobs(jobs_root, limit=8),
+            return {"ok": True, "jobs": jobs_store.list_jobs(jobs_root, limit=8, owner_aic=owner),
                     "note": "最近作业列表；取件请用 job_ref=<作业号前缀>"}
-        matches = jobs_store.match_jobs(jobs_root, ref)
+        matches = jobs_store.match_jobs(jobs_root, ref, owner_aic=owner)
         if not matches:
             return {"ok": False, "error": f"未找到作业 {ref!r}",
-                    "jobs": jobs_store.list_jobs(jobs_root, limit=5)}
+                    "jobs": jobs_store.list_jobs(jobs_root, limit=5, owner_aic=owner)}
         if len(matches) > 1:
             # 前缀有歧义时绝不猜：取错作业比"请多给几位作业号"代价大得多
             return {"ok": False,
@@ -1881,6 +1956,9 @@ def _make_wait_partner_tool(
 
 # 运行中守卫的跨钩子中止标记（RunGuardHooks 置位，wrap_tool_call/on_run_end 读取）。
 _RUN_GUARD_ABORT: ContextVar[dict | None] = ContextVar("yanshu_run_guard_abort", default=None)
+_RUN_GUARD_IDLE_TIMEOUT: ContextVar[asyncio.Timeout | None] = ContextVar(
+    "yanshu_run_guard_idle_timeout", default=None
+)
 
 
 class SupervisorRunHooks(WitHooks):
@@ -2185,15 +2263,33 @@ class SupervisorRunHooks(WitHooks):
         改不回状态——线上所有成功任务都显示"失败"（2026-10-28 实测）。
         """
         returned = False
+        idle_timeout = asyncio.timeout(None)
+        timeout_token = _RUN_GUARD_IDLE_TIMEOUT.set(idle_timeout)
+        state_token = RunGuardHooks._STATE.set(None)
         try:
-            result = await handler()
+            async with idle_timeout:
+                result = await handler()
             returned = True
             return result
+        except TimeoutError:
+            if idle_timeout.expired():
+                st = RunGuardHooks._STATE.get()
+                if st is not None:
+                    RunGuardHooks()._idle_expired(st)
+                abort = _RUN_GUARD_ABORT.get()
+                if abort is not None:
+                    await self._finish_guard_abort(abort)
+            raise
         finally:
+            st = RunGuardHooks._STATE.get()
+            if st is not None and (timer := st.pop("idle_timer", None)) is not None:
+                timer.cancel()
+            RunGuardHooks._STATE.reset(state_token)
+            _RUN_GUARD_IDLE_TIMEOUT.reset(timeout_token)
             try:
                 await self._flush_buffered_submit()
             finally:
-                # 正常返回时把收口交给 on_run_end；只有异常/取消才在这里判失败。
+                root_entry.clear_entry_run()
                 if not returned:
                     self._viz_finish_aborted()
 
@@ -2216,6 +2312,13 @@ class SupervisorRunHooks(WitHooks):
                 dropped = len(state.get("buffers") or [])
                 self._trace_write({"event": "aip_submit_flush_skipped",
                                    "reason": "awaiting-input", "buffered_products": dropped})
+                return
+            # 入口受理 run（research.submit 的快速通道）：终稿是含 root_id/job_id 的
+            # JSON 回执，必须由 on_run_end 用 final_text 提交；这里若补交代码生成的
+            # 作业回执，会把 root_id 顶掉（2026-11-17 现网实测：调用方拿不到根任务号）。
+            if root_entry.entry_run_active() and not (state.get("buffers") or []):
+                self._trace_write({"event": "aip_submit_flush_skipped",
+                                   "reason": "root-entry-final-text"})
                 return
             receipts = _JOB_RECEIPTS.get() or []
             if state.get("ok"):
@@ -2355,6 +2458,24 @@ class SupervisorRunHooks(WitHooks):
             })
         return out
 
+    async def _finish_guard_abort(self, abort: dict) -> None:
+        reason = f"运行守卫中止（{abort.get('rule')}）：{abort.get('reason')}"
+        state = self._SUBMIT_STATE.get()
+        self._SUBMIT_STATE.set(None)
+        fail = state.get("fail_handler") if isinstance(state, dict) else None
+        already_ok = bool(isinstance(state, dict) and state.get("ok"))
+        if callable(fail) and not already_ok:
+            try:
+                await fail({"reason": reason})
+                self._trace_write({"event": "aip_fail_auto", "ok": True,
+                                   "reason": "run-guard", "detail": reason[:300]})
+            except Exception as exc:  # noqa: BLE001
+                self._trace_write({"event": "aip_fail_auto", "ok": False,
+                                   "reason": "run-guard",
+                                   "error": f"{type(exc).__name__}: {exc}"})
+        self._viz_finish(reason, status="failed")
+        _RUN_GUARD_ABORT.set(None)
+
     async def on_run_end(self, event: RunEndEvent) -> None:
         """run 收尾回调：落盘结果并处理异常/中止路径。"""
         res = getattr(event, "result", None)
@@ -2371,22 +2492,7 @@ class SupervisorRunHooks(WitHooks):
         # 失败终态要如实上板：此前无论 run 成败 viz 一律画"全绿已完成"（2026-10-27 审查）。
         abort = _RUN_GUARD_ABORT.get()
         if abort is not None:
-            reason = f"运行守卫中止（{abort.get('rule')}）：{abort.get('reason')}"
-            state = self._SUBMIT_STATE.get()
-            self._SUBMIT_STATE.set(None)
-            fail = state.get("fail_handler") if isinstance(state, dict) else None
-            already_ok = bool(isinstance(state, dict) and state.get("ok"))
-            if callable(fail) and not already_ok:
-                try:
-                    await fail({"reason": reason})
-                    self._trace_write({"event": "aip_fail_auto", "ok": True,
-                                       "reason": "run-guard", "detail": reason[:300]})
-                except Exception as exc:  # noqa: BLE001
-                    self._trace_write({"event": "aip_fail_auto", "ok": False,
-                                       "reason": "run-guard",
-                                       "error": f"{type(exc).__name__}: {exc}"})
-            self._viz_finish(reason, status="failed")
-            _RUN_GUARD_ABORT.set(None)
+            await self._finish_guard_abort(abort)
             return
         run_status = str(getattr(res, "status", None) or "").lower()
         exhausted = any(k in run_status for k in ("budget", "limit", "exhaust", "max_step", "steps"))
@@ -2944,7 +3050,7 @@ class RunGuardHooks(WitHooks):
     async def on_run_start(self, event) -> None:  # noqa: ANN001
         _RUN_GUARD_ABORT.set(None)
         now = time.monotonic()
-        self._STATE.set({
+        st = {
             "started": now,
             "last_activity": now,
             "last_progress": now,
@@ -2955,7 +3061,28 @@ class RunGuardHooks(WitHooks):
             "waits": {},
             "abort": None,
             "submitted": False,
-        })
+        }
+        self._STATE.set(st)
+        self._arm_idle_watch(st)
+
+    def _arm_idle_watch(self, st: dict) -> None:
+        if (timer := st.pop("idle_timer", None)) is not None:
+            timer.cancel()
+        mode = _run_guard_mode()
+        if mode == "off" or st.get("abort"):
+            return
+        delay = _run_guard_int("ACPS_GUARD_IDLE_SECONDS", 1500)
+        loop = asyncio.get_running_loop()
+        if mode == "enforce":
+            timeout = _RUN_GUARD_IDLE_TIMEOUT.get()
+            if timeout is not None and not timeout.expired():
+                timeout.reschedule(loop.time() + delay)
+        else:
+            st["idle_timer"] = loop.call_later(delay, self._idle_expired, st)
+
+    def _idle_expired(self, st: dict) -> None:
+        elapsed = time.monotonic() - st["last_activity"]
+        self._trigger(st, "no-activity", f"{elapsed/60:.0f} 分钟没有任何工具/步活动")
 
     async def wrap_tool_call(self, ctx, tool_call, handler):  # noqa: ANN001, ANN202
         st = self._STATE.get()
@@ -2982,8 +3109,9 @@ class RunGuardHooks(WitHooks):
             st["steps"] = max(int(st.get("steps") or 0), int(getattr(event, "step", 0) or 0))
         except (TypeError, ValueError):
             st["steps"] = int(st.get("steps") or 0) + 1
-        st["last_activity"] = time.monotonic()
         self._check(st)
+        st["last_activity"] = time.monotonic()
+        self._arm_idle_watch(st)
 
     async def on_tool_response(self, event) -> None:  # noqa: ANN001
         """工具返回后回调：记录结果并推进状态判断。"""
@@ -2994,8 +3122,6 @@ class RunGuardHooks(WitHooks):
         if not name:
             name = str(getattr(getattr(event, "tool", None), "name", None) or "")
         resp = getattr(event, "response", None)
-        now = time.monotonic()
-        st["last_activity"] = now
         status = str((resp or {}).get("status") if isinstance(resp, dict) else "") or ""
         if status == "error" or (isinstance(resp, dict) and resp.get("error")):
             st["errors"] = int(st.get("errors") or 0) + 1
@@ -3024,6 +3150,8 @@ class RunGuardHooks(WitHooks):
             repeat = st.setdefault("repeat", {})
             repeat[sig] = int(repeat.get(sig) or 0) + 1
         self._check(st)
+        st["last_activity"] = time.monotonic()
+        self._arm_idle_watch(st)
 
     def _note_progress(self, st: dict, name: str, resp: object, args: object) -> None:
         """把"真的推进了任务"的响应记为进度（长任务可以跑很久，但要一直在前进）。
@@ -3061,7 +3189,7 @@ class RunGuardHooks(WitHooks):
                     break
 
     def _check(self, st: dict) -> None:
-        if st.get("abort"):
+        if st.get("abort") or _run_guard_mode() == "off":
             return
         now = time.monotonic()
         wall = _run_guard_int("ACPS_GUARD_WALL_SECONDS", 13800)
@@ -3109,6 +3237,8 @@ class RunGuardHooks(WitHooks):
         st["abort"] = abort
         if enforced:
             _RUN_GUARD_ABORT.set(abort)
+        if (timer := st.pop("idle_timer", None)) is not None:
+            timer.cancel()
         record = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "rule": rule,

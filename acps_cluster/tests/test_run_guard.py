@@ -115,6 +115,37 @@ class RunGuardRuleTest(unittest.TestCase):
         self.assertIsNone(supervisor._RUN_GUARD_ABORT.get())  # 但不阻断
 
 
+class RunGuardIdleTest(unittest.TestCase):
+    def test_enforce无需回调即可取消空闲执行并上报失败(self):
+        async def scenario():
+            guard = supervisor.RunGuardHooks()
+            hooks = supervisor.SupervisorRunHooks()
+            fail = mock.AsyncMock()
+            cleanup = mock.Mock()
+
+            async def handler():
+                await guard.on_run_start(None)
+                hooks._SUBMIT_STATE.set({"fail_handler": fail, "buffers": ["partial"]})
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    cleanup()
+
+            with mock.patch.dict(os.environ, {"ACPS_RUN_GUARD": "enforce"}), \
+                 mock.patch.object(supervisor, "_run_guard_int", return_value=0), \
+                 mock.patch.object(guard.__class__, "_audit"), \
+                 mock.patch.object(hooks, "_trace_write"), \
+                 mock.patch.object(hooks, "_viz_finish"), \
+                 mock.patch.object(hooks, "_viz_finish_aborted"), \
+                 self.assertRaises(TimeoutError):
+                await hooks.wrap_run(None, handler)
+            cleanup.assert_called_once()
+            fail.assert_awaited_once()
+            self.assertIn("no-activity", fail.await_args.args[0]["reason"])
+
+        asyncio.run(scenario())
+
+
 class RunGuardWrapTest(unittest.TestCase):
     def setUp(self):
         self.guard = supervisor.RunGuardHooks()

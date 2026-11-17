@@ -40,13 +40,13 @@ def new_job_id(now: datetime | None = None) -> str:
     return f"job-{stamp}-{secrets.token_hex(2)}"
 
 
-def create_job(root: Path, question: str, mode: str = "custom") -> tuple[str, Path]:
+def create_job(root: Path, question: str, mode: str = "custom", *, owner_aic: str = "") -> tuple[str, Path]:
     job_id = new_job_id()
     job_dir = root / job_id
     job_dir.mkdir(parents=True, exist_ok=False)
     (job_dir / "request.txt").write_text(question, encoding="utf-8")
     _write_status(job_dir, {
-        "id": job_id, "mode": mode, "state": "queued",
+        "id": job_id, "mode": mode, "state": "queued", "owner_aic": owner_aic,
         "created_at": now_iso(), "started_at": None, "finished_at": None,
         "pid": None, "exit_code": None, "question_head": question[:120],
     })
@@ -300,7 +300,7 @@ def _inside_root(root: Path, candidate: Path) -> bool:
         return False
 
 
-def match_jobs(root: Path, ref: str) -> list[Path]:
+def match_jobs(root: Path, ref: str, *, owner_aic: str | None = None) -> list[Path]:
     """按作业号/前缀找作业目录；多个前缀命中时全部返回（调用方必须处理歧义）。
 
     `ref` 是模型工具参数，**不能**直接拼路径：作业号只含字母/数字/连字符，先过白名单，
@@ -315,13 +315,17 @@ def match_jobs(root: Path, ref: str) -> list[Path]:
         children = sorted(root.iterdir(), reverse=True)
     except OSError:
         return []
+    def visible(path: Path) -> bool:
+        return (
+            _inside_root(root, path)
+            and (path / "status.json").is_file()
+            and (owner_aic is None or read_status(path).get("owner_aic", "") == owner_aic)
+        )
+
     exact = root / ref
-    if _inside_root(root, exact) and (exact / "status.json").is_file():
+    if visible(exact):
         return [exact]
-    return [
-        d for d in children
-        if d.name.startswith(ref) and (d / "status.json").is_file() and _inside_root(root, d)
-    ]
+    return [d for d in children if d.name.startswith(ref) and visible(d)]
 
 
 def find_job(root: Path, ref: str) -> Path | None:
@@ -330,10 +334,16 @@ def find_job(root: Path, ref: str) -> Path | None:
     return matches[0] if len(matches) == 1 else None
 
 
-def list_jobs(root: Path, limit: int = 10) -> list[dict]:
+def list_jobs(root: Path, limit: int = 10, *, owner_aic: str | None = None) -> list[dict]:
     out: list[dict] = []
-    for d in _job_dirs(root)[:limit]:
+    for d in _job_dirs(root):
+        if len(out) >= limit:
+            break
+        if not _inside_root(root, d):
+            continue
         st = read_status(d)
+        if owner_aic is not None and st.get("owner_aic", "") != owner_aic:
+            continue
         st["job_id"] = d.name
         out.append(st)
     return out

@@ -212,16 +212,26 @@ class JobToolsTest(unittest.TestCase):
 
     def test_submit_job_创建作业并启动进程(self):
         tool = s._make_submit_job_tool()
-        with mock.patch.object(s.subprocess, "Popen", _FakePopen):
-            out = asyncio.run(tool.handler({"question": "对扩散模型做一小时级深度研究", "mode": "deep_research"}))
+        owner = s._JOB_OWNER.set("agent-A")
+        try:
+            with mock.patch.object(s.subprocess, "Popen", _FakePopen):
+                out = asyncio.run(tool.handler({
+                    "question": "对扩散模型做一小时级深度研究", "mode": "deep_research",
+                    "owner_aic": "agent-B",
+                }))
+        finally:
+            s._JOB_OWNER.reset(owner)
         self.assertTrue(out.get("ok"), out)
         job_dir = self.ws / "jobs" / out["job_id"]
         self.assertTrue((job_dir / "request.txt").is_file())
         st = js.read_status(job_dir)
         self.assertEqual(st["pid"], 777_001)
         self.assertEqual(st["mode"], "deep_research")
+        self.assertEqual(st["owner_aic"], "agent-A")
         self.assertIn("受理回执", out.get("note") or "")
-        self.assertEqual(_FakePopen.last["args"][1], "jobs_runner.py")
+        launch = _FakePopen.last
+        self.assertEqual(Path(launch["args"][1]).name, "jobs_runner.py")
+        self.assertTrue((Path(launch["cwd"]) / launch["args"][1]).is_file())
 
     def test_submit_job_成功路径关闭日志FD(self):
         # 常驻服务里每提交一个作业泄漏一个 FD，攒到 RLIMIT_NOFILE 后证书/sqlite/socket
@@ -253,6 +263,34 @@ class JobToolsTest(unittest.TestCase):
         tool = s._make_submit_job_tool()
         out = asyncio.run(tool.handler({"question": "短"}))
         self.assertFalse(out.get("ok"))
+
+    def test_check_job按已验证的AIC隔离列表与取件(self):
+        from types import SimpleNamespace
+
+        root = self.ws / "jobs"
+        other_id, other = js.create_job(root, "其他调用方的任务", owner_aic="agent-B")
+        own_id, own = js.create_job(root, "当前调用方的任务", owner_aic="agent-A")
+        legacy_id, _ = js.create_job(root, "没有远程归属的旧任务")
+        (own / "report.md").write_text("当前终稿", encoding="utf-8")
+        (other / "report.md").write_text("其他终稿", encoding="utf-8")
+        tool = s._make_check_job_tool()
+
+        async def scenario():
+            await s.JobOwnerHooks().on_partner_request(
+                SimpleNamespace(leader_aic="agent-A", peer_verified=True))
+            listed = await tool.handler({"job_ref": "list"})
+            self.assertEqual([job["job_id"] for job in listed["jobs"]], [own_id])
+            missing = await tool.handler({"job_ref": other_id, "owner_aic": "agent-B"})
+            self.assertFalse(missing["ok"])
+            self.assertEqual([job["job_id"] for job in missing["jobs"]], [own_id])
+            self.assertFalse((await tool.handler({"job_ref": legacy_id}))["ok"])
+            own_result = await tool.handler({"job_ref": own_id[:12]})
+            self.assertEqual(own_result["report"], "当前终稿")
+            await s.JobOwnerHooks().on_partner_request(
+                SimpleNamespace(leader_aic="agent-B", peer_verified=False))
+            self.assertFalse((await tool.handler({"job_ref": "list"}))["ok"])
+
+        asyncio.run(scenario())
 
     def test_check_job_完成取件返回report(self):
         root = self.ws / "jobs"

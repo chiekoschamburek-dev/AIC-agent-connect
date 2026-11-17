@@ -160,7 +160,7 @@ render_units() {
   [ -d "$ACPS_ROOT/acps_cluster/deploy" ] || die "找不到 deploy 目录"
   mkdir -p "$STAGE"
   local count=0
-  for tpl in "$ACPS_ROOT"/acps_cluster/deploy/*.service; do
+  for tpl in "$ACPS_ROOT"/acps_cluster/deploy/*.{service,timer}; do
     local name; name="$(basename "$tpl")"
     if [ "$name" = "gjw-designer.service" ]; then continue; fi   # 队友节点，参数不归本仓库
     sed -e "s#__ACPS_ROOT__#${ACPS_ROOT}#g" -e "s#__ACPS_PY__#${PY}#g" "$tpl" > "$STAGE/$name"
@@ -173,9 +173,9 @@ install_units() {
   require_root install-units
   render_units
   say "安装 systemd 单元"
-  install -m 0644 "$STAGE"/*.service /etc/systemd/system/
+  install -m 0644 "$STAGE"/*.{service,timer} /etc/systemd/system/
   systemctl daemon-reload
-  echo "已安装：$(cd "$STAGE" && ls *.service | tr '\n' ' ')"
+  echo "已安装：$(cd "$STAGE" && ls -- *.{service,timer} | tr '\n' ' ')"
   echo "启用/启动：sudo $0 start"
 }
 

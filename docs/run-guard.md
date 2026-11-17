@@ -19,7 +19,7 @@ guard-api 的检测规则面向"隐蔽信道/异常交互"；本守卫面向"卡
 | 规则 | 默认阈值 | 触发条件 |
 |---|---|---|
 | `wall-clock` | `ACPS_GUARD_WALL_SECONDS=13800`（230 分钟） | run 墙钟超限（4h TTL 前留 10 分钟收尸） |
-| `no-activity` | `ACPS_GUARD_IDLE_SECONDS=1500`（25 分钟） | 没有任何工具响应/步活动（模型或等待挂死） |
+| `no-activity` | `ACPS_GUARD_IDLE_SECONDS=1500`（25 分钟） | 独立计时，超过阈值仍无工具响应或步活动时触发。enforce 模式会取消本次执行并走失败上报 |
 | `progress-stall` | `ACPS_GUARD_PROGRESS_SECONDS=5400`（90 分钟） | 长时间没有**实际推进**（无产物、无新委派、无任务状态变化） |
 | `error-streak` | `ACPS_GUARD_ERROR_LIMIT=8` | 连续 8 次工具调用报错 |
 | `repeat-loop` | `ACPS_GUARD_REPEAT_LIMIT=16` | 同一非等待工具 + 同一参数重复 16 次 |

@@ -181,4 +181,5 @@ Phase D 上游 20 项单测(含 ACS 体脱敏)并可独立运行。
 | DeepResearch/AutoResearch | `acps_cluster/demo_run/deepresearch/`、`autoresearch/`(真链路: `ledger-<runId>.v1.jsonl`、`gpu-audit.jsonl`、逐轮 `run-20261018-round*.log` 与 `autoresearch-prev-*` 归档;离线直调: `autoresearch-e2e.json`) |
 | 引用核验端到端 | `acps_cluster/demo_run/citation/`(verdict 表+真实取源记录) |
 | L2 作业化交路(受理-作业-取件) | `docs/l2-job-pipeline.md`、`acps_cluster/tests/test_jobs_store.py` |
+| 跨智能体双向调用(入站通道 + 取证) | `acps_cluster/bidirectional/`、`docs/bidirectional-invocation.md`、`artifacts/bidirectional/`(按需生成) |
 | wit 缺陷反馈素材 | `docs/issue-wit-2.1.0-discovery-filter-400.md` |

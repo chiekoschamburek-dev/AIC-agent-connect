@@ -32,7 +32,7 @@ supervisor（本次 run）
    │
    └─ detached 进程：python jobs_runner.py jobs/<job-id>
           │  加载 deploy/.env.production，ACPS_SUPERVISOR_NO_SERVE=1
-          │  端口 8544（与常驻 8444 隔离，只做出站委派）
+          │  沿用注册配置的 8444，仅做出站委派且不绑定端口
           ├── supervisor.main() → 按名册委派伙伴链
           └── ACPS_JOB_REPORT_OUT → jobs/<id>/report.md
                                      status.json → done / failed
@@ -113,6 +113,7 @@ queued ──► running ──► done
 
 - `job_ref` 支持 `list`/`ls`/`列表`（最近 8 个作业）或作业号/前缀；**用户直接粘贴
   `job-YYYYMMDD-HHMMSS-xxxx` 也按取件处理**；
+- **调用方隔离**：远程作业绑定 AIP 验证的调用方 AIC，列表、前缀查询和终稿只对该 AIC 开放。旧作业缺少归属记录时由本机操作员查询。
 - **作业号白名单**：仅接受字母/数字/连字符（`^[A-Za-z0-9-]+$`），绝对路径、`../`
   与 symlink 逃逸一律拒绝（2026-10-17 审查 P1-1）；
 - **前缀歧义不猜**：命中多个时返回候选列表，要求给出更长作业号；
@@ -145,7 +146,7 @@ queued ──► running ──► done
 | 改道提示最坏要 16–17 分钟才出现 | 同步预算默认 8 分钟；`plan_gate/product_gate/check_job` 等高频工具也带 `budget_note`（代码计时 + 剩余秒数）；job 模式不追加改道提示 |
 | 用户直接粘贴作业号，模型可能先追问 | 提示词按 `job-\d{8}-\d{6}-[0-9a-f]{4}` 识别为取件；回执给出"查作业/直接粘贴"两种方式 |
 | 作业进程依赖启动方环境 | `jobs_runner` 自行加载 `deploy/.env.production`（覆盖式，照 `run_supervisor.sh` 配方） |
-| 作业与常驻服务端口/端点冲突 | `ACPS_SUPERVISOR_NO_SERVE=1` + 显式 worker 端口 8544（不绑定）；只做出站委派 |
+| 作业与常驻服务端口/端点冲突 | `ACPS_SUPERVISOR_NO_SERVE=1` + 沿用 ACS 注册端口 8444（不绑定）；只做出站委派 |
 
 ## 6. 运维参数
 
@@ -155,7 +156,6 @@ queued ──► running ──► done
 | `ACPS_JOB_MAX_RUNTIME` | `21600`（6h） | running 超过该时长判 `ttl-exceeded` |
 | `ACPS_JOB_RETENTION_DAYS` | `7` | 终态作业保留天数（超出最近 N 个之外） |
 | `ACPS_JOB_KEEP_LAST` | `20` | 无论多老都保留的最近终态作业数 |
-| `ACPS_JOB_WORKER_PORT` | `8544` | 作业 worker 的端口语义（`serve=False`，不绑定） |
 | `ACPS_JOB_REPORT_OUT` | 内部注入 | 终稿输出路径；由 `jobs_runner` 写成 `jobs/<id>/report.md` |
 | `ACPS_JOB_REPORT_PAGE_CHARS` | `14000` | `check_job` 单段终稿字符数；超出用 `offset` 续取 |
 | `ACPS_JOB_POLL_HINT_SECONDS` | `600` | 给用户/前端的建议查询间隔（不是完成时间估算） |
@@ -175,11 +175,10 @@ tail -n 80 /opt/wit/my-project/acps_cluster/ws-supervisor/jobs/<job-id>/log.txt
 ## 7. 验证
 
 ```bash
-cd acps_cluster
-python -m unittest tests.test_jobs_store -v          # 台账/工具专项
-python -m unittest tests.test_job_receipt -v         # 回执自动补交专项
-python -m unittest tests.test_wait_awaiting_input -v # 预算/生命周期硬闸专项
-python -m unittest discover -s tests -p "test_*.py"  # 全量（当前 510 项，skip 2）
+# 在仓库根目录执行
+python -m pytest acps_cluster/tests/test_jobs_store.py acps_cluster/tests/test_job_receipt.py -q
+python -m pytest acps_cluster/tests/test_wait_awaiting_input.py -q
+python run_all_tests.py
 ```
 
 `test_jobs_store.py` 覆盖：

@@ -110,9 +110,14 @@ def main() -> int:
                         continue
                     try:
                         record = json.loads(payload)
+                        if not isinstance(record, dict):
+                            raise ValueError("expected a JSON object")
                     except ValueError as exc:
-                        print(f"Invalid JSON at {path}:{line_start}: {exc}", file=sys.stderr, flush=True)
-                        return 3
+                        print(f"Skipping invalid AMP record at {path}:{line_start}: {exc}",
+                              file=sys.stderr, flush=True)
+                        entry["offset"] = stream.tell()
+                        save_state(args.state, state)
+                        continue
                     try:
                         if producer is None:
                             producer = new_producer(args.broker)

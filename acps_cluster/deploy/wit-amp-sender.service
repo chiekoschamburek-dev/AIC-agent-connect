@@ -15,7 +15,7 @@ WorkingDirectory=__ACPS_ROOT__/acps_cluster
 # B 方案：按官方 Forwarder 同语义把我们镜像目录里的新增心跳投到平台 amp.heartbeat
 ExecStart=__ACPS_PY__ deploy/amp_heartbeat_sender.py \
     --mirror-dir /var/log/acps-amp \
-    --broker 192.0.2.20:19092 \
+    --broker wt.ioa.pub:19092 \
     --topic amp.heartbeat \
     --watch --interval 15 \
     --send

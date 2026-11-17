@@ -4,7 +4,7 @@
 > 产物改由持令牌的 `ws.write` 写入（2026-10-26 定案，见
 > [handoff-workspace-partner-access.md](handoff-workspace-partner-access.md)）· 2026-10-26
 > 关系：不改 AIP/AAC 协议语义（产物仍按协议交付）；本设计是**项目内部的存储与归档层**，
-> 与《[RFC_delegation_domain_draft](../../RFC_delegation_domain_draft.md)》的委托令牌（task_id 作用域 claim）配合使用。
+> 与《[RFC_delegation_domain_draft](RFC_delegation_domain_draft.md)》的委托令牌（task_id 作用域 claim）配合使用。
 > 参考实现：`acps_cluster/agents/partner_workspace.py`（8470，已上线）、`tests/test_workspace_partner.py`（23 项）。
 
 ---

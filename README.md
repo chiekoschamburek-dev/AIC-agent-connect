@@ -286,6 +286,29 @@ guard-api / guard_adapter 读到的是**已经落库的历史事件**，只有�
 KB 开启 `ACPS_KB_STATIC_ROUTER=1` 后 `kb.schema` 静态路由 318ms。
 细节与边界见 [docs/static-resource-router.md](docs/static-resource-router.md)。
 
+### 9. 双向调用：入站方向与取证
+
+平台的「跨智能体双向通信」要求**两个方向各有一条可对账的任务**，而不是"我们调用过别人"。
+本仓原来的入站方向被 PEP 收口（`allow_unscoped_public_entry=False` + AIP v2 标准客户端不带
+skillId → `deny/no-credential`），且没有产出可复核证据的工具。现在补上：
+
+- **入站技能快速通道**（`ACPS_SUPERVISOR_SKILL_FASTPATH=1`）：对端在
+  `commandParams` 里指名 `research.orchestrate` 时直接执行、不跑 LLM，秒级返回；
+- **验证与取证工具链** `acps_cluster/bidirectional/`：
+
+```bash
+python -m acps_cluster.bidirectional doctor --workspace acps_cluster/ws-supervisor --peer-aic <对端 AIC> --discover
+python -m acps_cluster.bidirectional probe  --workspace acps_cluster/ws-supervisor --peer-aic <对端 AIC> \
+    --skill research.orchestrate --args '{"task":"…"}'
+python -m acps_cluster.bidirectional pack   --workspace acps_cluster/ws-supervisor --peer-aic <对端 AIC> \
+    --out-receipt <探针回执> --out-dir artifacts/bidirectional/<日期>/<对端>
+```
+
+`pack` 的 PASS 口径写死在代码里：两个方向各一条平台任务、caller/callee 互换、taskId 不同、
+终态均 `completed`、双方都有产物；`awaiting-completion` 只算"已交付未关单"，判 `incomplete`。
+输出 JSON + Markdown + `SHA256SUMS`，Markdown 可直接进佐证材料/答辩附录。
+场景、配置与排障见 [docs/bidirectional-invocation.md](docs/bidirectional-invocation.md)。
+
 ---
 
 ## 三、快速开始
@@ -374,6 +397,11 @@ cat partners/designer/SUBMISSION_README.md
 | [guard-api/README.md](guard-api/README.md) | guard HTTP API：端点、鉴权、supervisor 挂载 |
 | [docs/run-guard.md](docs/run-guard.md) | 运行中守卫：规则、阈值、中止链路、observe/enforce 与回放校准 |
 | [docs/static-resource-router.md](docs/static-resource-router.md) | 静态资源路由：结构化 args → 能力，默认不跑 LLM（CPU/GPU/KB） |
+| [docs/bidirectional-invocation.md](docs/bidirectional-invocation.md) | 跨智能体双向调用：单向根因、入站技能快速通道、probe/pack 取证与排障 |
+| [docs/p0-verification-report.md](docs/p0-verification-report.md) | 多入口编排 P0：ACS 指纹、后台作业底座、问迹并发的验证结论 |
+| [docs/multi-entry-p1.md](docs/multi-entry-p1.md) | 多入口编排 P1：入口能力、幂等根任务、按技能入站白名单与操作手册 |
+| [docs/multi-entry-p2-grant.md](docs/multi-entry-p2-grant.md) | 多入口编排 P2：域章程双签、grant 签发/核验、问迹侧接入点 |
+| [docs/multi-entry-p3-dispatch.md](docs/multi-entry-p3-dispatch.md) | 多入口编排 P3 设计：回派子任务、根上下文传递、按 root_id 取证 |
 | [docs/inbound-result-delivery-aip-submit.md](docs/inbound-result-delivery-aip-submit.md) | 入站产物交付：aip_submit、长文本附 .md、uri 模式 |
 | [docs/guard-redteam-2026-10-29.md](docs/guard-redteam-2026-10-29.md) | guard 红队注入实验：A/B/C/N 四组与逃逸结论 |
 | [partners/designer/SUBMISSION_README.md](partners/designer/SUBMISSION_README.md) | 设计 agent 提交说明 |

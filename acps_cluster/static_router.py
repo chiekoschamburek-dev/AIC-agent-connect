@@ -13,75 +13,26 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 from wit.kernel.messages import Message, ModelRequest, ModelResponse, ToolCall
 from wit.providers.base import ProviderCapabilities
 from wit.kernel.content import ContentKind
 
-_PAYLOAD_RE = re.compile(r"<payload>(.*?)</payload>", re.S)
-_JSON_RE = re.compile(r"\{.*\}", re.S)
+from acps_cluster.core.skill_call import parse_skill_call
 
 
 def _norm(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", str(name or "").lower())
 
 
-def _parse_json(value: Any) -> Any:
-    if isinstance(value, (dict, list)):
-        return value
-    if not isinstance(value, str):
-        return None
-    try:
-        return json.loads(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _extract(text: str) -> tuple[str, dict[str, Any]]:
-    """从 AIP 信封/文本里取 (skill, args)。解析不出返回 ("", {})。"""
-    raw = str(text or "")
-    payload: dict[str, Any] = {}
-    match = _PAYLOAD_RE.search(raw)
-    if match:
-        parsed = _parse_json(match.group(1))
-        if isinstance(parsed, dict):
-            payload = parsed
-    if not payload:
-        parsed = _parse_json(raw.strip())
-        if isinstance(parsed, dict):
-            payload = parsed
-
-    params = payload.get("commandParams") if isinstance(payload.get("commandParams"), dict) else {}
-    skill = str(params.get("skillId") or params.get("skill") or "").strip()
-    args = params.get("args") or params.get("arguments")
-
-    data_items = payload.get("dataItems")
-    if isinstance(data_items, list):
-        for item in data_items:
-            if not isinstance(item, dict):
-                continue
-            meta = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-            if not skill:
-                skill = str(meta.get("skillId") or meta.get("skill") or "").strip()
-            if item.get("type") == "text":
-                body = _parse_json(item.get("text"))
-                if isinstance(body, dict):
-                    if not skill:
-                        skill = str(body.get("skill") or body.get("skillId") or "").strip()
-                    if args is None:
-                        args = body.get("args") if "args" in body else body
-
-    if args is None:
-        args = payload.get("args") if isinstance(payload.get("args"), dict) else None
-    if not isinstance(args, dict):
-        args = {}
-    return skill, args
+    """从 AIP 信封/文本里取 (skill, args)；解析口径见 `core.skill_call`。"""
+    return parse_skill_call(text)
 
 
 @dataclass

@@ -29,6 +29,13 @@
 | [deployment.md](deployment.md) | 一键部署：前置条件、子命令、systemd、guard/viz、排障 |
 | [run-guard.md](run-guard.md) | 运行中守卫：规则/阈值/中止链路/observe-enforce |
 | [static-resource-router.md](static-resource-router.md) | 静态资源路由：结构化 args → 能力，默认不跑 LLM（CPU/GPU/KB） |
+| [bidirectional-invocation.md](bidirectional-invocation.md) | 跨智能体双向调用：单向的根因、入站技能快速通道、probe/pack 取证 |
+| [p0-verification-report.md](p0-verification-report.md) | 多入口编排 P0：ACS 指纹、后台作业底座、问迹并发的验证结论与命令 |
+| [multi-entry-p1.md](multi-entry-p1.md) | 多入口编排 P1：research.submit/status、幂等根任务、按技能入站白名单 |
+| [partner-reporting.md](partner-reporting.md) | 伙伴 → Supervisor 上报任务：run-scoped 工具，不改 ACS/不新增技能 |
+| [multi-entry-p2-grant.md](multi-entry-p2-grant.md) | 多入口编排 P2：域章程双签、grant 签发/核验、问迹侧最小改动点 |
+| [multi-entry-p3-dispatch.md](multi-entry-p3-dispatch.md) | 多入口编排 P3 设计：回派子任务、根任务上下文、按 root_id 取证 |
+| [multi-entry-orchestration-plan.md](multi-entry-orchestration-plan.md) | 实施计划：Partner 多入口接入、Supervisor 统一编排、请求分流、防循环与业务验收 |
 | [inbound-result-delivery-aip-submit.md](inbound-result-delivery-aip-submit.md) | 入站产物交付：aip_submit、长文本附 .md、uri 模式 |
 | [guard-redteam-2026-10-29.md](guard-redteam-2026-10-29.md) | guard 红队注入实验：A/B/C/N 四组、消融与逃逸结论 |
 | [agent-aic-roster.md](agent-aic-roster.md) | agent 身份（AIC）清单与平台验收记录 |

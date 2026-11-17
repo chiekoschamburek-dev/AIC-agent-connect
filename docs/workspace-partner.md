@@ -235,9 +235,9 @@ ACPS_WS_CLIENT_MAX_WRITE_BYTES=262144  # partner 侧 ws_write 单次上限
 ACPS_WS_PARTNER_MIN_STEPS=16           # 带 bundle 的入站任务步数下限
 
 # 按任务精确回收（也可委派 ws.gc(task_id)）
-python partner_workspace.py --gc-task task-20261001
+python agents/partner_workspace.py --gc-task task-20261001
 # 批量按天回收：只允许在本机以服务账号执行，不经委派能力
-python partner_workspace.py --gc-older-than-days 7
+python agents/partner_workspace.py --gc-older-than-days 7
 ```
 
 测试：`tests/test_workspace_partner.py`（投影/逃逸/配额/截断/克隆闸门/SSRF/

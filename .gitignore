@@ -45,6 +45,8 @@ build/
 output/
 datasets/
 demo_run/
+# 双向调用证据包（probe 回执 / pack 产物：含 taskId 与 AIC，按需生成，不入库）
+/artifacts/
 _archive/
 _audit/
 eval-private/
