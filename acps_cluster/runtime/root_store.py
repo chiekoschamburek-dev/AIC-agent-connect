@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 STATES = ("accepted", "running", "completed", "failed", "cancelled", "expired")
 TERMINAL_STATES = frozenset({"completed", "failed", "cancelled", "expired"})
@@ -132,7 +132,10 @@ class RootStore:
         self.path = Path(db)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._session() as con:
-            self._ensure_schema(con)
+            if con.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
+                con.execute("BEGIN IMMEDIATE")
+                self._ensure_schema(con)
+                con.execute("COMMIT")
 
     def _connect(self) -> sqlite3.Connection:
         con = sqlite3.connect(str(self.path), timeout=5.0, isolation_level=None)
@@ -152,7 +155,6 @@ class RootStore:
 
     @staticmethod
     def _ensure_schema(con: sqlite3.Connection) -> None:
-        con.execute("PRAGMA journal_mode=WAL")
         con.execute(
             """CREATE TABLE IF NOT EXISTS root_tasks (
                    root_id TEXT PRIMARY KEY,
@@ -187,12 +189,7 @@ class RootStore:
             if column not in cols:
                 con.execute(f"ALTER TABLE root_tasks ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
         con.execute("CREATE INDEX IF NOT EXISTS ix_root_source ON root_tasks(source_task_id)")
-        try:
-            con.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS ux_root_source ON root_tasks(source_task_id)"
-                " WHERE source_task_id <> ''")
-        except sqlite3.IntegrityError:
-            print("[root] 警告: source_task_id 存在重复历史记录，唯一索引未建立", flush=True)
+        con.execute("DROP INDEX IF EXISTS ux_root_source")
         con.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
 
     @staticmethod
@@ -239,16 +236,22 @@ class RootStore:
             ).fetchone()
         return self._row(row)
 
-    def get_by_source_task_id(self, source_task_id: str) -> RootTask | None:
+    def get_by_source_task_id(self, source_task_id: str, *, caller_aic: str = "") -> RootTask | None:
         """按原始入站 taskId 反查根任务（入口转发后的对账入口）。"""
         source = str(source_task_id or "").strip()
         if not source:
             return None
         with self._session() as con:
-            row = con.execute(
-                "SELECT * FROM root_tasks WHERE source_task_id=? ORDER BY created_at DESC LIMIT 1",
-                (source,),
-            ).fetchone()
+            query = "SELECT * FROM root_tasks WHERE source_task_id=?"
+            params = [source]
+            if caller_aic:
+                query += " AND (entry_aic=? OR source_caller=?)"
+                params.extend((caller_aic, caller_aic))
+            row = con.execute(query + " ORDER BY created_at DESC LIMIT 1", params).fetchone()
+        # 同一原任务可能对应多条根任务（不同入口 AIC 各自转发）：调用方已按
+        # entry_aic/source_caller 过滤，取最新一条即可。此前要求“恰好一条”，
+        # 重复行会让调用方拿到 unknown-root，连“存在但不属于你”都区分不出来
+        # （2026-11-18 审查 P2）。
         return self._row(row)
 
     def submit(
@@ -278,6 +281,8 @@ class RootStore:
         if len(mode_text) > 32:
             raise ValueError("mode 太长（上限 32 字符）")
         digest = request_digest(text, mode_text)
+        source = str(source_task_id or "").strip()
+        origin = str(source_caller or "").strip()
 
         con = self._connect()
         try:
@@ -286,14 +291,31 @@ class RootStore:
                 "SELECT * FROM root_tasks WHERE entry_aic=? AND user_scope=? AND request_id=?",
                 (aic, scope, rid),
             ).fetchone()
+            if row is None and source:
+                row = con.execute(
+                    "SELECT * FROM root_tasks WHERE entry_aic=? AND source_task_id=?"
+                    " ORDER BY created_at DESC LIMIT 1",
+                    (aic, source),
+                ).fetchone()
             if row is not None:
                 con.execute("COMMIT")
                 existing = self._row(row)
                 assert existing is not None
+                # 只比对新请求**实际带了**的字段：调用方用同一个 request_id 重试时
+                # 可以省略 source_task_id/source_caller（旧行为只比 digest，不能因为
+                # 少带元数据就判冲突——2026-11-18 审查 P2）。
                 if existing.request_digest != digest:
                     raise RequestConflict(
                         "同一幂等键（entry_aic+user_scope+request_id）已存在不同内容；"
                         "不覆盖原任务。要提交新内容请换一个 request_id。"
+                    )
+                if source and existing.source_task_id and source != existing.source_task_id:
+                    raise RequestConflict(
+                        "同一 request_id 对应的原任务号不一致；不覆盖原任务。"
+                    )
+                if origin and existing.source_caller and origin != existing.source_caller:
+                    raise RequestConflict(
+                        "同一 request_id 对应的原发起方不一致；不覆盖原任务。"
                     )
                 return existing, False
             now = _now_iso()
@@ -303,34 +325,13 @@ class RootStore:
                 " source_session, entry_aic, user_scope, request_digest, state, question, mode,"
                 " created_at, updated_at)"
                 " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (root_id, rid, str(source_task_id or ""), str(source_caller or ""),
+                (root_id, rid, source, origin,
                  str(source_session or ""), aic, scope, digest, "accepted", text, mode_text, now, now),
             )
             con.execute("COMMIT")
             created = self.get(root_id)
             assert created is not None
             return created, True
-        except sqlite3.IntegrityError:
-            try:
-                con.execute("ROLLBACK")
-            except sqlite3.Error:
-                pass
-            row = con.execute(
-                "SELECT * FROM root_tasks WHERE entry_aic=? AND user_scope=? AND request_id=?",
-                (aic, scope, rid),
-            ).fetchone()
-            existing = self._row(row)
-            if existing is None and str(source_task_id or "").strip():
-                row = con.execute(
-                    "SELECT * FROM root_tasks WHERE source_task_id=? ORDER BY created_at DESC LIMIT 1",
-                    (str(source_task_id).strip(),),
-                ).fetchone()
-                existing = self._row(row)
-            if existing is None:
-                raise
-            if existing.request_digest != digest:
-                raise RequestConflict("同一幂等键/原任务并发写入不同内容") from None
-            return existing, False
         except Exception:
             try:
                 con.execute("ROLLBACK")
@@ -344,18 +345,16 @@ class RootStore:
         job = str(job_id or "").strip()
         if not job:
             raise ValueError("job_id 不能为空")
-        task = self.get(root_id)
-        if task is None:
-            raise KeyError(f"根任务不存在：{root_id}")
-        if task.job_id and task.job_id != job:
-            raise ValueError(f"根任务已绑定作业 {task.job_id}，拒绝改绑 {job}")
         with self._session() as con:
-            con.execute(
-                "UPDATE root_tasks SET job_id=?, updated_at=? WHERE root_id=?",
-                (job, _now_iso(), task.root_id),
+            changed = con.execute(
+                "UPDATE root_tasks SET job_id=?, updated_at=? WHERE root_id=? AND job_id IN ('', ?)",
+                (job, _now_iso(), root_id, job),
             )
-        updated = self.get(task.root_id)
-        assert updated is not None
+        updated = self.get(root_id)
+        if updated is None:
+            raise KeyError(f"根任务不存在：{root_id}")
+        if not changed.rowcount:
+            raise ValueError(f"根任务已绑定作业 {updated.job_id}，拒绝改绑 {job}")
         return updated
 
     def set_platform_task(self, root_id: str, task_id: str) -> RootTask:
@@ -368,7 +367,8 @@ class RootStore:
             return task
         with self._session() as con:
             con.execute(
-                "UPDATE root_tasks SET platform_task_id=?, updated_at=? WHERE root_id=?",
+                "UPDATE root_tasks SET platform_task_id=?, updated_at=?"
+                " WHERE root_id=? AND platform_task_id=''",
                 (value, _now_iso(), task.root_id),
             )
         updated = self.get(task.root_id)
@@ -400,8 +400,13 @@ class RootStore:
             updates.append("result_ref=?")
             params.append(str(result_ref))
         params.append(task.root_id)
+        params.append(task.state)
         with self._session() as con:
-            con.execute(f"UPDATE root_tasks SET {', '.join(updates)} WHERE root_id=?", params)
+            changed = con.execute(
+                f"UPDATE root_tasks SET {', '.join(updates)} WHERE root_id=? AND state=?", params,
+            )
+        if not changed.rowcount:
+            raise InvalidTransition(f"根任务 {root_id} 的状态已更新")
         updated = self.get(task.root_id)
         assert updated is not None
         return updated

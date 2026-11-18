@@ -11,6 +11,7 @@ state: queued → running → done / failed / interrupted
 from __future__ import annotations
 
 import contextlib
+import errno
 import json
 import os
 import re
@@ -40,20 +41,20 @@ def new_job_id(now: datetime | None = None) -> str:
     return f"job-{stamp}-{secrets.token_hex(2)}"
 
 
-def create_job(root: Path, question: str, mode: str = "custom", *, owner_aic: str = "") -> tuple[str, Path]:
+def create_job(root: Path, question: str, mode: str = "custom", *,
+               owner_aic: str = "", root_id: str = "") -> tuple[str, Path]:
     job_id = new_job_id()
     job_dir = root / job_id
     job_dir.mkdir(parents=True, exist_ok=False)
     (job_dir / "request.txt").write_text(question, encoding="utf-8")
     _write_status(job_dir, {
-        "id": job_id, "mode": mode, "state": "queued", "owner_aic": owner_aic,
+        "id": job_id, "mode": mode, "state": "queued", "owner_aic": owner_aic, "root_id": root_id,
         "created_at": now_iso(), "started_at": None, "finished_at": None,
         "pid": None, "exit_code": None, "question_head": question[:120],
     })
     return job_id, job_dir
 
 
-@contextlib.contextmanager
 def _status_lock(job_dir: Path):
     """跨进程 per-job 状态锁：提交方、作业进程、取件方写状态时串行化。
 
@@ -61,24 +62,37 @@ def _status_lock(job_dir: Path):
     永久 stale lock。锁文件放在作业目录内，与唯一临时名配合，彻底关闭
     “读到 running → 判死 → 覆盖刚写入的 done” 的读后写窗口（R7）。
     """
-    lock_path = job_dir / ".status.lock"
-    handle = lock_path.open("a+b")
+    return file_lock(job_dir / ".status.lock")
+
+
+@contextlib.contextmanager
+def file_lock(path: Path, *, blocking: bool = True):
+    """Cross-process file lock. A busy nonblocking lock yields False."""
+    handle = path.open("a+b")
     try:
         handle.seek(0, os.SEEK_END)
         if handle.tell() == 0:
             handle.write(b"\0")
             handle.flush()
         handle.seek(0)
-        if os.name == "nt":
-            import msvcrt
-
-            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
-        else:
-            import fcntl
-
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         try:
-            yield
+            if os.name == "nt":
+                import msvcrt
+
+                mode = msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK
+                msvcrt.locking(handle.fileno(), mode, 1)
+            else:
+                import fcntl
+
+                mode = fcntl.LOCK_EX if blocking else fcntl.LOCK_EX | fcntl.LOCK_NB
+                fcntl.flock(handle.fileno(), mode)
+        except OSError as exc:
+            if blocking or exc.errno not in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
+                raise
+            yield False
+            return
+        try:
+            yield True
         finally:
             if os.name == "nt":
                 import msvcrt
@@ -234,6 +248,10 @@ def resolve_liveness(job_dir: Path) -> dict:
                              state="interrupted", finished_at=now_iso(),
                              reason="process-exited")
     elapsed = elapsed_seconds(st)
+    if st.get("state") == "queued" and not st.get("pid") and elapsed is not None and elapsed > 30:
+        return update_status(job_dir, expected_states=frozenset({"queued"}),
+                             state="interrupted", finished_at=now_iso(),
+                             reason="worker-not-started")
     if elapsed is not None and elapsed > max_runtime_seconds():
         return update_status(job_dir, expected_states=_ACTIVE_STATES,
                              state="interrupted", finished_at=now_iso(),
@@ -332,6 +350,28 @@ def find_job(root: Path, ref: str) -> Path | None:
     """唯一命中才返回；前缀有歧义返回 None（宁可要更长的号，也不猜错作业）。"""
     matches = match_jobs(root, ref)
     return matches[0] if len(matches) == 1 else None
+
+
+def find_root_job(root: Path, root_id: str, owner_aic: str) -> Path | None:
+    """Recover the already-created job when dispatch stopped before the root was updated.
+
+    优先返回仍在活动的作业；只有全部都到终态时才返回最新的那个（`_job_dirs` 已按
+    目录名倒序，matches[0] 就是最新）。这样崩溃窗口里的重试不会把一个已经失败的
+    作业当成“刚受理”，也不会因为旧终态作业挡住新作业的恢复。
+    """
+    matches: list[tuple[Path, dict]] = []
+    for directory in _job_dirs(root):
+        if not _inside_root(root, directory):
+            continue
+        status = read_status(directory)
+        if status.get("root_id") == root_id and status.get("owner_aic") == owner_aic:
+            matches.append((directory, status))
+    if not matches:
+        return None
+    for directory, status in matches:
+        if status.get("state") in _ACTIVE_STATES:
+            return directory
+    return matches[0][0]
 
 
 def list_jobs(root: Path, limit: int = 10, *, owner_aic: str | None = None) -> list[dict]:

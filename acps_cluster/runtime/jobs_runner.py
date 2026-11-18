@@ -43,7 +43,7 @@ def final_state(report_present: bool, run_status: str) -> str:
     return "done" if report_present and run_status in ("completed", "success") else "failed"
 
 
-def _job_workspace() -> Path:
+def _prepare_job_workspace(base: Path) -> None:
     """Job worker 的独立 workspace：复用身份材料，但日志与任务库独立。
 
     **为什么要独立**：常驻 supervisor 与 job worker 共用
@@ -56,14 +56,9 @@ def _job_workspace() -> Path:
     任务库让 job 用自己的空库（首次由 SDK 自动创建）；`discovered/` 用 symlink
     共享（以读为主，双方都可能新增条目）。
     """
-    base = CLUSTER / "ws-supervisor-job"
-    base.mkdir(parents=True, exist_ok=True)
     src = CLUSTER / "ws-supervisor" / "acps"
     acps = base / "acps"
-    if acps.exists():
-        return base
-
-    acps.mkdir(parents=True)
+    acps.mkdir(parents=True, exist_ok=True)
     copied: list[str] = []
     for entry in sorted(src.iterdir()):
         name = entry.name
@@ -76,7 +71,7 @@ def _job_workspace() -> Path:
         dst = acps / name
         try:
             if entry.is_dir():
-                shutil.copytree(entry, dst)
+                shutil.copytree(entry, dst, dirs_exist_ok=True)
             else:
                 shutil.copy2(entry, dst)
             copied.append(name)
@@ -84,7 +79,7 @@ def _job_workspace() -> Path:
             raise SystemExit(f"复制 workspace 材料失败 {entry} -> {dst}: {exc}")
 
     disc_src = src / "discovered"
-    if disc_src.is_dir():
+    if disc_src.is_dir() and not (acps / "discovered").exists():
         try:
             os.symlink(disc_src, acps / "discovered", target_is_directory=True)
         except OSError as exc:
@@ -94,7 +89,6 @@ def _job_workspace() -> Path:
     (base / "tokens").mkdir(exist_ok=True)
     print(f"[job] 独立 workspace 就绪: {base}（复制 {len(copied)} 项，任务库独立）",
           flush=True)
-    return base
 
 
 def _acquire_job_lock(path: Path):
@@ -109,14 +103,14 @@ def _acquire_job_lock(path: Path):
         import fcntl
     except ImportError:                   # 非 POSIX：退化无锁
         return fh
-    limit = float(os.getenv("ACPS_JOB_LOCK_TIMEOUT", "15"))
-    deadline = time.time() + limit
+    limit = float(os.getenv("ACPS_JOB_LOCK_TIMEOUT", str(jobs_store.max_runtime_seconds())))
+    deadline = time.monotonic() + limit
     while True:
         try:
             fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             return fh
         except OSError:
-            if time.time() >= deadline:
+            if time.monotonic() >= deadline:
                 fh.close()
                 raise SystemExit(
                     f"另一个 job worker 正占用 {path}，等待超过 {limit:.0f}s，本次放弃")
@@ -127,28 +121,45 @@ def main() -> int:
     """命令行入口：解析参数并执行本模块的主流程。"""
     job_dir = Path(sys.argv[1]).resolve()
     question = (job_dir / "request.txt").read_text(encoding="utf-8")
-    jobs_store.update_status(job_dir, state="running", started_at=jobs_store.now_iso(),
-                             pid=os.getpid())
+    queued = frozenset({"queued"})
+    state = jobs_store.update_status(job_dir, expected_states=queued, pid=os.getpid())
+    if state.get("state") != "queued":
+        return 1
     _load_production_env()  # 必须先于 import supervisor（bootstrap 只补缺、不覆盖）
     os.environ["ACPS_JOB_REPORT_OUT"] = str(job_dir / "report.md")
     os.environ["ACPS_SUPERVISOR_NO_SERVE"] = "1"  # 作业只做出站委派，不对外服务
     # 作业与常驻 supervisor 的 access journal 通过独立 workspace 隔离；
     # 不关闭 AmpAccessLoggingHooks，job worker 的 caller 侧 access 也要计入。
     # 关键：serve=False 不绑定端口，但 build_acps_config(port) 仍会用端口构造 ACS 端点；
-    # 必须保持 enrollment 注册的 8444，否则会被判 acps_config_changed_after_submission。
-    os.environ["ACPS_SUPERVISOR_PORT"] = "8444"
+    # 保留常驻 Supervisor 使用的端口设置，避免 ACPS 注册指纹不匹配。
     sys.argv = ["supervisor.py", question]
-    job_ws = _job_workspace()
+    job_ws = CLUSTER / "ws-supervisor-job"
+    job_ws.mkdir(parents=True, exist_ok=True)
     try:
         lock = _acquire_job_lock(job_ws / ".job.lock")
     except SystemExit as exc:
         # 拿不到锁必须立刻把状态置 failed：否则 status.json 永远停在 running，
         # 一直占着并发额度，后续 job 全被"假活跃"挤掉（2026-10-19 实测）。
         jobs_store.update_status(
-            job_dir, state="failed", finished_at=jobs_store.now_iso(),
+            job_dir, expected_states=queued, state="failed", finished_at=jobs_store.now_iso(),
             run_status="lock-timeout", exit_code=1,
         )
         print(f"[job] {exc}", flush=True)
+        return 1
+    state = jobs_store.update_status(
+        job_dir, expected_states=queued, state="running", started_at=jobs_store.now_iso(),
+    )
+    if state.get("state") != "running" or state.get("pid") != os.getpid():
+        # 启动窗口内状态被别的进程改掉了（例如取件方判 interrupted）：本次放弃。
+        # 必须清掉我们在第一步写进去的 pid，否则台账会把一个已经退出的进程记成“活着”，
+        # resolve_liveness 之后也不会再判死（2026-11-18 审查 P2）。
+        lock.close()
+        try:
+            current = jobs_store.read_status(job_dir)
+            if str(current.get("pid") or "") == str(os.getpid()):
+                jobs_store.update_status(job_dir, pid=None)
+        except OSError:
+            pass
         return 1
     # ── 运行时长看门狗 ────────────────────────────────────────────────
     # 没有它：作业卡在某个 AIP 调用上会一直持有 .job.lock，后续作业全超时
@@ -174,8 +185,9 @@ def main() -> int:
     rc = 0
     result: dict = {}
     try:
+        _prepare_job_workspace(job_ws)
         from acps_cluster.agents import supervisor
-        # 身份/ACS 走 symlink；logs/access 走独立目录，避免与常驻 supervisor 抢 journal。
+        # 身份/ACS 从常驻实例刷新，logs/access 保持独立。
         supervisor.WORKSPACE = job_ws
         result = asyncio.run(supervisor.main()) or {}
     except BaseException as exc:  # noqa: BLE001

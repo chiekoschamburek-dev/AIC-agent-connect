@@ -20,7 +20,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
+import os
+import time
 from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping
@@ -69,7 +72,7 @@ def _error(code: str, detail: str, **extra: Any) -> dict[str, Any]:
 
 
 def _submit_payload(root: RootTask, *, replayed: bool, recovered: bool = False) -> dict[str, Any]:
-    ok = root.state in {"accepted", "running", "completed"}
+    ok = bool(root.job_id) and root.state in {"accepted", "running", "completed"}
     payload: dict[str, Any] = {
         "ok": ok,
         "root_id": root.root_id,
@@ -89,6 +92,19 @@ def _submit_payload(root: RootTask, *, replayed: bool, recovered: bool = False) 
         payload["error"] = root.state
         payload["detail"] = root.error
     return payload
+
+
+def _dispatch_wait_seconds() -> float:
+    """并发重试等待派发完成的上限（秒）。
+
+    用户连点/平台重试会在同一根任务上并发调用 `research.submit`；此前第二个请求
+    立刻拿到 `dispatch-in-progress`（ok=false），叮当侧表现为“受理失败”。
+    这里改为等第一个派发把 job_id 写进台账，再作为重放返回。
+    """
+    try:
+        return max(0.0, float(os.getenv("ACPS_DISPATCH_WAIT_SECONDS", "10")))
+    except ValueError:
+        return 10.0
 
 
 async def submit_root(
@@ -126,9 +142,33 @@ async def submit_root(
     except ValueError as exc:
         return _error("invalid-request", str(exc))
 
-    if not created and (root.job_id or root.state in {"completed", "failed", "cancelled", "expired"}):
+    if root.job_id or root.terminal:
         return _submit_payload(root, replayed=True)
 
+    lock_root = store.path.with_name(store.path.name + ".dispatch")
+    lock_root.mkdir(exist_ok=True)
+    lock_path = lock_root / root.root_id
+    deadline = time.monotonic() + _dispatch_wait_seconds()
+    while True:
+        with jobs_store.file_lock(lock_path, blocking=False) as locked:
+            if locked:
+                # A different request may have attached a job before we took the lock.
+                latest = store.get(root.root_id)
+                if latest is None:
+                    return _error("unknown-root", "根任务记录已不存在")
+                if latest.job_id or latest.terminal:
+                    return _submit_payload(latest, replayed=True)
+                return await _dispatch_job(store, latest, submit_fn, replayed=not created)
+        # 另一个请求正在派发：等它把 job_id 写进台账，再按重放返回。
+        # 超过等待上限才如实报“进行中”，避免把并发重试变成一次失败受理。
+        if time.monotonic() >= deadline:
+            return _error("dispatch-in-progress", "正在启动作业，请稍后查询或用相同 request_id 重试。",
+                          root_id=root.root_id, state="accepted", replayed=True)
+        await asyncio.sleep(0.05)
+
+
+async def _dispatch_job(store: RootStore, root: RootTask, submit_fn: SubmitFn,
+                        *, replayed: bool) -> dict[str, Any]:
     token = _CURRENT_ROOT.set(root.root_id)
     try:
         result = submit_fn(root.question, root.mode)
@@ -155,10 +195,9 @@ async def submit_root(
     try:
         root = store.attach_job(root.root_id, job_id)
     except (KeyError, ValueError) as exc:
-        _mark_failed(store, root.root_id, f"绑定作业失败：{exc}")
-        return _error("submit-failed", f"绑定作业失败：{exc}", root_id=root.root_id,
-                      state="failed")
-    return _submit_payload(root, replayed=not created, recovered=not created)
+        return _error("attach-failed", f"绑定作业失败：{exc}", root_id=root.root_id,
+                      state="accepted")
+    return _submit_payload(root, replayed=replayed, recovered=replayed)
 
 
 def _mark_failed(store: RootStore, root_id: str, detail: str) -> None:
@@ -205,7 +244,9 @@ def status_root(
     if root is None and str(job_id or "").strip():
         root = store.get_by_job_id(str(job_id).strip())
     if root is None and str(source_task_id or "").strip():
-        root = store.get_by_source_task_id(str(source_task_id).strip())
+        root = store.get_by_source_task_id(source_task_id, caller_aic=caller_aic)
+        if root is None and store.get_by_source_task_id(source_task_id) is not None:
+            return _error("forbidden", "只有原入口调用方或原任务发起方可以查询该根任务")
     if root is None:
         if root_id:
             detail = f"没有这个根任务：{root_id!r}"
@@ -229,7 +270,7 @@ def status_root(
                     error=job_error[:2000] if mapped == "failed" else None,
                 )
             except (InvalidTransition, KeyError):
-                pass
+                root = store.get(root.root_id) or root
 
     result_chars = len(report)
     page = max(1, jobs_store.report_page_chars())

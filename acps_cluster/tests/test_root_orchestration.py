@@ -76,6 +76,26 @@ class RootStoreTest(unittest.TestCase):
         with self.assertRaises(root_store.RequestConflict):
             self._submit(question="换了一个完全不同的任务内容")
 
+    def test_同request_id重试可省略source元数据(self):
+        """同一 request_id 重试时省略 source_task_id/source_caller 仍应重放，不判冲突。"""
+        first, _ = self._submit(source_task_id="task-1", source_caller=OTHER,
+                                source_session="sess-1")
+        again, created = self._submit()
+        self.assertFalse(created)
+        self.assertEqual(again.root_id, first.root_id)
+
+    def test_同原任务多入口反查仍可命中(self):
+        """同一原任务被不同入口 AIC 转发时，按 caller 过滤仍应命中各自那条。"""
+        first, _ = self._submit(source_task_id="task-1")
+        second, _ = self._submit(entry_aic=OTHER, request_id="req-002",
+                                 source_task_id="task-1")
+        self.assertNotEqual(first.root_id, second.root_id)
+        self.assertIsNotNone(self.store.get_by_source_task_id("task-1"))
+        self.assertEqual(
+            self.store.get_by_source_task_id("task-1", caller_aic=ME).root_id, first.root_id)
+        self.assertEqual(
+            self.store.get_by_source_task_id("task-1", caller_aic=OTHER).root_id, second.root_id)
+
     def test_同键不同scope各自成任务(self):
         first, _ = self._submit()
         second, created = self._submit(user_scope="other")
@@ -228,6 +248,74 @@ class RootServiceTest(unittest.TestCase):
         self.assertTrue(payload["recovered"], "崩溃窗口下的重放应补拉起作业")
         self.assertEqual(payload["job_id"], "job-1")
         self.assertEqual(self.store.get(root.root_id).job_id, "job-1")
+
+    def test_并发重试等待后复用同一作业(self):
+        async def scenario():
+            entered = asyncio.Event()
+            finish = asyncio.Event()
+
+            async def submit(question, mode):
+                self.calls.append((question, mode))
+                entered.set()
+                await finish.wait()
+                return {"ok": True, "job_id": "job-1"}
+
+            kwargs = dict(entry_aic=ME, user_scope="demo", request_id="req-001", question=QUESTION)
+            first = asyncio.create_task(root_service.submit_root(self.store, submit, **kwargs))
+            await entered.wait()
+            other_store = root_store.RootStore(self.store.path)
+            second_task = asyncio.create_task(
+                root_service.submit_root(other_store, submit, **kwargs))
+            await asyncio.sleep(0.2)
+            self.assertFalse(second_task.done(), "第二个请求应等待派发完成，而不是立刻失败")
+            finish.set()
+            accepted = await first
+            second = await second_task
+            self.assertEqual(second["job_id"], accepted["job_id"])
+            self.assertTrue(second["replayed"])
+            self.assertEqual(len(self.calls), 1)
+
+        asyncio.run(scenario())
+
+    def test_并发派发超过等待上限如实返回进行中(self):
+        from unittest import mock
+
+        async def scenario():
+            entered = asyncio.Event()
+            release = asyncio.Event()
+
+            async def submit(question, mode):
+                self.calls.append((question, mode))
+                entered.set()
+                await release.wait()
+                return {"ok": True, "job_id": "job-1"}
+
+            kwargs = dict(entry_aic=ME, user_scope="demo", request_id="req-002", question=QUESTION)
+            first = asyncio.create_task(root_service.submit_root(self.store, submit, **kwargs))
+            await entered.wait()
+            other_store = root_store.RootStore(self.store.path)
+            with mock.patch.dict(os.environ, {"ACPS_DISPATCH_WAIT_SECONDS": "0.05"}):
+                second = await root_service.submit_root(other_store, submit, **kwargs)
+            self.assertEqual(second["error"], "dispatch-in-progress")
+            self.assertFalse(second["ok"])
+            release.set()
+            accepted = await first
+            self.assertTrue(accepted["ok"])
+            self.assertEqual(len(self.calls), 1)
+
+        asyncio.run(scenario())
+
+    def test_重用原任务号不混用入口作业(self):
+        first = self._submit(source_task_id="task-1")
+        other = asyncio.run(root_service.submit_root(
+            self.store, self._submit_fn(job_id="job-2"), entry_aic=OTHER,
+            user_scope="demo", request_id="req-001", question=QUESTION, source_task_id="task-1",
+        ))
+        self.assertNotEqual(other["root_id"], first["root_id"])
+        status = root_service.status_root(
+            self.store, source_task_id="task-1", caller_aic=OTHER, jobs_root=self.jobs_root,
+        )
+        self.assertEqual(status["job_id"], "job-2")
 
     def test_状态映射running与completed(self):
         payload = self._submit()
@@ -493,6 +581,28 @@ class EntryCapabilityTest(unittest.TestCase):
         ))
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"], "unverified-caller")
+
+    def test_PEP开启时入口技能核对准入范围(self):
+        from unittest import mock
+
+        from acps_cluster.delegation import skill_scope
+
+        async def scenario():
+            self.mod.set_current_caller(ME)
+            try:
+                skill_scope.set_admitted_skill("research.status")
+                denied = await self.mod.handle_submit(question=QUESTION, request_id="req-new")
+                self.assertEqual(denied["error"], "forbidden")
+                skill_scope.set_admitted_skill("research.submit")
+                accepted = await self.mod.handle_submit(question=QUESTION, request_id="req-new")
+                self.assertTrue(accepted["ok"])
+            finally:
+                skill_scope.set_admitted_skill(None)
+
+        with mock.patch.dict(os.environ, {"ACPS_PEP_ENABLED": "1", "ACPS_ROOT_STORE": str(self.tmp / "scope.db")}), \
+                mock.patch.object(self.mod, "default_submit", new=mock.AsyncMock(
+                    return_value={"ok": True, "job_id": "job-ok"})):
+            asyncio.run(scenario())
 
     def test_快速通道注册了入口能力(self):
         from unittest import mock

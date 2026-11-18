@@ -106,7 +106,7 @@ queued ──► running ──► done
   citation.verify，run 不收尾，前端 ~20 分钟判红）；
 - **超预算硬闸**：同步预算耗尽后只允许 `submit_job / aip_submit / aip_fail /
   aip_request_input`，其余调用被拒，强制改道或如实收尾；job 模式不受此闸影响；
-- 并发上限默认 **2**（`ACPS_JOB_MAX_CONCURRENT`）；超限明确拒绝，并禁止模型假称已受理；
+- 在途上限默认 **2**（`ACPS_JOB_MAX_CONCURRENT`）。后台作业按共享工作区串行执行，等待执行的作业保持 `queued`。
 - 受理前会顺手清理过老终态作业（见 §6）。
 
 ### 4.2 `check_job(job_ref, offset=0)`
@@ -152,8 +152,9 @@ queued ──► running ──► done
 
 | 环境变量 | 默认 | 作用 |
 |---|---|---|
-| `ACPS_JOB_MAX_CONCURRENT` | `2` | 同时运行的作业上限 |
+| `ACPS_JOB_MAX_CONCURRENT` | `2` | 等待与执行中的作业总数上限 |
 | `ACPS_JOB_MAX_RUNTIME` | `21600`（6h） | running 超过该时长判 `ttl-exceeded` |
+| `ACPS_JOB_LOCK_TIMEOUT` | 同 `ACPS_JOB_MAX_RUNTIME` | 作业等待共享工作区的上限，单位为秒 |
 | `ACPS_JOB_RETENTION_DAYS` | `7` | 终态作业保留天数（超出最近 N 个之外） |
 | `ACPS_JOB_KEEP_LAST` | `20` | 无论多老都保留的最近终态作业数 |
 | `ACPS_JOB_REPORT_OUT` | 内部注入 | 终稿输出路径；由 `jobs_runner` 写成 `jobs/<id>/report.md` |

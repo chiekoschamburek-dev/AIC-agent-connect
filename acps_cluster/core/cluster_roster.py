@@ -328,7 +328,9 @@ def _enrollment_aic(workspace: str, cluster_dir: Path) -> str | None:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    aic = ((data.get("identity") or {}).get("ref") or {}).get("aic")
+    identity = data.get("identity") if isinstance(data, dict) else None
+    ref = identity.get("ref") if isinstance(identity, dict) else None
+    aic = ref.get("aic") if isinstance(ref, dict) else None
     return str(aic) if aic else None
 
 
