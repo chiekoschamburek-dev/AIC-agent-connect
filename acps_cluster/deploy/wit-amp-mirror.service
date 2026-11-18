@@ -22,7 +22,7 @@ Restart=always
 RestartSec=30
 NoNewPrivileges=true
 ProtectSystem=full
-ReadWritePaths=/var/log/acps-amp
+LogsDirectory=acps-amp
 
 [Install]
 WantedBy=multi-user.target

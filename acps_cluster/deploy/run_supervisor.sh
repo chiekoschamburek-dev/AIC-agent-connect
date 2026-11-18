@@ -21,7 +21,9 @@ set -a
 set +a
 
 mkdir -p ws-supervisor/logs
-rm -f ws-supervisor/logs/*.jsonl   # 重启时 AMP 心跳 journal 校验会失败，先清掉
+# AMP journal 自愈：清心跳日志 + 截掉 system/access 等日志的半截尾行，
+# 否则重启时 AmpRuntime.start() 的历史校验会报 AmpPersistenceError。
+"$PY" deploy/repair_amp_journals.py ws-supervisor/logs || true
 
 # 预热 discovery 缓存：平台的发现接口与 wit 2.1.0 客户端不兼容（onlyAvailable 字段已移除 → 400），
 # 不预热的话委派会报 "Partner has no discovered Direct JSON-RPC endpoint"

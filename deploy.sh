@@ -29,7 +29,7 @@ ENV_FILE="$ACPS_ROOT/acps_cluster/deploy/.env.production"
 STAGE="$ACPS_ROOT/.runtime/systemd"
 
 DEFAULT_PARTNERS="scout synthesis writer critic contradiction frontier experiment citation gpu cpu kb"
-DEFAULT_UNITS="wit-yanshu@supervisor wit-workspace wit-amp-mirror wit-amp-sender wit-task-feeder wit-task-prune.timer wit-ledger-report.timer"
+DEFAULT_UNITS="wit-yanshu@supervisor wit-workspace wit-amp-mirror wit-amp-sender wit-task-prune.timer wit-ledger-report.timer"
 
 say()  { printf '\n=== %s ===\n' "$*"; }
 warn() { printf '!! %s\n' "$*" >&2; }
@@ -70,6 +70,15 @@ preflight() {
     if ! grep -q "^ACPS_PROVIDER_NAME=." "$ENV_FILE" 2>/dev/null; then
       warn "配置缺少 ACPS_PROVIDER_NAME=（平台已批 ACS 的 provider.name）"
       ok=0
+    fi
+    if ! grep -Eiq "^ACPS_PLATFORM=['\"]?ioa_pub['\"]?[[:space:]]*$" "$ENV_FILE"; then
+      local key
+      for key in ACPS_REGISTRY_URL ACPS_CA_URL ACPS_DISCOVERY_URL; do
+        if ! grep -q "^${key}=." "$ENV_FILE"; then
+          warn "梧桐接入配置缺少 ${key}="
+          ok=0
+        fi
+      done
     fi
   else
     warn "缺少 $ENV_FILE；先运行 ./deploy.sh init，再按注释填写真实值"
@@ -219,11 +228,12 @@ stop() {
   for unit in $(units_for_start "${ACPS_PARTNERS:-$DEFAULT_PARTNERS}" "$with_guard" | tr ' ' '\n' | tac); do
     systemctl stop "$unit" 2>/dev/null || true
   done
+  systemctl stop wit-task-feeder 2>/dev/null || true
   echo "stop: 完成（未 disable；需要开机不启动请手工 systemctl disable）"
 }
 
 status() {
-  local units="$DEFAULT_UNITS wit-guard-api"
+  local units="$DEFAULT_UNITS wit-guard-api wit-task-feeder"
   for unit in $units; do
     printf '\n--- %s ---\n' "$unit"
     systemctl --no-pager --lines=0 status "$unit" 2>&1 | head -n 6 || true

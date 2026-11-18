@@ -331,26 +331,35 @@ async def _seed_discovery(script: Path | None = None) -> None:
     逐行转发子进程输出到 journal 并按 rc 分档告警（2026-10-15 审查）：原先 stdout/stderr
     都进 DEVNULL、且 rc 只要有一项成功就是 0，于是"9 项掉 1 项"在日志里与全量成功
     长得一模一样（平台证书过期那天就是这么静默丢了 designer 那条）。
+
+    2026-11-18 审查：调用点从 `serve()` 之前挪到之后。预热最长要跑十几秒到一分钟，
+    放在监听之前会让叮当在这段时间连不上（Connection refused），正好违背"稳定连接"。
     """
     script = script or Path(__file__).resolve().parents[1] / "deploy" / "seed_discovery.py"
     if not script.is_file():
         return
+    proc = None
     try:
         proc = await asyncio.create_subprocess_exec(
-            sys.executable, str(script),
+            sys.executable, "-u", str(script),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
             cwd=str(Path(__file__).resolve().parents[1]),
         )
         summary: list[str] = []
-        if proc.stdout is not None:
-            async for raw in proc.stdout:
-                line = raw.decode("utf-8", "replace").rstrip()
-                if not line:
-                    continue
-                print(f"[seed] {line}", flush=True)
-                if "缓存预热" in line or "缺" in line:
-                    summary.append(line.strip())
-        await proc.wait()
+        try:
+            timeout = max(1.0, float(os.getenv("ACPS_SEED_TIMEOUT", "120")))
+        except ValueError:
+            timeout = 120.0
+        async with asyncio.timeout(timeout):
+            if proc.stdout is not None:
+                async for raw in proc.stdout:
+                    line = raw.decode("utf-8", "replace").rstrip()
+                    if not line:
+                        continue
+                    print(f"[seed] {line}", flush=True)
+                    if "缓存预热" in line or "缺" in line:
+                        summary.append(line.strip())
+            await proc.wait()
         tail = "；".join(summary[-2:]) if summary else "无输出"
         if proc.returncode == 0:
             print(f"[supervisor] 发现缓存预热完成（rc=0；{tail}）", flush=True)
@@ -359,6 +368,13 @@ async def _seed_discovery(script: Path | None = None) -> None:
                   f"——缺的伙伴委派时会解析不到端点", flush=True)
     except Exception as exc:  # noqa: BLE001
         print(f"[supervisor] 发现缓存预热失败（继续）: {type(exc).__name__}: {exc}", flush=True)
+    finally:
+        if proc is not None and proc.returncode is None:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            await proc.communicate()
 
 
 def _archive(path: Path) -> None:
@@ -440,7 +456,6 @@ async def serve() -> None:
     )
     INBOX.mkdir(parents=True, exist_ok=True)
     OUTBOX.mkdir(parents=True, exist_ok=True)
-    await _seed_discovery()
     # guard-api（ACPS Event Channel Guard 只读旁路 HTTP 接口）：默认关闭，设了
     # ACPS_GUARD_API_PORT 才挂载。uvicorn 跑在 supervisor 自己的事件循环里，与宿主
     # 同生共死；db 缺省沿用本 ws 的任务库约定。挂载失败只降级、不阻断主管线。
@@ -450,11 +465,18 @@ async def serve() -> None:
             status = await runtime.serve(
                 direct=True, group=False,
                 host=os.getenv("ACPS_SERVE_HOST", "127.0.0.1"),
-                port=port, amp=False,
+                port=port, amp=True,
             )
             print(f"[supervisor] 跳过注册直接服务: {status.status}", flush=True)
             if status.status not in ("serving", "active"):
-                raise SystemExit(2)
+                # 只有"直服监听没起来"才算启动失败。AMP 失败（journal 校验/身份问题）时
+                # 端口其实已经绑定好了；把它当失败会 SystemExit(2)，systemd 每 300s
+                # 重启一轮，叮当侧表现为周期性掉线（2026-11-18 审查 P0）。
+                amp_detail = (status.details or {}).get("amp")
+                if not amp_detail:
+                    raise SystemExit(2)
+                print(f"[supervisor] ⚠ AMP 启动失败，服务继续（心跳/计量暂缺）: "
+                      f"{amp_detail.get('reason') or amp_detail}", flush=True)
             aic = "?"
         else:
             result = await runtime.up_until_ready(
@@ -491,6 +513,9 @@ async def serve() -> None:
                 except Exception as exc:  # noqa: BLE001  端口占用等不阻断主管线
                     print(f"[supervisor] guard-api 挂载失败({type(exc).__name__}: {exc})，跳过",
                           flush=True)
+        # 监听已经起来后再预热发现缓存：预热慢/超时只影响出站委派，
+        # 不会再让入站连接在这一分钟内被拒。
+        await _seed_discovery()
         while True:
             for path in sorted(INBOX.glob("*.txt")):
                 await run_inbox_task(runtime, roster, path)

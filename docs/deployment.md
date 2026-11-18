@@ -72,6 +72,17 @@ sudo ./deploy.sh start
 > `preflight` 会检查 `ACPS_PROVIDER_NAME` 与 wheel 是否就位，但不会校验证书内容——
 > 证书错误会在服务启动时以明确错误暴露，按 `journalctl -u wit-yanshu@<key>` 排查。
 
+梧桐地址由 `ACPS_REGISTRY_URL`、`ACPS_CA_URL` 和 `ACPS_DISCOVERY_URL` 提供。
+启用 PEP 和伙伴自动转发时，在 Supervisor 的环境中配置参与转发的伙伴 AIC 与
+`research.submit` 授权。配置示例见 [伙伴上报](partner-reporting.md)。
+
+> **重启时的 AMP journal 自愈**：`wit-yanshu@.service` 与 `deploy/run_supervisor.sh`
+> 在启动前会执行 `deploy/repair_amp_journals.py`：清掉 `amp_heartbeat_*.jsonl`，并把
+> `amp_system_*.jsonl` / `amp_access_*.jsonl` 等日志末尾不完整的半行截掉。只删心跳不够
+> ——WIT 的 `AmpRuntime.start()` 启动时会同步写 system 记录并校验历史，半行会让 AMP
+> 启动失败。Supervisor 侧已把“AMP 失败”与“监听失败”分开：前者只告警、继续服务，
+> 后者才退出（避免 systemd 每 300s 重启造成叮当侧周期性掉线）。
+
 ## 4. 子命令
 
 | 命令 | 作用 |
@@ -93,7 +104,7 @@ sudo ./deploy.sh start
 | `wit-yanshu@<key>` | 伙伴实例：scout / synthesis / writer / critic / contradiction / frontier / experiment / citation / gpu / cpu / kb |
 | `wit-workspace` | 工作区资源实例（8470） |
 | `wit-amp-mirror` / `wit-amp-sender` | AMP 心跳镜像与上报 |
-| `wit-task-feeder` | 任务派发器（可选） |
+| `wit-task-feeder` | 可选任务派发器，通过 `systemctl start wit-task-feeder` 单独启动 |
 | `wit-task-prune.timer` / `wit-ledger-report.timer` | 事件裁剪 / 台账日报 |
 | `wit-guard-api`（可选） | guard HTTP API（8778，只读旁路） |
 

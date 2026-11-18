@@ -39,6 +39,7 @@ MEMBERS = {
     "critic": "Critic",
     # 实验员（2026-10-02 平台注册通过后上线 8461）；不预热它的话 supervisor 委派会解析不到端点
     "experiment": "Experiment",
+    "citation": "Citation",
     # 知识库（2026-10-14 换身份至 1.0.1/D86STV 后补入；缺它 leader 解析不到 kb 端点）
     "kb": "KB",
     # 队友 gjw 的"研究方案设计"节点（2026-10-09 手写登记的外部成员，8590 同机）
@@ -55,6 +56,7 @@ FALLBACK_AICS = {
     "writer": "1.2.156.3088.1.BUPT.VTF97R.1OGDWX.U9K14M.0CDI",
     "critic": "1.2.156.3088.1.BUPT.VTF97R.M2NJ2G.A1BIB2.195J",
     "experiment": "1.2.156.3088.1.BUPT.VTF97R.WN4C3S.0C0YA7.0J4R",
+    "citation": "1.2.156.3088.1.BUPT.VTF97R.2QW16N.DPIO3G.0C3M",
     "kb": "1.2.156.3088.1.BUPT.VTF97R.D86STV.UBL99U.0BOQ",
     # 队友节点（外部成员，不在本集群 overlay 白名单内）：本地终稿会被"现役集合"闸门拦下
     # → 走平台公开接口取最新；平台不可达时用库内脱敏副本兜底（见 offline_acs）。
@@ -67,6 +69,14 @@ _OVERLAY_PATH = CLUSTER / "registered_acs_overlay.json"
 # 外部成员（平台在册但不由本集群注册/持有终稿）：平台不可达时允许用库内脱敏副本寻址。
 EXTERNAL_OFFLINE_KEYS = frozenset({"designer"})
 _EXTERNAL_PATH = Path(__file__).with_name("external_members_acs.json")
+
+
+def _env_float(name: str, default: float) -> float:
+    """读一个正数秒级配置；写错退回默认。"""
+    try:
+        return max(0.5, float(os.getenv(name, "") or default))
+    except ValueError:
+        return default
 
 
 def offline_acs(key: str, exc: BaseException) -> tuple[dict | None, str]:
@@ -94,18 +104,36 @@ def offline_acs(key: str, exc: BaseException) -> tuple[dict | None, str]:
     return acs, f"库内脱敏副本（平台不可达:{type(exc).__name__}）"
 
 
-def _registered_aics() -> set[str] | None:
-    """覆盖表里的现役 AIC 集合；读不到返回 None（调用方告警并全部走平台兜底）。"""
+def _registered_aics() -> dict[str, str] | None:
+    """覆盖表里的 key -> 现役 AIC；读不到/坏掉返回 None（调用方告警并全部走平台兜底）。
+
+    key 从 agent id 推导：`yanshu.scout-partner` → scout、`yanshu.citation-integrity`
+    → citation、`yanshu.kb-partner` → kb。**不要**再拿 `FALLBACK_AICS` 和本地终稿比
+    AIC：那等于把本地权威身份绑死在硬编码表上，平台一换身份（2026-10-14 kb 就换过）
+    本地终稿就被误判为旧稿，后面平台接口又拿旧 AIC 去查 → 405/404 → 发现缓存缺项
+    （2026-11-18 审查 P2）。
+    """
     try:
         data = json.loads(_OVERLAY_PATH.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         return None
-    out = {str((v or {}).get("aic") or "") for v in (data.get("agents") or {}).values()}
-    out.discard("")
+    agents = data.get("agents") if isinstance(data, dict) else None
+    if not isinstance(agents, dict):
+        return None
+    out: dict[str, str] = {}
+    for agent_id, record in agents.items():
+        if not isinstance(record, dict):
+            continue
+        aic = str(record.get("aic") or "").strip()
+        if not aic:
+            continue
+        tail = str(agent_id).split(".")[-1]
+        key = tail.split("-")[0]
+        out.setdefault(key, aic)
     return out or None
 
 
-def _local_acs(key: str, registered: set[str] | None) -> dict | None:
+def _local_acs(key: str, registered: dict[str, str] | None) -> dict | None:
     path = CLUSTER / f"ws-{key}" / "acps" / "acs.final.json"
     if not path.is_file():
         return None
@@ -113,11 +141,13 @@ def _local_acs(key: str, registered: set[str] | None) -> dict | None:
         acs = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+    if not isinstance(acs, dict):
+        return None
     aic = str(acs.get("aic") or "")
     if registered is None:
         print(f"  [seed] {key}: 覆盖表不可读,校验不了本地终稿身份 → 跳过,改用平台兜底")
         return None
-    if aic not in registered:
+    if aic not in set(registered.values()):
         # 形态前缀过滤防不住同前缀的换身份前旧稿,现役集合白名单才可靠(2026-10-14 审查 B)
         print(f"  [seed] {key}: 本地终稿 aic={aic or '?'} 不在覆盖表现役集合,跳过,改用平台兜底")
         return None
@@ -126,10 +156,13 @@ def _local_acs(key: str, registered: set[str] | None) -> dict | None:
 
 def main() -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from wit.acps.discovery import cache_discovered_agent, normalize_discovered_agent
+    from wit.acps.discovery import (
+        cache_discovered_agent, extract_endpoint_url, load_discovered_agent, normalize_discovered_agent,
+    )
 
-    registry = os.getenv("ACPS_REGISTRY_URL", "https://wt.ioa.pub/registry-server")
+    registry = os.getenv("ACPS_REGISTRY_URL", "https://wt.ioa.pub/registry-server").rstrip("/")
     cache_dir = WS / "acps" / "discovered"
+    http_timeout = _env_float("ACPS_SEED_HTTP_TIMEOUT", 8.0)
     ok = 0
     missing: list[str] = []
     client = None
@@ -138,18 +171,36 @@ def main() -> int:
         print(f"  [seed] ⚠ {_OVERLAY_PATH.name} 不可读——本地终稿全部跳过,改走平台兜底")
     for i, (key, label) in enumerate(MEMBERS.items(), start=1):
         acs = _local_acs(key, registered)
+        # 有本地权威终稿就用它的 AIC；没有才用覆盖表/兜底表里的现役身份。
+        aic = str((acs or {}).get("aic") or "").strip()
+        if not aic:
+            aic = (registered or {}).get(key, "") or FALLBACK_AICS.get(key, "")
         source = "本地 acs.final.json"
-        if not acs:
+        if not aic:
+            print(f"  {label:14s} -> 失败：覆盖表与兜底表都没有可用 AIC")
+            missing.append(key)
+            continue
+        if not acs or not extract_endpoint_url(acs):
             try:
                 import httpx
 
-                client = client or httpx.Client(timeout=20)
-                aic = FALLBACK_AICS[key]
+                client = client or httpx.Client(timeout=http_timeout)
                 r = client.get(f"{registry}/acps-atr-v2/acs/{aic}")
                 r.raise_for_status()
                 acs = r.json()
+                if not isinstance(acs, dict) or acs.get("aic") != aic or not extract_endpoint_url(acs):
+                    raise ValueError("平台注册 ACS 的 AIC 或 Direct 端点无效")
                 source = "平台公开接口"
             except Exception as exc:  # noqa: BLE001
+                try:
+                    cached = load_discovered_agent(cache_dir, aic) or {}
+                    raw = cached.get("rawAcs")
+                    if isinstance(raw, dict) and raw.get("aic") == aic and extract_endpoint_url(raw):
+                        print(f"  {label:14s} -> 平台刷新失败（{type(exc).__name__}），保留现有发现缓存")
+                        ok += 1
+                        continue
+                except (OSError, ValueError, AttributeError):
+                    pass
                 acs, source = offline_acs(key, exc)
                 if acs is None:
                     print(f"  {label:14s} -> 失败 {type(exc).__name__}: {str(exc)[:70]}")
@@ -158,8 +209,12 @@ def main() -> int:
                 print(f"  {label:14s} -> 平台不可达({type(exc).__name__})"
                       f"，改用库内脱敏副本")
         try:
+            if not extract_endpoint_url(acs):
+                raise ValueError("缺少 Direct 端点")
             summary = normalize_discovered_agent(acs, ranking=i)
             path = cache_discovered_agent(cache_dir=cache_dir, summary=summary, raw_acs=acs)
+            if path is None:
+                raise ValueError("WIT 未写入发现缓存")
             print(f"  {label:14s} -> {path.name[:14]}…  {acs.get('name')}  （{source}）")
             ok += 1
         except Exception as exc:  # noqa: BLE001

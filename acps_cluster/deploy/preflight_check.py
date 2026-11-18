@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import socket
 import ssl
 import sys
@@ -70,14 +71,15 @@ def load_env_file(path: Path) -> None:
 
 def check_files() -> None:
     required = [
-        "supervisor.py",
-        "feed_tasks.py",
+        "agents/supervisor.py",
+        "runtime/feed_tasks.py",
         "deploy/patch_amp_access.py",
         "deploy/amp_access_sender.py",
+        "deploy/repair_amp_journals.py",
         "deploy/wit-amp-access-sender.service",
         "deploy/wit-task-feeder.service",
-        "model_router.py",
-        "llm_tools.py",
+        "core/model_router.py",
+        "core/llm_tools.py",
     ]
     missing = [p for p in required if not (CLUSTER / p).is_file()]
     if missing:
@@ -114,7 +116,7 @@ def check_env() -> None:
 
 def check_model_live(do_call: bool) -> None:
     """真实探测模型可用性：先看连通性，必要时打一次极小的真实请求。"""
-    sys.path.insert(0, str(CLUSTER))
+    sys.path.insert(0, str(PROJECT))
     try:
         from acps_cluster.core import model_router  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
@@ -250,7 +252,7 @@ def check_identity() -> None:
 
 def check_targets() -> None:
     """对每个目标做一次 TLS 握手并核对证书 CN，不发任何业务请求。"""
-    sys.path.insert(0, str(CLUSTER))
+    sys.path.insert(0, str(PROJECT))
     try:
         from acps_cluster.runtime import feed_tasks  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
@@ -301,19 +303,18 @@ def _peer_cn(der: bytes) -> str:
 
 def check_amp_hooks() -> None:
     """每个 agent 模块是否已挂 amp_hooks（决定"调用是否被计数"）。"""
-    import re  # noqa: PLC0415
-
     modules = [
         "supervisor", "partner_scout", "partner_synthesis", "partner_writer",
         "partner_critic", "partner_contradiction", "partner_frontier",
         "partner_experiment", "partner_gpu", "partner_cpu",
-        "partner_kb", "partner_citation",
+        "partner_kb", "partner_citation", "partner_workspace",
     ]
     missing: list[str] = []
     present = 0
     for name in modules:
-        path = CLUSTER / f"{name}.py"
+        path = CLUSTER / "agents" / f"{name}.py"
         if not path.is_file():
+            missing.append(name)
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         if re.search(r"^\s*amp_hooks\s*=", text, re.MULTILINE):
@@ -341,7 +342,8 @@ def check_restart_cleanup() -> None:
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
-        if "logs/*.jsonl" in text and "amp_heartbeat_*.jsonl" not in text:
+        if any("logs/*.jsonl" in line for line in text.splitlines()
+               if not line.lstrip().startswith("#")):
             offenders.append(path.name)
     if offenders:
         record("FAIL", "重启清理", f"{', '.join(offenders)} 仍会删除全部 *.jsonl",

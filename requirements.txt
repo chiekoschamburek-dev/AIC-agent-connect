@@ -13,6 +13,7 @@ acps-sdk==2.2.0
 
 # ---- 直接使用的第三方库 ----
 httpx>=0.28.0        # capabilities/arxiv.py 调 arXiv API；delegate_smoke.py 调 registry/discovery
+kafka-python>=3.0.11,<4  # AMP 心跳与访问计量转发
 
 # ---- wit_framework 自身声明的依赖（显式钉住，保证 Linux 端解析一致）----
 openai>=2.32.0,<3.0.0
