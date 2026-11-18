@@ -43,6 +43,27 @@ def final_state(report_present: bool, run_status: str) -> str:
     return "done" if report_present and run_status in ("completed", "success") else "failed"
 
 
+def _clear_stale_acps(acps: Path) -> int:
+    """清掉上一轮复制进来的身份材料，避免已撤销的 grant/domain 残留到本次作业。
+
+    `discovered/` 是与常驻实例共享的 symlink（以读为主），必须保留。
+    """
+    removed = 0
+    for entry in sorted(acps.iterdir()):
+        if entry.name == "discovered":
+            continue
+        try:
+            if entry.is_dir() and not entry.is_symlink():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+            removed += 1
+        except OSError as exc:  # noqa: PERF203 - 单个残留清不掉不阻塞作业
+            print(f"[job] 清理旧身份材料失败 {entry}: {type(exc).__name__}: {exc}",
+                  flush=True)
+    return removed
+
+
 def _prepare_job_workspace(base: Path) -> None:
     """Job worker 的独立 workspace：复用身份材料，但日志与任务库独立。
 
@@ -55,10 +76,14 @@ def _prepare_job_workspace(base: Path) -> None:
     整目录共享等于让两个进程并发写同一个任务库。这里只复制小体积身份材料，
     任务库让 job 用自己的空库（首次由 SDK 自动创建）；`discovered/` 用 symlink
     共享（以读为主，双方都可能新增条目）。
+
+    **每轮先清空再复制**：只覆盖不删除会让上一轮复制进来的 domain/grant 留在
+    job workspace 里——常驻实例已经撤销的授权，作业仍能看见（2026-11-18 审查 P2）。
     """
     src = CLUSTER / "ws-supervisor" / "acps"
     acps = base / "acps"
     acps.mkdir(parents=True, exist_ok=True)
+    _clear_stale_acps(acps)
     copied: list[str] = []
     for entry in sorted(src.iterdir()):
         name = entry.name

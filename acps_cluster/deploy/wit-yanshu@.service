@@ -19,7 +19,7 @@ EnvironmentFile=__ACPS_ROOT__/acps_cluster/deploy/.env.production
 # 实例从 4 个增到 6 个后，原 0-45s 窗口内碰撞概率过高（多实例同时抢同一账号会话），故放宽到 0-300s。
 # !! TimeoutStartSec 必须大于抖动上限，否则睡过 90s 的实例会在 start-pre 阶段被判超时杀掉
 #    （2026-09-27 实测踩过：contradiction 抽到 >90s 的值，start-pre operation timed out）。
-ExecStartPre=/bin/sh -c '"$$1" deploy/repair_amp_journals.py ws-%i/logs; sleep $("$$1" -c "import random;print(random.randint(0,300))")' sh __ACPS_PY__
+ExecStartPre=/bin/sh -c '"$$1" deploy/repair_amp_journals.py __ACPS_ROOT__/acps_cluster/ws-%i/logs; sleep $("$$1" -c "import random;print(random.randint(0,300))")' sh __ACPS_PY__
 ExecStart=__ACPS_PY__ agents/partner_%i.py
 Restart=always
 RestartSec=300
