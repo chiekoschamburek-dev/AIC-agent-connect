@@ -56,8 +56,9 @@ from wit.hooks.acps.delegation import AipDelegationHooks  # noqa: E402
 from acps_cluster.core import bootstrap  # noqa: E402  (触发 .env 加载)
 from acps_cluster.core import cluster_common  # noqa: E402
 from acps_cluster.core import cluster_roster  # noqa: E402
-from acps_cluster.runtime import jobs_store  # noqa: E402  L2 作业化交路：jobs/<id>/ 目录台账
+from acps_cluster.runtime import jobs_store, root_service  # noqa: E402
 from acps_cluster.agents import root_entry  # noqa: E402  多入口编排：research.submit/status（非公开）
+from acps_cluster.agents.reporting import AUTO_SUBMIT_PREFIX  # noqa: E402
 from acps_cluster.core import viz_live  # noqa: E402  本次 run 的工作流 Scenario + AIP 链接产物
 from acps_cluster.core.math_delimiters import normalize_math_delimiters  # noqa: E402
 from acps_cluster.core.discovery_metadata import (  # noqa: E402
@@ -1346,6 +1347,16 @@ def _make_submit_job_tool() -> Tool:
         if len(question) < 8:
             return {"ok": False, "error": "question 太短：请把**完整任务文本**（含已知约束）写进来"}
         async with submit_lock:
+            root_id = root_service.current_root_id()
+            existing = jobs_store.find_root_job(jobs_root, root_id, owner) if root_id else None
+            if existing is not None:
+                # 复用崩溃窗口里已经建好的作业（同一个根任务只对应一个作业）。
+                # 带上 state 让调用方知道它可能已经是终态，避免把“复用失败作业”
+                # 误当成“刚受理了一个新作业”（2026-11-18 审查 P2）。
+                reused = jobs_store.read_status(existing)
+                return {"ok": True, "job_id": existing.name, "reused": True,
+                        "state": str(reused.get("state") or ""),
+                        "note": "该根任务已有作业，直接复用（终态作业不会重新执行）"}
             try:
                 jobs_store.prune_jobs(jobs_root)
             except Exception as exc:  # noqa: BLE001  清理失败不该挡住受理
@@ -1363,7 +1374,9 @@ def _make_submit_job_tool() -> Tool:
                     f"并发作业已达上限 {limit}：请等现有作业完成（查作业 list），"
                     f"或调高 ACPS_JOB_MAX_CONCURRENT。**不要**用 aip_submit 假称已受理")}
             try:
-                job_id, job_dir = jobs_store.create_job(jobs_root, question, mode, owner_aic=owner)
+                job_id, job_dir = jobs_store.create_job(
+                    jobs_root, question, mode, owner_aic=owner, root_id=root_id or "",
+                )
             except Exception as exc:  # noqa: BLE001
                 return {"ok": False, "error": f"创建作业失败: {type(exc).__name__}: {exc}"}
             env = dict(os.environ)
@@ -1976,7 +1989,7 @@ class SupervisorRunHooks(WitHooks):
     # 这里做两层保险：① 包住 `aip_submit` 记录模型是否提交过、以及它提交的原文；
     # ② run 正常结束但从未提交时，用最终文本自动兜底提交。
     _SUBMIT_STATE: ContextVar[dict | None] = ContextVar("yanshu_aip_submit_state", default=None)
-    _AUTO_SUBMIT_PREFIX = "（本产物由研枢-Supervisor 在任务收尾时自动提交）\n\n"
+    _AUTO_SUBMIT_PREFIX = AUTO_SUBMIT_PREFIX
     # 本次 run 的工作流记录器（ACPS_VIZ_BASE_URL 未设置时为 None，行为完全不变）
     _VIZ: ContextVar[object | None] = ContextVar("yanshu_viz_recorder", default=None)
 
@@ -2289,6 +2302,9 @@ class SupervisorRunHooks(WitHooks):
             try:
                 await self._flush_buffered_submit()
             finally:
+                state = self._SUBMIT_STATE.get()
+                if root_entry.entry_run_active() and isinstance(state, dict):
+                    state["entry_receipt"] = True
                 root_entry.clear_entry_run()
                 if not returned:
                     self._viz_finish_aborted()
@@ -2555,12 +2571,13 @@ class SupervisorRunHooks(WitHooks):
             return
         if state.get("ok") and state.get("text_len", 0) >= len(text):
             return
+        product_text = text if state.get("entry_receipt") else (
+            self._AUTO_SUBMIT_PREFIX + normalize_math_delimiters(text)
+        )
         product = {
             "id": "yanshu-final-answer",
             "name": "研枢-Supervisor 的任务产出",
-            "data_items": [{"type": "text",
-                            "text": self._AUTO_SUBMIT_PREFIX
-                                    + normalize_math_delimiters(text)}],
+            "data_items": [{"type": "text", "text": product_text}],
         }
         if not ok_status:
             product["description"] = f"任务未正常收尾（status={status}），以下为已产出内容。"
@@ -4366,7 +4383,10 @@ async def main() -> dict:
     provider = bootstrap.build_provider()
     port = int(os.getenv("ACPS_SUPERVISOR_PORT", "8444"))
     roster = cluster_roster.load_roster()
-    runtime = WitRuntime(
+    runtime_cls = WitRuntime
+    if os.getenv("ACPS_ACS_FROM_FINAL", "").strip():
+        runtime_cls = cluster_common._runtime_with_registered_acs(WitRuntime, WORKSPACE)
+    runtime = runtime_cls(
         build_supervisor_agent(provider),
         workspace=WORKSPACE,
         acps=cluster_common.build_acps_config(port),

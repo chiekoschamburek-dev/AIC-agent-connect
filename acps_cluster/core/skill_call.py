@@ -150,6 +150,9 @@ def parse_skill_call(text: Any) -> tuple[str, dict[str, Any]]:
 
     if args is None:
         args = payload.get("args") if isinstance(payload.get("args"), dict) else None
+        if args is None and skill and _skill_of(payload):
+            # Earlier callers sent a flat object alongside the skill name.
+            args = {key: value for key, value in payload.items() if key not in SKILL_HINT_KEYS}
     if args is None and not payload:
         # 没有信封、整段就是参数对象（`{"query": "..."}`）
         parsed = _parse_json(unwrap_payload(raw))

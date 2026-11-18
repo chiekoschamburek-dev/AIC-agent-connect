@@ -10,19 +10,43 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from wit import TextPart
+from wit import TextPart, WitAgent, WitRuntime
+from wit.acps.aip import content_input_to_data_items
+from wit.acps.direct import _task_command
+from wit.acps.task_runtime import (
+    AipPartnerExecutionContext, AipPartnerExecutor, acps_leader_call_xml,
+    sanitize_command_for_prompt,
+)
+from wit.kernel.runtime import AgentState
 
 from acps_cluster.agents import partner_gpu, reporting
+from acps_cluster.core.aip_guard import AipPartnerGuardHooks
+from acps_cluster.core.cluster_common import build_local_acps_config
 from acps_cluster.core.skill_call import parse_skill_call
 
 
 class FakeRuntime:
     def __init__(self) -> None:
         self.calls: list[dict] = []
+        self.actions: list[str] = []
+        self.receipt = {"ok": True, "root_id": "rt-one", "job_id": "job-one", "state": "accepted"}
+
+    async def aip_discover(self, query, *, limit):  # noqa: ANN001
+        return {}
 
     async def aip_delegate(self, state, *, partner_aic, request):  # noqa: ANN001
         self.calls.append({"state": state, "partner_aic": partner_aic, "request": request})
-        return {"ok": True, "task_ref": "task-1"}
+        return {"state": "working", "task_ref": "task-1"}
+
+    async def aip_task(self, state, *, action, task_ref):  # noqa: ANN001
+        self.actions.append(action)
+        if action == "complete":
+            return {"state": "completed", "task_ref": task_ref}
+        if self.receipt is None:
+            return {"state": "working", "task_ref": task_ref}
+        return {"state": "awaiting-completion", "task_ref": task_ref, "products": [{
+            "data_items": [{"type": "text", "text": reporting.AUTO_SUBMIT_PREFIX + json.dumps(self.receipt)}],
+        }]}
 
 
 class FakeCtx:
@@ -60,12 +84,15 @@ class ReportToolTest(unittest.TestCase):
         self.assertEqual(out["supervisor_aic"], "AIC-SUP")
         call = self.runtime.calls[0]
         self.assertEqual(call["partner_aic"], "AIC-SUP")
-        text = call["request"][0].text
-        payload = json.loads(text)
-        self.assertEqual(payload["skill"], "research.submit")
-        self.assertEqual(payload["question"], "帮我做一组实验")
-        self.assertEqual(payload["request_id"], "req-1")
-        self.assertEqual(payload["user_scope"], "u1")
+        item, = content_input_to_data_items(call["request"])
+        self.assertEqual(item["metadata"]["skillId"], "research.submit")
+        command, parts = sanitize_command_for_prompt({"type": "task-command", "dataItems": [item]})
+        shell = acps_leader_call_xml(command="start", leader_aic="AIC-USER", partner_aic="AIC-SUP",
+                                    session_id="sess-1", task_id="task-1",
+                                    payload=json.dumps(command), mode="rpc")
+        skill, args = parse_skill_call(shell + "\n" + parts[0].text)
+        self.assertEqual(skill, "research.submit")
+        self.assertEqual(args, {"question": "帮我做一组实验", "request_id": "req-1", "user_scope": "u1"})
 
     def test_缺question直接拒绝(self):
         out = asyncio.run(self.tool.handler({"question": "  "}))
@@ -116,21 +143,14 @@ class AutoForwardTest(unittest.TestCase):
     def setUp(self) -> None:
         self.runtime = FakeRuntime()
         self.runtime.agent = SimpleNamespace(id="yanshu.scout-partner")
-        self.submitted: list[dict] = []
-
-        async def aip_submit(arguments):  # noqa: ANN001
-            self.submitted.append(arguments)
-            return {"ok": True}
-
         self.ctx = SimpleNamespace(
             runtime=self.runtime, state={"run": "r1"},
-            config=SimpleNamespace(tools=[SimpleNamespace(name="aip_submit", handler=aip_submit)]),
         )
 
-    def _event(self, leader="AIC-USER", text="帮我把这个任务交给总控"):
+    def _event(self, leader="AIC-USER", text="帮我把这个任务交给总控", *, verified=True):
         return SimpleNamespace(
             leader_aic=leader, task_id="task-in-1", session_id="sess-1",
-            content=[TextPart(text)], messages=[],
+            content=[TextPart(text)], messages=[], peer_verified=verified,
         )
 
     def _run(self, handler_called: list, event=None, request_hooks=None):
@@ -152,11 +172,11 @@ class AutoForwardTest(unittest.TestCase):
             called: list = []
             result = self._run(called, self._event(), hooks)
         self.assertFalse(called)
-        self.assertTrue(self.submitted, "必须向原任务提交受理回执")
-        product = self.submitted[0]["products"][0]
-        text = product["data_items"][0]["text"]
-        self.assertIn("AIC-SUP", text)
-        self.assertIn("task-in-1", text)
+        receipt = json.loads(result.final_text)
+        self.assertTrue(receipt["accepted"])
+        self.assertEqual(receipt["job_id"], "job-one")
+        self.assertEqual(receipt["source_task_id"], "task-in-1")
+        self.assertEqual(self.runtime.actions, ["wait", "complete"])
         call = self.runtime.calls[0]
         text = call["request"][0].text
         if text.startswith("<payload>") and text.endswith("</payload>"):
@@ -169,6 +189,95 @@ class AutoForwardTest(unittest.TestCase):
         self.assertEqual(args["source_caller"], "AIC-USER")
         self.assertTrue(result.metadata["auto_forward"])
 
+    def test_业务拒绝保留失败原因(self):
+        self.runtime.receipt = {"ok": False, "error": "request-conflict", "detail": "幂等键冲突"}
+        with mock.patch.dict("os.environ", {"ACPS_SUPERVISOR_AIC": "AIC-SUP"}):
+            result = self._run([], self._event(), reporting.AutoForwardRequestHooks())
+        receipt = json.loads(result.final_text)
+        self.assertFalse(receipt["ok"])
+        self.assertEqual(receipt["error"], "request-conflict")
+        self.assertNotIn("job_id", receipt)
+
+    def test_只有传输任务号时没有受理回执(self):
+        self.runtime.receipt = None
+        with mock.patch.dict("os.environ", {"ACPS_SUPERVISOR_AIC": "AIC-SUP"}):
+            result = self._run([], self._event(), reporting.AutoForwardRequestHooks())
+        receipt = json.loads(result.final_text)
+        self.assertFalse(receipt["ok"])
+        self.assertEqual(receipt["error"], "acceptance-unconfirmed")
+        self.assertEqual(receipt["supervisor_task_ref"], "task-1")
+        self.assertEqual(self.runtime.actions, ["wait"])
+
+    def test_转发超时返回未知态而不是失败(self):
+        async def slow_delegate(state, *, partner_aic, request):  # noqa: ANN001
+            await asyncio.sleep(1)
+            return {"state": "working", "task_ref": "task-1"}
+
+        self.runtime.aip_delegate = slow_delegate
+        with mock.patch.dict("os.environ", {
+                "ACPS_SUPERVISOR_AIC": "AIC-SUP",
+                "ACPS_FORWARD_DELEGATE_TIMEOUT": "0.05"}):
+            result = self._run([], self._event(), reporting.AutoForwardRequestHooks())
+        receipt = json.loads(result.final_text)
+        self.assertFalse(receipt["ok"])
+        self.assertFalse(receipt["accepted"])
+        self.assertEqual(receipt["error"], "acceptance-unconfirmed")
+        self.assertNotIn("job_id", receipt)
+
+    def test_未验证调用方不转发(self):
+        with mock.patch.dict("os.environ", {"ACPS_SUPERVISOR_AIC": "AIC-SUP"}):
+            called: list = []
+            self._run(called, self._event(verified=False), reporting.AutoForwardRequestHooks())
+        self.assertTrue(called)
+        self.assertFalse(self.runtime.calls)
+
+    def test_WIT执行器提交一次原任务产物(self):
+        class UnusedModel:
+            async def complete(self, request):
+                raise AssertionError("自动转发不能调用模型")
+
+        state = AgentState()
+        task = {
+            "state": "accepted", "taskId": "task-in-1", "taskRef": "task-in-1",
+            "sessionId": "sess-1", "products": [],
+        }
+
+        def transition(task_ref, target, **fields):
+            task.update(state=target, **fields)
+            return task
+
+        async def scenario(workspace):
+            runtime = WitRuntime(WitAgent(
+                id="yanshu.test-partner", instructions="Local AIP test", model=UnusedModel(),
+                hooks=[reporting.AutoForwardRunHooks()],
+                aip_hooks=[AipPartnerGuardHooks(), reporting.AutoForwardRequestHooks()],
+            ), workspace=workspace)
+            runtime.aip_delegate = self.runtime.aip_delegate
+            runtime.aip_task = self.runtime.aip_task
+            runtime.aip_discover = self.runtime.aip_discover
+            store = SimpleNamespace(
+                get=lambda _: dict(task), load_agent_state=lambda _: state,
+                set_local_error=mock.Mock(), save_agent_state=mock.Mock(),
+            )
+            executor = AipPartnerExecutor(store=store, runtime=runtime, transition=transition)
+            command = _task_command(
+                command="start", sender_id="AIC-USER", task_id="task-in-1", session_id="sess-1",
+                data_items=content_input_to_data_items([TextPart("请把这份研究任务交给总控。")]),
+            )
+            executor.schedule(
+                "task-in-1", command,
+                AipPartnerExecutionContext("AIC-USER", "AIC-ENTRY", "direct", "rpc", True),
+            )
+            await executor.wait()
+            store.set_local_error.assert_not_called()
+
+        with tempfile.TemporaryDirectory() as workspace, \
+                mock.patch.dict("os.environ", {"ACPS_SUPERVISOR_AIC": "AIC-SUP"}):
+            asyncio.run(scenario(workspace))
+        self.assertEqual(task["state"], "awaiting-completion")
+        product, = task["products"]
+        self.assertEqual(json.loads(product["dataItems"][0]["text"])["job_id"], "job-one")
+
     def test_supervisor派来的任务不转发(self):
         hooks = reporting.AutoForwardRequestHooks()
         with mock.patch.dict("os.environ", {"ACPS_AUTO_FORWARD": "1",
@@ -177,7 +286,6 @@ class AutoForwardTest(unittest.TestCase):
             self._run(called, self._event(leader="AIC-SUP"), hooks)
         self.assertTrue(called)
         self.assertFalse(self.runtime.calls)
-        self.assertFalse(self.submitted)
 
     def test_开关可关闭(self):
         hooks = reporting.AutoForwardRequestHooks()
@@ -221,6 +329,14 @@ class SkillPayloadOrderTest(unittest.TestCase):
 class AcsInvariantTest(unittest.TestCase):
     def test_上报工具不进ACS投影(self):
         agent = partner_gpu.build_gpu_agent(None)
+        config = build_local_acps_config(8460)
+        original = agent.compile(acps=config).acs_draft
+        agent.hooks.extend([reporting.ReportingDelegationHooks(), reporting.AutoForwardRunHooks()])
+        agent.aip_hooks.append(reporting.AutoForwardRequestHooks())
+        with tempfile.TemporaryDirectory() as workspace:
+            runtime = WitRuntime(agent, workspace=workspace, acps=config)
+            self.assertEqual(runtime.acs_draft(), original)
+            self.assertIsInstance(runtime._aip_delegation_hook(), reporting.ReportingDelegationHooks)
         ids = set()
         for item in agent.capabilities:
             cap = getattr(item, "capability", item)

@@ -461,12 +461,16 @@ async def serve_partner(
     from acps_cluster.agents.reporting import (  # noqa: PLC0415
         AutoForwardRequestHooks,
         AutoForwardRunHooks,
+        ReportingDelegationHooks,
         ReportUpHooks,
     )
 
-    agent.hooks.append(ReportUpHooks(cluster_root=Path(workspace).parent))
+    cluster_root = Path(workspace).parent
+    if not any(getattr(hook, "id", None) == ReportingDelegationHooks.id for hook in agent.hooks):
+        agent.hooks.append(ReportingDelegationHooks())
+    agent.hooks.append(ReportUpHooks(cluster_root=cluster_root))
     # 所有用户入站任务：不跑模型，直接转交 supervisor（supervisor 派来的任务跳过）
-    agent.aip_hooks.append(AutoForwardRequestHooks())
+    agent.aip_hooks.append(AutoForwardRequestHooks(cluster_root=cluster_root))
     agent.hooks.append(AutoForwardRunHooks())
     default_modes = [
         part.strip()
@@ -480,6 +484,9 @@ async def serve_partner(
     runtime = runtime_cls(agent, workspace=workspace, acps=build_acps_config(port))
     try:
         if os.getenv("ACPS_SKIP_ENROLLMENT", "").strip():
+            # 注意：伙伴的 skip-enrollment 直服仍是 amp=False（不产心跳）。若伙伴也要在
+            # 平台 aliveMap 里保持在线，需要改为 amp=True，并像 partner_supervisor.py 那样
+            # 把“AMP 失败”与“监听失败”分开处理（2026-11-18 审查）。
             status = await runtime.serve(
                 direct=True, group=False,
                 host=os.getenv("ACPS_SERVE_HOST", "127.0.0.1"),
@@ -505,7 +512,10 @@ async def serve_partner(
         seed_workspace_peer(Path(workspace))
         await asyncio.sleep(int(os.getenv("ACPS_PARTNER_TTL", "864000")))
     finally:
-        await provider.aclose()
+        try:
+            await runtime.stop_serving()
+        finally:
+            await provider.aclose()
 
 
 # ── 伙伴入站任务的产物兜底提交 ──────────────────────────────────────────
@@ -605,12 +615,6 @@ class InboundProductFallbackHooks(WitHooks):
         _INBOUND_RESULT.set(None)
         if not isinstance(state, dict) or state.get("ok") or state.get("awaiting_input"):
             return
-        try:
-            from acps_cluster.agents.reporting import receipt_submitted  # noqa: PLC0415
-            if receipt_submitted():
-                return  # 自动转发已手工提交受理回执，兜底不能再提交一次
-        except Exception:  # noqa: BLE001
-            pass
         if not isinstance(payload, dict) or "awaiting" in payload:
             return                      # 缺件态交给调用方补料，不能当成交付物
         handler = state.get("handler")

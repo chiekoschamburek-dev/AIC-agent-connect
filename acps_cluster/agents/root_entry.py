@@ -24,6 +24,7 @@ from typing import Any, Callable
 
 from wit import capability
 
+from acps_cluster.delegation.skill_scope import current_admitted_skill
 from acps_cluster.runtime import root_service, root_store
 
 _CLUSTER = Path(__file__).resolve().parents[1]  # acps_cluster/
@@ -223,17 +224,15 @@ async def status_core(
         caller_aic=caller,
         jobs_root=jobs_dir,
     )
-    task_id = platform_task_id if platform_task_id is not None else current_platform_task()
-    target = str(payload.get("root_id") or "")
-    if target and task_id:
-        try:
-            ledger.set_platform_task(target, task_id)
-        except (KeyError, ValueError, OSError):
-            pass
     return payload
 
 
-#: 入站注册表用的薄包装：**只暴露领域参数**，绝不让调用方注入 store/submit_fn/caller
+def _allows_entry_skill(skill: str) -> bool:
+    pep_enabled = os.getenv("ACPS_PEP_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+    return not pep_enabled or current_admitted_skill() == skill
+
+
+#: 入站注册表用的薄包装：只暴露领域参数。
 async def handle_submit(
     question: str = "",
     request_id: str = "",
@@ -244,10 +243,15 @@ async def handle_submit(
     source_session: str = "",
 ) -> dict:
     mark_entry_run()
+    if not _allows_entry_skill("research.submit"):
+        return {"ok": False, "error": "forbidden", "detail": "当前任务未获得 research.submit 授权。"}
     return await submit_core(question, request_id, user_scope, mode, source_task_id, source_caller, source_session)
 
 
 async def handle_status(root_id: str = "", job_id: str = "", source_task_id: str = "") -> dict:
+    mark_entry_run()
+    if not _allows_entry_skill("research.status"):
+        return {"ok": False, "error": "forbidden", "detail": "当前任务未获得 research.status 授权。"}
     return await status_core(root_id, job_id=job_id, source_task_id=source_task_id)
 
 

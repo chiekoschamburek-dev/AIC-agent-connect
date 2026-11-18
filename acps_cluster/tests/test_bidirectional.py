@@ -415,8 +415,7 @@ class SkillEntryTest(unittest.TestCase):
         self.assertEqual(bound, {"task": "x", "mode": "deep-research"})
         self.assertIsNone(bind_arguments(handler, {"mode": "deep-research"}))
 
-
-def test_可选能力委托给fallback(self):
+    def test_可选能力委托给fallback(self):
         class Fallback:
             marker = "fallback-attr"
 

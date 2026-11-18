@@ -14,7 +14,8 @@
        └─ ctx.add_tool(Tool(name="report_task_to_supervisor", ...))   # 只影响本次 run
 模型调用 report_task_to_supervisor(question, request_id?, user_scope?)
   └─ runtime.aip_delegate(state, partner_aic=<supervisor>, request=[TextPart(JSON)])
-       payload = {"skill":"research.submit","question":...,"request_id":...,"user_scope":...}
+       metadata = {"skillId":"research.submit"}
+       payload = {"skill":"research.submit","args":{"question":...,"request_id":...,"user_scope":...}}
 Supervisor 快速通道 research.submit
   └─ 创建根任务 + 后台作业，返回 {"ok":true,"root_id":...,"job_id":...}
 ```
@@ -29,19 +30,19 @@ Supervisor 快速通道 research.submit
 |---|---|---|
 | `ACPS_REPORT_UP` | `1` | 关掉注入：`0/false/no/off` |
 | `ACPS_SUPERVISOR_AIC` | 空 | 显式指定 supervisor AIC；空则读同集群 `ws-supervisor/acps/acs.final.json` |
+| `ACPS_FORWARD_DELEGATE_TIMEOUT` | `10` | 转发调用（`aip_delegate`）的等待秒数；超时按未知态回执，不报失败 |
+| `ACPS_FORWARD_WAIT_TIMEOUT` | `5` | 转发后等受理回执的秒数 |
+| `ACPS_FORWARD_COMPLETE_TIMEOUT` | `2` | 关闭对端 AIP 任务的秒数 |
+| `ACPS_FORWARD_MAX_QUESTION` | `20000` | 转发正文上限（与 Supervisor 的受理上限对齐，超出会被截断） |
 
-Supervisor 侧准入二选一（任选，均为配置）：
+启用 PEP 时，用技能白名单授权参与转发的伙伴。每个 AIC 对应一条规则，多条规则以分号分隔。
 
 ```bash
-# 方式 A：按调用方 AIC + 技能白名单（L1''，不签发 grant）
-ACPS_SUPERVISOR_INBOUND_SKILL_ALLOW=<伙伴AIC>=research.submit,<另一个伙伴AIC>=research.submit
-
-# 方式 B：给伙伴签发 yanshu-entry 域 grant（provider=supervisor，资产 research.submit）
-python -m acps_cluster.tools.entry_grant issue ...
+ACPS_SUPERVISOR_INBOUND_SKILL_ALLOW='<伙伴AIC>=research.submit;<另一个伙伴AIC>=research.submit'
 ```
 
-PEP 关闭时（当前生产 `ACPS_PEP_ENABLED=0`）调用会直接放行，但**不会**产生 `domain-grant`
-审计证据；要拿证据需开 PEP + 白名单/grant。
+原发起方调用 `research.status` 时，也需要该技能的准入授权。Supervisor 还会按根任务的入口 AIC
+和原发起方 AIC 检查归属。需要域 grant 审计的联调使用 [P2 的 grant 验收流程](multi-entry-p2-grant.md)。
 
 ## 失败语义
 
@@ -52,13 +53,21 @@ PEP 关闭时（当前生产 `ACPS_PEP_ENABLED=0`）调用会直接放行，但*
 | `question-required` | 没给任务描述 |
 | `supervisor-aic-unavailable` | 既没配 `ACPS_SUPERVISOR_AIC`，本地也读不到 supervisor ACS |
 | `report-failed` | AIP 调用失败（对端拒绝/网络/会话等），`detail` 带原因 |
+| `acceptance-unconfirmed` | 等待窗口内没收到根任务号和作业号：可能是超时（对端可能已受理），回执保留已知的 AIP 任务引用 |
+| `dispatch-in-progress` | 同一根任务正在启动作业，且等待超过 `ACPS_DISPATCH_WAIT_SECONDS`，可稍后用原 `request_id` 重试 |
 
 `request_id` 由调用方复用即可实现幂等；不传时自动生成 `report-<12hex>`。
+
+并发重试（用户连点、平台重试）会在 Supervisor 侧等第一个派发完成后再作为重放返回
+`root_id` + `job_id`，不再直接报 `dispatch-in-progress`。等待上限由
+`ACPS_DISPATCH_WAIT_SECONDS`（默认 `10` 秒）控制，超时才如实返回“进行中”。
+转发超时属于**未知态**（`acceptance-unconfirmed`），不是失败：请用同一 `request_id`
+重试，或凭回执里的 `root_id` / `source_task_id` 调 `research.status`。
 
 ## 验收
 
 ```bash
-python -m unittest acps_cluster.tests.test_reporting -v   # 8 项
+python -m pytest -q acps_cluster/tests/test_reporting.py acps_cluster/tests/test_root_orchestration.py
 ```
 
 覆盖：载荷构造、缺 question、上报异常、无 supervisor AIC、env 覆盖、开关、run 内不重复注入、
@@ -73,12 +82,12 @@ python -m unittest acps_cluster.tests.test_reporting -v   # 8 项
   或等平台侧清理 registrationId 后再切。
 ## 全量自动转发（ACPS_AUTO_FORWARD）
 
-ACPS_AUTO_FORWARD=1（默认）时，伙伴不再等模型决定，而是对所有**用户入站任务**自动转发：
+默认情况下，伙伴自动转发来自已验证外部调用方的当前任务正文。
 
 1. `AutoForwardRequestHooks.on_partner_request` 记录 task_id/session/leader/question；
 2. `AutoForwardRunHooks.wrap_run` 直接调用 supervisor 的 `research.submit`，**不跑模型**；
-3. 把受理回执（含 source_task_id、supervisor_aic、supervisor 返回）提交回原 AIP 任务；
-4. `leader_aic == supervisor` 的任务跳过（supervisor 派下来的子任务照常执行，避免死循环）。
+3. WIT 把返回值写成原 AIP 任务的产物。收到根任务号和作业号后，回执才标为已受理。
+4. Supervisor 派来的子任务和集群成员之间的调用继续由接收伙伴处理。
 
-载荷额外带 `source_task_id` / `source_session` / `source_caller`，便于两条 taskId 对账。
-关掉：`ACPS_AUTO_FORWARD=0`。该模式仍不新增 ACS 能力。
+载荷带 `source_task_id`、`source_session` 和 `source_caller`，供两条 AIP 任务对账。
+`ACPS_AUTO_FORWARD=0` 可关闭自动转发。自动转发通过现有 AIP 能力交付回执。

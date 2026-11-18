@@ -280,6 +280,7 @@ class Recorder:
         self._emit("agent_up", agent=dict(self.agents["sup"]), t=0.8)
         self._emit("state", agent="sup", state="planning",
                    note="Supervisor 正在拆解任务", t=1.0)
+        self._record_entry_forward(instruction)
         self._write()
 
     @property
@@ -289,6 +290,39 @@ class Recorder:
     # 形参叫 event_type 而不是 kind：token 事件的负载里本身有一个 kind 字段
     # （前端靠它区分 grant/delegation，见 cluster-viz panels.tsx），形参撞名会让
     # _emit("token", kind="delegation", …) 直接 TypeError（2026-10-24 现网实测）。
+    def _record_entry_forward(self, raw: str) -> None:
+        """入口伙伴上报：把 source_caller/source_task_id 画成 partner→supervisor 的边。
+
+        自动转发 run 的 instruction 里带 source_task_id/source_caller；这里补一个
+        入口伙伴节点和 delegate 事件，前端才能看到“伙伴→Supervisor”，而不是只有 sup。
+        """
+        text = str(raw or "")
+        caller = ""
+        task = ""
+        try:
+            match = re.search(r'"source_caller"\s*:\s*"([^"]+)"', text)
+            if match:
+                caller = match.group(1).strip()
+            match = re.search(r'"source_task_id"\s*:\s*"([^"]+)"', text)
+            if match:
+                task = match.group(1).strip()
+        except (TypeError, ValueError):
+            return
+        if not caller or not task:
+            return
+        forwarder = ""
+        match = re.search(r'"user_scope"\s*:\s*"partner:([^"]+)"', text)
+        if match:
+            ident = match.group(1)
+            forwarder = ident.split(".")[1] if "." in ident else ident
+        entry = self._ensure_agent(forwarder or caller, "research.submit")
+        self._emit("delegate", **{
+            "from": entry["id"], "to": "sup", "taskId": task,
+            "skill": "research.submit", "label": "入口伙伴上报任务", "t": 0.6,
+        })
+        self._emit("state", agent=entry["id"], state="forwarding",
+                   note="入口伙伴把任务上报给 Supervisor", t=0.7)
+
     def _emit(self, event_type: str, *, t: float | None = None, **fields: Any) -> None:
         event = {"type": event_type, **(fields or {})}
         event["t"] = self.t if t is None else t

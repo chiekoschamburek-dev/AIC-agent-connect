@@ -5,33 +5,49 @@
 - "上报"是集群互联机制，不是伙伴的业务特色能力，不应该出现在 ACS/发现里；
 - 因此工具只在 run 开始时由 hook 注入（`context.add_tool`），compile/ACS 投影完全看不到它。
 
-协议：
-    partner --AIP--> supervisor 的 `research.submit`（非公开、无 acps_skill，同样不改 ACS）
-    payload = {"skill": "research.submit", "question": ..., "request_id": ..., "user_scope": ...}
-
-Supervisor 侧准入（任选其一，均为配置，不改 ACS）：
-- `ACPS_SUPERVISOR_INBOUND_SKILL_ALLOW=<partner AIC>=research.submit`（L1'' 白名单），或
-- 给该伙伴签发 `yanshu-entry` 域 grant（provider=supervisor，资产 research.submit）。
+伙伴通过 AIP 调用 Supervisor 的 `research.submit`。启用 PEP 时，用
+`ACPS_SUPERVISOR_INBOUND_SKILL_ALLOW=<partner AIC>=research.submit` 授权对应伙伴。
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
+import time
 import uuid
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
-
-from contextvars import ContextVar
 
 from wit import (
     AipPartnerTransformHooks, RunResult, TextPart, Tool, WitHooks,
 )
+from wit.hooks.acps.delegation import AipDelegationHooks
+
+from acps_cluster.core.aip_guard import _CLOSE, _OPEN
 
 DEFAULT_TOOL_NAME = "report_task_to_supervisor"
 _ENV_ENABLED = "ACPS_REPORT_UP"
 _ENV_SUPERVISOR_AIC = "ACPS_SUPERVISOR_AIC"
+AUTO_SUBMIT_PREFIX = "（本产物由研枢-Supervisor 在任务收尾时自动提交）\n\n"
+
+
+def _env_seconds(name: str, default: float) -> float:
+    """读一个正数秒级配置；写错就退回默认，不能让转发因为配置笔误直接失败。"""
+    try:
+        return max(0.1, float(os.getenv(name, "") or default))
+    except ValueError:
+        return default
+
+
+def _max_forward_question() -> int:
+    """与 `root_store._MAX_QUESTION` 对齐：超长文本会被 Supervisor 判 invalid-request。"""
+    try:
+        return max(200, int(os.getenv("ACPS_FORWARD_MAX_QUESTION", "20000")))
+    except ValueError:
+        return 20000
 
 
 def supervisor_aic(cluster_root: Path | str | None = None) -> str:
@@ -45,7 +61,28 @@ def supervisor_aic(cluster_root: Path | str | None = None) -> str:
         data = json.loads(acs.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return ""
-    return str(data.get("aic") or "").strip()
+    return str(data.get("aic") or "").strip() if isinstance(data, dict) else ""
+
+
+class ReportingDelegationHooks(AipDelegationHooks):
+    """Enable WIT's programmatic AIP API without adding outbound tools to the model."""
+
+    async def on_run_start(self, event) -> None:  # noqa: ANN001
+        pass
+
+    def context(self, ctx) -> list:  # noqa: ANN001
+        return []
+
+
+def _submit_request(question: str, request_id: str, user_scope: str, **source: str) -> list[TextPart]:
+    body = json.dumps({
+        "skill": "research.submit",
+        "args": {"question": question, "request_id": request_id, "user_scope": user_scope, **source},
+    }, ensure_ascii=False)
+    # Admission sees the DataItem metadata. The provider sees the text after
+    # WIT moves it out of the outer command payload.
+    body = body.replace("<", r"\u003c")
+    return [TextPart(f"<payload>{body}</payload>", metadata={"skillId": "research.submit"})]
 
 
 def _arguments_dict(arguments: Any) -> dict[str, Any]:
@@ -79,24 +116,12 @@ def make_report_tool(
             return {"ok": False, "error": "supervisor-aic-unavailable",
                     "detail": "未配置 ACPS_SUPERVISOR_AIC，且本地找不到 ws-supervisor 的 ACS。"}
         request_id = str(args.get("request_id") or "").strip() or f"report-{uuid.uuid4().hex[:12]}"
-        payload = {
-            "skill": "research.submit",
-            "question": question,
-            "request_id": request_id,
-            "user_scope": str(args.get("user_scope") or "partner-report"),
-        }
-        try:
-            result = await runtime.aip_delegate(
-                state,
-                partner_aic=target,
-                request=[TextPart(json.dumps(payload, ensure_ascii=False))],
-            )
-        except Exception as exc:  # noqa: BLE001 - 上报失败要如实回给模型
-            return {"ok": False, "error": "report-failed",
-                    "detail": f"{type(exc).__name__}: {exc}",
-                    "supervisor_aic": target, "request_id": request_id}
-        return {"ok": True, "supervisor_aic": target,
-                "request_id": request_id, "result": result}
+        request = _submit_request(
+            question[:_max_forward_question()], request_id,
+            str(args.get("user_scope") or "partner-report"),
+        )
+        receipt = await _forward(runtime, state, target, request)
+        return {**receipt, "request_id": request_id}
 
     return Tool(
         name=DEFAULT_TOOL_NAME,
@@ -154,10 +179,6 @@ __all__ = ["DEFAULT_TOOL_NAME", "ReportUpHooks", "make_report_tool", "supervisor
 
 # ── 所有入站任务自动转发 ───────────────────────────────────────────────
 
-_RECEIPT_SUBMITTED: ContextVar[bool] = ContextVar("yanshu_forward_receipt", default=False)
-_FORWARD_CACHE: dict[str, dict[str, Any]] = {}
-_MAX_FORWARD_CACHE = 1000
-
 _INBOUND: ContextVar[dict[str, Any] | None] = ContextVar(
     "yanshu_auto_forward_inbound", default=None)
 _ENV_AUTO = "ACPS_AUTO_FORWARD"
@@ -178,34 +199,37 @@ def _parts_text(parts: Any) -> str:
         if data is not None:
             try:
                 out.append(json.dumps(data, ensure_ascii=False))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, RecursionError):
                 out.append(str(data))
     return "\n".join(out).strip()
 
 
-def _clean_question(text: str) -> str:
+def _clean_question(text: str, *, unwrap_command: bool = True) -> str:
     """从 AIP/转发包装里取出真正的用户问题（优先最后一个业务 payload）。"""
     raw = str(text or "")
     payloads: list[dict[str, Any]] = []
     for match in re.finditer(r"<payload>(.*?)</payload>", raw, re.S):
         try:
             parsed = json.loads(match.group(1))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, RecursionError):
             continue
         if isinstance(parsed, dict):
             payloads.append(parsed)
     if not payloads:
         try:
             parsed = json.loads(raw.strip())
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, RecursionError):
             parsed = None
         if isinstance(parsed, dict):
             payloads = [parsed]
     for payload in reversed(payloads):
         if str(payload.get("type") or "") == "task-command":
-            for item in payload.get("dataItems") or []:
+            items = payload.get("dataItems")
+            if not unwrap_command or not isinstance(items, list):
+                continue
+            for item in items:
                 if isinstance(item, dict) and item.get("type") == "text" and item.get("text"):
-                    inner = _clean_question(str(item["text"]))
+                    inner = _clean_question(str(item["text"]), unwrap_command=False)
                     if inner:
                         return inner
             continue
@@ -213,52 +237,61 @@ def _clean_question(text: str) -> str:
         if isinstance(candidate, str):
             try:
                 candidate = json.loads(candidate)
-            except ValueError:
+            except (ValueError, RecursionError):
                 pass
         if isinstance(candidate, dict):
             for key in ("question", "query", "task", "prompt", "text", "content", "input"):
                 value = candidate.get(key)
                 if isinstance(value, str) and value.strip():
-                    return value.strip()[:8000]
-            return json.dumps(candidate, ensure_ascii=False)[:8000]
+                    return value.strip()
+            return json.dumps(candidate, ensure_ascii=False)
     body = re.sub(r"<acps_leader_call.*?</acps_leader_call>", "", raw, flags=re.S)
     body = re.sub(r"</?payload>", "", body)
-    body = body.replace("[外部伙伴内容开始]", "").replace("[外部伙伴内容结束]", "")
-    body = re.sub(r"<[^>]+>", " ", body)
-    return " ".join(body.split()).strip()[:8000]
+    return body.replace(_OPEN, "").replace("[外部伙伴内容开始]", "").replace(_CLOSE, "").strip()
 
 
-def _event_question(event: Any) -> str:
-    text = _parts_text(getattr(event, "content", None))
-    if text:
-        return text
-    messages = getattr(event, "messages", None) or []
-    for msg in reversed(messages):
-        text = _parts_text(getattr(msg, "content", None))
-        if text:
-            return text
-    return ""
-
-
-_INTERNAL_CACHE: dict[str, set[str]] = {}
+_INTERNAL_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
+_INTERNAL_CACHE_TTL = 30.0
 
 
 def _internal_aics(cluster_root: Path | str | None = None) -> set[str]:
+    """本集群内部成员的 AIC 集合（用来跳过伙伴之间的内部调用）。
+
+    结果按 cluster_root 缓存 30s：每个入站请求都重扫 overlay + 所有
+    `ws-*/acps/acs.final.json` + roster 的 enrollment.json（约 2N 次文件读）成本太高，
+    而成员身份在 30s 内不会变化；换身份/新增成员重新拉起实例即可。
+    """
     root = Path(cluster_root) if cluster_root else Path(__file__).resolve().parents[1]
-    key = str(root)
+    try:
+        key = str(root.resolve())
+    except OSError:
+        key = str(root)
     cached = _INTERNAL_CACHE.get(key)
-    if cached is not None:
-        return cached
+    now = time.monotonic()
+    if cached is not None and now - cached[0] < _INTERNAL_CACHE_TTL:
+        return set(cached[1])
+
+    from acps_cluster.core.discovery_metadata import registered_overlay
+
     out: set[str] = set()
+    for agent in registered_overlay().get("agents", {}).values():
+        if isinstance(agent, dict) and agent.get("aic"):
+            out.add(str(agent["aic"]))
     for path in root.glob("ws-*/acps/acs.final.json"):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        aic = str(data.get("aic") or "").strip()
+        aic = str(data.get("aic") or "").strip() if isinstance(data, dict) else ""
         if aic:
             out.add(aic)
-    _INTERNAL_CACHE[key] = out
+    from acps_cluster.core.cluster_roster import ROSTER, _enrollment_aic
+
+    for member in ROSTER:
+        aic = _enrollment_aic(member.workspace, root)
+        if aic:
+            out.add(aic)
+    _INTERNAL_CACHE[key] = (now, frozenset(out))
     return out
 
 
@@ -266,32 +299,34 @@ class AutoForwardRequestHooks(AipPartnerTransformHooks):
     """记录每个入站任务的来源与正文；真正转发在 run 的 wrap_run 里做。"""
 
     id = "yanshu-auto-forward-request"
-    priority = 5
+    # Read the same business content that remains after credential stripping.
+    priority = 90
+
+    def __init__(self, cluster_root: Path | None = None) -> None:
+        self._cluster_root = cluster_root
 
     async def on_partner_request(self, event) -> None:  # noqa: ANN001
+        _INBOUND.set(None)
         if os.getenv(_ENV_AUTO, "1").strip().lower() in {"0", "false", "no", "off"}:
-            _INBOUND.set(None)
             return
-        leader = str(getattr(event, "leader_aic", "") or "")
-        target = supervisor_aic()
-        if not target or leader == target:
-            _INBOUND.set(None)
+        leader = str(getattr(event, "leader_aic", "") or "").strip()
+        task_id = str(getattr(event, "task_id", "") or "").strip()
+        target = supervisor_aic(self._cluster_root)
+        if not getattr(event, "peer_verified", False) or not leader or not task_id or not target or leader == target:
             return
         # 默认只转发“外部调用方”的入站任务；伙伴之间的内部调用照常执行，
         # 避免把 supervisor 的正常委派/伙伴互调也卷进转发链（防环）。
         if os.getenv("ACPS_AUTO_FORWARD_SCOPE", "external").strip().lower() != "all":
-            if leader in _internal_aics(getattr(event, "_cluster_root", None)):
-                _INBOUND.set(None)
+            if leader in _internal_aics(self._cluster_root):
                 return
-        question = _clean_question(_event_question(event)) or _event_question(event)
+        question = _clean_question(_parts_text(getattr(event, "content", None)))
         if not question:
-            _INBOUND.set(None)
             return
         _INBOUND.set({
-            "task_id": str(getattr(event, "task_id", "") or ""),
+            "task_id": task_id,
             "session_id": str(getattr(event, "session_id", "") or ""),
             "leader_aic": leader,
-            "question": question,
+            "question": question[:_max_forward_question()],
             "supervisor_aic": target,
         })
 
@@ -300,98 +335,120 @@ class AutoForwardRequestHooks(AipPartnerTransformHooks):
         _INBOUND.set(None)
 
 
-def _submit_handler(ctx: Any):
-    tools = getattr(getattr(ctx, "config", None), "tools", None) or []
-    manager = getattr(ctx, "tool_manager", None)
-    if not tools and manager is not None:
-        lookup = getattr(manager, "lookup", None)
-        tools = list(lookup().values()) if callable(lookup) else (getattr(manager, "tools", None) or [])
-    for tool in tools:
-        if str(getattr(tool, "name", "") or "") in {"aip_submit", "acps.aip.submit"}:
-            handler = getattr(tool, "handler", None)
-            if callable(handler):
-                return handler
-    return None
-
-
-async def _submit_receipt(ctx: Any, text: str) -> bool:
-    handler = _submit_handler(ctx)
-    if not callable(handler):
-        return False
-    import uuid  # noqa: PLC0415
-    products = [{
-        "id": f"forward-{uuid.uuid4().hex[:12]}",
-        "name": "任务已转交研枢-Supervisor",
-        "data_items": [{"type": "text", "text": text[:12000]}],
-    }]
-    try:
-        await handler({"products": products})
-        _RECEIPT_SUBMITTED.set(True)
-        return True
-    except Exception as exc:  # noqa: BLE001
-        print(f"[report] 转交回执提交失败: {type(exc).__name__}: {exc}", flush=True)
-        return False
-
-
-def _seed_supervisor_peer(ctx: Any, target: str) -> None:
+def _seed_supervisor_peer(runtime: Any, target: str) -> bool:
     """把 supervisor 的 ACS 预热进本伙伴的 discovery 缓存（aip_delegate 需要端点）。"""
-    ws = Path(str(getattr(ctx, "workspace", "") or ""))
+    ws = getattr(runtime, "workspace", None)
     if not ws:
-        return
+        return False
+    ws = Path(ws)
     acs_path = ws.parent / "ws-supervisor" / "acps" / "acs.final.json"
     if not acs_path.is_file():
-        return
+        return False
     try:
         acs = json.loads(acs_path.read_text(encoding="utf-8"))
         if str(acs.get("aic") or "") != target:
-            return
-        from wit.acps.discovery import cache_discovered_agent, normalize_discovered_agent  # noqa: PLC0415
+            return False
+        from wit.acps.discovery import (  # noqa: PLC0415
+            cache_discovered_agent, extract_endpoint_url, normalize_discovered_agent,
+        )
 
+        if not extract_endpoint_url(acs):
+            return False
         summary = normalize_discovered_agent(acs, ranking=0)
-        cache_discovered_agent(
+        path = cache_discovered_agent(
             cache_dir=ws / "acps" / "discovered", summary=summary, raw_acs=acs)
+        return path is not None
     except Exception:  # noqa: BLE001 - 预热失败就让 delegate 如实报错
-        return
+        return False
 
 
-def receipt_submitted() -> bool:
-    return bool(_RECEIPT_SUBMITTED.get())
-
-
-def _snapshot_text(snapshot: Any) -> str:
-    if not isinstance(snapshot, dict):
-        return ""
-    parts: list[str] = []
+def _business_receipt(snapshot: dict[str, Any]) -> dict[str, Any] | None:
     for product in snapshot.get("products") or []:
         if not isinstance(product, dict):
             continue
-        for item in product.get("data_items") or []:
-            if isinstance(item, dict) and item.get("type") == "text" and item.get("text"):
-                parts.append(str(item["text"]))
-    return "\n".join(parts).strip()
+        for item in product.get("data_items") or product.get("dataItems") or []:
+            if not isinstance(item, dict) or item.get("type") != "text":
+                continue
+            text = item.get("text")
+            if not isinstance(text, str):
+                continue
+            try:
+                data = json.loads(text.removeprefix(AUTO_SUBMIT_PREFIX))
+            except (ValueError, RecursionError):
+                continue
+            if isinstance(data, dict) and isinstance(data.get("ok"), bool):
+                return data
+    return None
 
 
-async def _wait_forward(ctx: Any, result: Any) -> Any:
-    """转发后等 supervisor 的受理产物，把 root_id/job_id 带回来。"""
-    if not isinstance(result, dict):
-        return result
-    ref = str(result.get("task_ref") or "")
-    if not ref:
-        return result
-    try:
-        snapshot = await ctx.runtime.aip_task(ctx.state, action="wait", task_ref=ref)
-    except Exception:  # noqa: BLE001
-        return result
-    if not isinstance(snapshot, dict):
-        return result
-    if snapshot.get("products") or str(snapshot.get("state")) == "awaiting-completion":
+_FAILED_STATES = frozenset({"failed", "rejected", "canceled", "cancelled", "expired"})
+
+
+async def _forward(runtime: Any, state: Any, target: str, request: list[TextPart]) -> dict[str, Any]:
+    base = {"supervisor_aic": target}
+    if not _seed_supervisor_peer(runtime, target):
         try:
-            done = await ctx.runtime.aip_task(ctx.state, action="complete", task_ref=ref)
-        except Exception:  # noqa: BLE001
-            done = None
-        if isinstance(done, dict):
-            snapshot = done
-    return snapshot
+            await asyncio.wait_for(runtime.aip_discover(target, limit=5), timeout=2)
+        except Exception:  # noqa: BLE001 - existing discovery cache can still be usable
+            pass
+    try:
+        snapshot = await asyncio.wait_for(
+            runtime.aip_delegate(state, partner_aic=target, request=request),
+            timeout=_env_seconds("ACPS_FORWARD_DELEGATE_TIMEOUT", 10.0),
+        )
+    except TimeoutError:
+        # 超时 ≠ 没发出去：请求可能已被 Supervisor 受理（只是回执没赶上）。
+        # 如实返回“未知态”，让调用方用同一个 request_id 重试或凭 root/source 查询，
+        # 不要把它报成 report-failed（2026-11-18 审查 P1）。
+        return {**base, "ok": False, "forwarded": False, "accepted": False,
+                "error": "acceptance-unconfirmed",
+                "detail": "转发在等待窗口内未返回；Supervisor 可能已受理。"
+                          "请用相同 request_id 重试，或用 research.status 查询。"}
+    except Exception as exc:  # noqa: BLE001
+        return {**base, "ok": False, "forwarded": False, "error": "report-failed",
+                "detail": f"{type(exc).__name__}: {exc}"[:1000]}
+    if not isinstance(snapshot, dict):
+        return {**base, "ok": False, "forwarded": False, "error": "invalid-forward-response"}
+    ref = str(snapshot.get("task_ref") or "").strip()
+    base.update(forwarded=bool(ref), supervisor_task_ref=ref)
+    if ref and not snapshot.get("products") and snapshot.get("state") not in _FAILED_STATES:
+        try:
+            update = await asyncio.wait_for(
+                runtime.aip_task(state, action="wait", task_ref=ref),
+                timeout=_env_seconds("ACPS_FORWARD_WAIT_TIMEOUT", 5.0),
+            )
+            if isinstance(update, dict):
+                snapshot = update
+        except Exception:  # noqa: BLE001 - preserve the dispatch reference if wait fails
+            pass
+    if ref and snapshot.get("state") == "awaiting-completion":
+        try:
+            await asyncio.wait_for(
+                runtime.aip_task(state, action="complete", task_ref=ref),
+                timeout=_env_seconds("ACPS_FORWARD_COMPLETE_TIMEOUT", 2.0),
+            )
+        except Exception as exc:  # noqa: BLE001 - the receipt exists even if closeout fails
+            print(f"[report] 转发任务 {ref} 未能关单: {type(exc).__name__}", flush=True)
+
+    task_state = str(snapshot.get("state") or "")
+    base["supervisor_state"] = task_state
+    if task_state in _FAILED_STATES or snapshot.get("ok") is False:
+        return {**base, "ok": False, "error": "forward-rejected",
+                "detail": str(snapshot.get("error") or task_state)[:1000]}
+    receipt = _business_receipt(snapshot)
+    if receipt is not None:
+        for key in ("root_id", "job_id", "state"):
+            if isinstance(receipt.get(key), str) and receipt[key]:
+                base[key] = receipt[key][:256]
+        if not receipt["ok"]:
+            return {**base, "ok": False, "error": str(receipt.get("error") or "submit-rejected")[:256],
+                    "detail": str(receipt.get("detail") or "")[:1000]}
+        if base.get("root_id") and base.get("job_id"):
+            return {**base, "ok": True, "accepted": True,
+                    "note": "Supervisor 已受理。可用 research.status 查询进度与结果。"}
+    detail = ("已发往 Supervisor，尚未确认受理。" if ref else "未获得 Supervisor 任务引用。")
+    return {**base, "ok": False, "accepted": False,
+            "error": "acceptance-unconfirmed", "detail": detail}
 
 
 class AutoForwardRunHooks(WitHooks):
@@ -405,84 +462,21 @@ class AutoForwardRunHooks(WitHooks):
         if not isinstance(inbound, dict):
             return await handler()
         _INBOUND.set(None)
-        try:
-            target = inbound["supervisor_aic"]
-            task_id = inbound["task_id"] or uuid.uuid4().hex[:12]
-            cached = _FORWARD_CACHE.get(str(task_id))
-            if cached is not None:
-                text = json.dumps(cached, ensure_ascii=False, default=str)[:12000]
-                submitted = await _submit_receipt(ctx, text)
-                return RunResult(
-                    output_parts=[TextPart(text)], messages=[], observations=[],
-                    iterations=0, status="completed" if submitted else "failed",
-                    metadata={"auto_forward": True, "duplicate": True,
-                              "receipt_submitted": submitted},
-                )
-            payload = {
-                "skill": "research.submit",
-                "args": {
-                    "question": inbound["question"],
-                    "request_id": f"fwd-{task_id}",
-                    "user_scope": "partner:" + str(
-                        getattr(getattr(getattr(ctx, "runtime", None), "agent", None), "id", "partner")),
-                    "source_task_id": inbound["task_id"],
-                    "source_session": inbound["session_id"],
-                    "source_caller": inbound["leader_aic"],
-                },
-            }
-            try:
-                # aip_delegate 需要本机 discovery 缓存里有 supervisor 的 Direct 端点
-                _seed_supervisor_peer(ctx, target)
-                try:
-                    await ctx.runtime.aip_discover(target, limit=5)
-                except Exception:  # noqa: BLE001 - 已有缓存时 discover 失败不影响
-                    pass
-                body = json.dumps(payload, ensure_ascii=False)
-                result = await ctx.runtime.aip_delegate(
-                    ctx.state, partner_aic=target,
-                    request=[TextPart(f"<payload>{body}</payload>")],
-                )
-                try:
-                    result = await asyncio.wait_for(_wait_forward(ctx, result), timeout=2.0)
-                except Exception:  # noqa: BLE001 - 超时就按已受理回执返回，绝不阻塞
-                    pass
-                text_out = _snapshot_text(result)
-                receipt = {
-                    "ok": True, "forwarded": True,
-                    "source_task_id": inbound["task_id"],
-                    "supervisor_aic": target,
-                    "supervisor_task_ref": str(result.get("task_ref") or ""),
-                    "note": "Supervisor 已受理；root_id/job_id 由 Supervisor 回执给出，不阻塞等待",
-                    "result": result,
-                }
-                if text_out:
-                    receipt["supervisor_product"] = text_out[:4000]
-                    import re  # noqa: PLC0415
-                    m = re.search(r'"root_id"\s*:\s*"([^"]+)"', text_out)
-                    if m:
-                        receipt["root_id"] = m.group(1)
-                    m = re.search(r'"job_id"\s*:\s*"([^"]+)"', text_out)
-                    if m:
-                        receipt["job_id"] = m.group(1)
-            except Exception as exc:  # noqa: BLE001
-                receipt = {
-                    "ok": False, "forwarded": False, "error": "forward-failed",
-                    "detail": f"{type(exc).__name__}: {exc}",
-                    "source_task_id": inbound["task_id"],
-                    "supervisor_aic": target,
-                }
-            text = json.dumps(receipt, ensure_ascii=False, default=str)[:12000]
-            _FORWARD_CACHE[str(task_id)] = receipt
-            if len(_FORWARD_CACHE) > _MAX_FORWARD_CACHE:
-                _FORWARD_CACHE.pop(next(iter(_FORWARD_CACHE)))
-            await _submit_receipt(ctx, text)
-            return RunResult(
-                output_parts=[TextPart(text)],
-                messages=[], observations=[], iterations=0,
-                status="completed", metadata={"auto_forward": True},
-            )
-        finally:
-            _INBOUND.set(None)
+        task_id = inbound["task_id"]
+        partner_id = getattr(getattr(ctx.runtime, "agent", None), "id", "partner")
+        request = _submit_request(
+            inbound["question"], f"fwd-{task_id}", f"partner:{partner_id}",
+            source_task_id=task_id, source_session=inbound["session_id"],
+            source_caller=inbound["leader_aic"],
+        )
+        receipt = await _forward(ctx.runtime, ctx.state, inbound["supervisor_aic"], request)
+        receipt["source_task_id"] = task_id
+        # WIT's inbound executor persists output_parts as the AIP product.
+        return RunResult(
+            output_parts=[TextPart(json.dumps(receipt, ensure_ascii=False))],
+            messages=[], observations=[], iterations=0, state=ctx.state,
+            status="completed", metadata={"auto_forward": True},
+        )
 
 
 __all__ += ["AutoForwardRequestHooks", "AutoForwardRunHooks"]
