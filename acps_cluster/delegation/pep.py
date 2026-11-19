@@ -212,6 +212,9 @@ class PepOutcome:
     parent_quota_remaining: int | None = None
     # skill_hint 的证据等级：token-claim（签名凭据）/ self-declared（L1 请求自报）
     skill_source: str | None = None
+    # 域章程声明的资源量配额（`resource_limits()` 的展开结果，如 {"gpuSeconds": 1800}）。
+    # 只在域授权路径上有值：pep_decide 据此把预算上下文交给资源节点在运行时执行。
+    resource_limits: Mapping[str, float] | None = None
 
     @property
     def allowed(self) -> bool:
@@ -1335,6 +1338,7 @@ def _evaluate_grant(
     return PepOutcome(
         "allow", "domain-grant", jti=jti,
         domain=domain_id, domain_revision=policy.revision, skill_hint=resolved_skill,
+        resource_limits=policy.resource_limits(),
     )
 
 
@@ -1368,6 +1372,23 @@ def pep_decide(
         from . import skill_scope  # noqa: PLC0415
 
         skill_scope.set_admitted_skill(outcome.skill_hint if outcome.allowed else None)
+    except Exception:  # noqa: BLE001
+        pass
+    # 域授权的资源量配额（GPU 卡时）：把 (域, 调用方, 上限, 账本) 交给运行时。
+    # 资源节点在开跑前查余量、跑完后按时长记账；拒绝/非域路径一律清空，避免串任务。
+    try:
+        from . import resource_budget  # noqa: PLC0415
+
+        if outcome.allowed and outcome.domain and outcome.resource_limits:
+            resource_budget.set_scope(resource_budget.BudgetScope(
+                domain=str(outcome.domain),
+                caller=str(getattr(request, "leader_aic", "") or ""),
+                limits=dict(outcome.resource_limits),
+                ledger=cfg.quota_path,
+                revision=outcome.domain_revision,
+            ))
+        else:
+            resource_budget.set_scope(None)
     except Exception:  # noqa: BLE001
         pass
     return outcome.as_decision()

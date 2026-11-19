@@ -41,6 +41,7 @@ from acps_cluster.runtime import gpu_runner  # noqa: E402
 from wit.hooks.acps.amp import AmpAccessLoggingHooks  # noqa: E402
 from acps_cluster.core.aip_guard import AipPartnerGuardHooks
 from acps_cluster.delegation import build_pep_hooks, capability_visibility, split_pep_hooks  # noqa: E402
+from acps_cluster.delegation import resource_budget  # noqa: E402
 
 WORKSPACE = Path(os.getenv("ACPS_GPU_WORKSPACE", "") or (Path(__file__).resolve().parents[1] / "ws-gpu"))
 GPU_PORT_ENV = "ACPS_GPU_PORT"
@@ -153,9 +154,20 @@ async def gpu_data_fetch(name: str, url: str, sha256: str | None = None) -> dict
     tags=["gpu", "compute", "experiment"],
 )
 async def gpu_run(files: dict, entrypoint: list | None = None, timeout_seconds: int = 600) -> dict:
+    """在断网沙盒里跑一次实验，并**按章程的域资源配额（GPU 卡时）检查与记账**。
+
+    只有"本次任务持有域授权、且该域章程写了 `gpuSecondsPerCallerPerDay`"时才有额外约束：
+    开跑前查余量，已用尽直接返回 `quota-exhausted`（不启动沙盒、不烧算力）；
+    跑完后按实测 `duration_s` 记进配额账本，并把 `remainingAfter` 一并回给调用方。
+    没有域上下文的调用（L0/L1、PEP 关闭）行为与以前完全一致。
+    """
+    exhausted = resource_budget.check("gpuSeconds")
+    if exhausted is not None:
+        return exhausted
     raw = {"files": files, "entrypoint": entrypoint, "timeout_seconds": timeout_seconds}
     result = await gpu_runner.run_sandbox(raw)
-    return {
+    receipt = resource_budget.charge("gpuSeconds", result.duration_s)
+    out = {
         "ok": result.ok,
         "runId": result.run_id,
         "exitCode": result.exit_code,
@@ -166,6 +178,9 @@ async def gpu_run(files: dict, entrypoint: list | None = None, timeout_seconds: 
         "artifacts": result.artifacts,
         "error": result.error,
     }
+    if receipt is not None:
+        out["resourceQuota"] = receipt
+    return out
 
 
 GPU_CAPABILITIES = [gpu_env, gpu_status, gpu_data_list, gpu_data_fetch, gpu_run]

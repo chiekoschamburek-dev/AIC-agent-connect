@@ -93,6 +93,8 @@ from .grant import (
     verify_grant,
 )
 from .quota import QuotaStore, consume as quota_consume
+from . import resource_budget
+from .resource_budget import BudgetScope
 from .reconciliation import audit_window, build_report, sign_report, verify_report
 from .leader_tools import DelegationLeaderHooks, build_delegate_continue_tool
 from .visibility import (

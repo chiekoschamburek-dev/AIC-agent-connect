@@ -12,7 +12,8 @@
 "进程重启 → 计数清零 → 配额失效"就是语义破产；jti 一次性对 delegation token（≤10min）
 可接受内存实现，但 grant 的 max_uses 必须持久 + 原子（并发准入不得漏计）。
 
-表结构：`grant_uses(jti, domain, caller_aic, used_at)` 与 `grant_issues(domain, issuer_aic, jti, issued_at)`。
+表结构：`grant_uses(jti, domain, caller_aic, used_at)`、`grant_issues(domain, issuer_aic, jti, issued_at)`
+与 `resource_uses(domain, caller_aic, resource, amount, used_at)`（资源量配额，如 GPU 卡时）。
 """
 
 from __future__ import annotations
@@ -40,6 +41,15 @@ CREATE TABLE IF NOT EXISTS grant_issues (
     issued_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_grant_issues_window ON grant_issues(domain, issuer_aic, issued_at);
+CREATE TABLE IF NOT EXISTS resource_uses (
+    domain TEXT NOT NULL,
+    caller_aic TEXT NOT NULL,
+    resource TEXT NOT NULL,
+    amount REAL NOT NULL,
+    used_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_resource_uses_window
+    ON resource_uses(domain, caller_aic, resource, used_at);
 """
 
 
@@ -89,6 +99,30 @@ class QuotaStore:
                 (jti, domain, issuer_aic, float(now if now is not None else time.time())),
             )
 
+    def resource_used(
+        self, *, domain: str, caller_aic: str, resource: str, since: float,
+    ) -> float:
+        """`since` 之后该 (域, 调用方, 资源) 已计入的量（秒/次等，单位由 resource 定义）。"""
+        row = self._conn.execute(
+            "SELECT COALESCE(SUM(amount), 0.0) FROM resource_uses"
+            " WHERE domain = ? AND caller_aic = ? AND resource = ? AND used_at >= ?",
+            (domain, caller_aic, resource, float(since)),
+        ).fetchone()
+        return float(row[0] or 0.0)
+
+    def record_resource(
+        self, *, domain: str, caller_aic: str, resource: str, amount: float,
+        now: float | None = None,
+    ) -> None:
+        """记一笔资源消耗（如 GPU 卡时）。INSERT-only，与 grant 用量同样审计友好。"""
+        with self._conn:
+            self._conn.execute(
+                "INSERT INTO resource_uses (domain, caller_aic, resource, amount, used_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (domain, caller_aic, resource, float(amount),
+                 float(now if now is not None else time.time())),
+            )
+
     def close(self) -> None:
         self._conn.close()
 
@@ -131,5 +165,42 @@ def record_issue(
     store = QuotaStore(path)
     try:
         store.record_issue(domain=domain, issuer_aic=issuer_aic, jti=jti, now=now)
+    finally:
+        store.close()
+
+
+def resource_used(
+    path: Path | str,
+    *,
+    domain: str,
+    caller_aic: str,
+    resource: str,
+    since: float,
+) -> float:
+    """按需开合读取资源用量（与 consume 同款，无长持句柄）。"""
+    store = QuotaStore(path)
+    try:
+        return store.resource_used(
+            domain=domain, caller_aic=caller_aic, resource=resource, since=since,
+        )
+    finally:
+        store.close()
+
+
+def record_resource(
+    path: Path | str,
+    *,
+    domain: str,
+    caller_aic: str,
+    resource: str,
+    amount: float,
+    now: float | None = None,
+) -> None:
+    """按需开合记账一次资源消耗。"""
+    store = QuotaStore(path)
+    try:
+        store.record_resource(
+            domain=domain, caller_aic=caller_aic, resource=resource, amount=amount, now=now,
+        )
     finally:
         store.close()

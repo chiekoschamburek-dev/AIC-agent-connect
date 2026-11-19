@@ -39,7 +39,7 @@ import re
 import shutil
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -57,6 +57,9 @@ MIN_SIGNATURES = 2  # 双签：建域与修订同法定人数（修订权 = 创�
 MIN_CONTINUITY_SIGNERS = MIN_SIGNATURES  # 新版本必须有多少位上一版签署方连署
 PREVIOUS_REVISION_KEY = "previousRevision"
 PREVIOUS_DIGEST_KEY = "previousDigest"
+# 资源量配额键后缀：`{"gpuSecondsPerCallerPerDay": 3600}` → 资源名 gpuSeconds，口径"每调用方每 UTC 日"
+_RESOURCE_QUOTA_SUFFIX = "PerCallerPerDay"
+RESOURCE_QUOTA_KEY = "resourceQuota"
 _STATE_VERSION = 1
 _STATE_PATH_ENV = "ACPS_DOMAIN_STATE_PATH"
 _STATE_DIR_ENV = "ACPS_DOMAIN_STATE_DIR"
@@ -84,6 +87,10 @@ class DomainPolicy:
     max_grants_per_day: int  # 签发侧配额（计数器在 issuer 侧）
     issued_at: str
     signer_aics: frozenset[str]
+    # 资源量配额（第十轮）：resource -> 上限，单位由 resource 名承载。
+    # 目前只有 `<resource>PerCallerPerDay` 一种键（如 gpuSecondsPerCallerPerDay），
+    # 语义 = 该域内单个调用方每 UTC 自然日的资源量上限，由 provider 侧在运行时检查并记账。
+    resource_quota: Mapping[str, float] = field(default_factory=dict)
 
     def member_role(self, aic: str) -> str | None:
         return self.members.get(aic)
@@ -91,6 +98,26 @@ class DomainPolicy:
     def asset_allows(self, *, provider_aic: str, skill_id: str, role: str) -> bool:
         allowed = self.assets.get((provider_aic, skill_id))
         return allowed is not None and role in allowed
+
+    def resource_limits(self) -> dict[str, float]:
+        """把章程里的 `xxxPerCallerPerDay` 摊平成 {资源名: 每日上限}。
+
+        例：`{"gpuSecondsPerCallerPerDay": 3600}` → `{"gpuSeconds": 3600.0}`。
+        认不出的键原样丢弃（宁可少管，也不猜别人的语义）。
+        """
+        limits: dict[str, float] = {}
+        for key, value in (self.resource_quota or {}).items():
+            text = str(key)
+            if not text.endswith(_RESOURCE_QUOTA_SUFFIX):
+                continue
+            resource = text[: -len(_RESOURCE_QUOTA_SUFFIX)]
+            if not resource:
+                continue
+            try:
+                limits[resource] = float(value)
+            except (TypeError, ValueError):
+                continue
+        return limits
 
     def describes(self) -> dict[str, Any]:
         return {
@@ -102,6 +129,7 @@ class DomainPolicy:
             "assets": [f"{p}:{s}->{sorted(r)}" for (p, s), r in sorted(self.assets.items())],
             "maxGrantsPerDay": self.max_grants_per_day,
             "signers": sorted(self.signer_aics),
+            "resourceQuota": dict(self.resource_quota),
         }
 
 
@@ -130,12 +158,18 @@ def build_manifest(
     max_grants_per_day: int = 50,
     valid_until: str | None = None,
     previous: Mapping[str, Any] | None = None,
+    resource_quota: Mapping[str, float] | None = None,
 ) -> dict[str, Any]:
     """构造一份待签章程（不含 signatures）。members: [{aic, role}]；
     assets: [{providerAic, skill, allowedMembers(角色列表)}]。
 
     `previous`：上一版**已签名章程**。revision>1 时强烈建议传（生成脚本默认强制），
     用来写入 previousRevision/previousDigest；修订连续性由加载器强制执行。
+
+    `resource_quota`：资源量配额（可选）。键用 `<资源>PerCallerPerDay`
+    表达"该域内单个调用方每 UTC 日的资源量上限"，例如
+    `{"gpuSecondsPerCallerPerDay": 1800}` = 每位调用方每天最多用 1800 秒 GPU。
+    不传则章程不带该字段，行为与历史版本完全一致（纯向后兼容）。
     """
     if status not in {"active", "frozen"}:
         raise ValueError(f"status 只能是 active|frozen，收到 {status!r}")
@@ -184,6 +218,17 @@ def build_manifest(
         PREVIOUS_REVISION_KEY: previous_revision,
         PREVIOUS_DIGEST_KEY: previous_digest,
     }
+    if resource_quota:
+        cleaned: dict[str, float] = {}
+        for key, value in resource_quota.items():
+            try:
+                amount = float(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"资源配额 {key!r} 必须是数值，收到 {value!r}") from exc
+            if amount < 0:
+                raise ValueError(f"资源配额 {key!r} 不能为负：{amount}")
+            cleaned[str(key)] = amount
+        manifest[RESOURCE_QUOTA_KEY] = cleaned
     return manifest
 
 
@@ -408,6 +453,18 @@ def to_policy(manifest: Mapping[str, Any], signer_aics: frozenset[str]) -> Domai
         max_grants = int(manifest.get("maxGrantsPerDay") or 50)
     except (TypeError, ValueError) as exc:
         raise TokenError("manifest-bad-shape", f"invalid numeric field: {exc}") from exc
+    quota_rows = manifest.get(RESOURCE_QUOTA_KEY) or {}
+    if not isinstance(quota_rows, Mapping):
+        raise TokenError("manifest-bad-shape", "resourceQuota must be an object")
+    resource_quota: dict[str, float] = {}
+    for key, value in quota_rows.items():
+        try:
+            amount = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TokenError(
+                "manifest-bad-shape", f"resourceQuota[{key!r}] must be a number"
+            ) from exc
+        resource_quota[str(key)] = amount
     return DomainPolicy(
         domain_id=str(manifest.get("domainId")),
         revision=revision,
@@ -418,6 +475,7 @@ def to_policy(manifest: Mapping[str, Any], signer_aics: frozenset[str]) -> Domai
         max_grants_per_day=max_grants,
         issued_at=str(manifest.get("issuedAt") or ""),
         signer_aics=signer_aics,
+        resource_quota=resource_quota,
     )
 
 

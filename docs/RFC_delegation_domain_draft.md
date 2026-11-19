@@ -181,7 +181,7 @@ skillId, delegateAic, targetAic}`；下发动作由代码侧按句柄取出原�
 ### 4.2 域章程（Charter）
 
 一份签名的 JSON 文档，字段：`domainId, revision, issuedAt, status(active|frozen),
-validUntil, members[], assets[], issuers[], maxGrantsPerDay, signatures[]`。
+validUntil, members[], assets[], issuers[], maxGrantsPerDay, resourceQuota(可选), signatures[]`。
 
 - **签名**：每方一条 JWS（`typ=DOMAIN`），签名对象为不含 `signatures` 的正文的规范字节串
   （sort_keys + 紧凑分隔符 + UTF-8）；验证时**必须**校验"签名对应正文与当前正文逐字节
@@ -251,6 +251,21 @@ GT 的验证入口为独立函数（链/签名/iss==叶子/时效/结构），�
 |---|---|---|---|
 | `maxGrantsPerDay`（章程） | 签发侧：签发者每日可发 GT 数 | 签发工具 | **必须**持久化 |
 | `acps_max_uses`（GT） | 使用侧：单枚 GT 可准入次数 | PEP | **必须**持久化（进程重启清零 = 配额失效）；计数**必须**原子 |
+| `resourceQuota`（章程，第十轮） | 资源量：单调用方每 UTC 自然日的资源量上限（如 GPU 卡时） | 资源节点（provider） | **必须**持久化；开跑前查余量、跑完按实测记账 |
+
+`resourceQuota` 的键约定为 `<资源>PerCallerPerDay`，例如
+`{"gpuSecondsPerCallerPerDay": 1800}` = 该域内每位调用方每天最多 1800 秒 GPU。
+它补的是前两行的空档：`acps_max_uses` 只数**次数**，一次合法调用可以跑满 600 秒，
+次数相同而算力用量相差两个数量级——把"每天多少卡时"写进章程才有意义。
+
+执行链：PEP 在 GT 放行时把 `(域, 调用方, 上限, 账本路径)` 写进请求上下文，
+资源节点（`gpu.run`）在**启动沙盒前**查余量（不足即返回 `quota-exhausted`，不燃烧算力），
+跑完后按实测 `duration_s` 记入配额账本，并把 `remainingAfter` 回给调用方。
+实现见 `delegation/resource_budget.py` + `runtime/quota.py` 的 `resource_uses` 表。
+
+边界（必须声明）：**先跑后记**，所以最后一枚调用最多可超出余量一个 `timeout_seconds`；
+需要硬上限时把 `timeout_seconds` 设成余量。没有域上下文的调用（L0/L1、PEP 关闭）
+不受此约束——与历史行为一致。
 
 ### 4.8 对账（双向认账）
 
@@ -335,7 +350,9 @@ fail-closed 兜底。实现 Part B 者**必须** additionally：4.4 派生继承
 ## 9. 实现状态与证据（资料性附录）
 
 - 参考实现：wit 2.1.0 零侵入（`WitAgent.aip_hooks` / `WitHooks` 扩展点），acps_sdk 2.2.0。
-- 测试：189 项离线单测（2026-10-29 实测；起草时为 173 项，含规范 §4.1 校验码示例对拍、域状态穿透回归、配额持久性）。
+- 测试：本扩展相关的离线用例（delegation / domain / 入口 grant / 可见性 / 资源配额 / P0）共 229 项，
+  含规范 §4.1 校验码示例对拍、域状态穿透回归、配额持久性与资源量配额（GPU 卡时）；
+  仓库**全量**用例数、失败数与复跑命令以 [`docs/verification.md`](verification.md) 为准（随提交更新）。
 - 演示：准入 16 场景、GPU 资源 7 场景（真实 CUDA 执行）、域级 11 场景（双资源方）。
 - 量化：脚本化对比 2.94–2.96× 加速（两轮实测） / 并行度 1→3 / leader 上下文 196KB→0；真实 LLM 对比
   （LongCat-2.0）1.73x / 回合 7→2 / 峰值上下文 9579→2358 字符 / 材料 0 字节过 leader。
