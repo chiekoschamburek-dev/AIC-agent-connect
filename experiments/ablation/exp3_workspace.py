@@ -134,7 +134,6 @@ def main() -> int:
         pw.ws_write(root, TID, f"shared/result-{i}.md", content, actor="worker")
 
     # 3b) 同一路径覆盖写 3 次：验证 prev_sha256 链条（第2条的 prev == 第1条的 sha256 ...）
-    first_hash = ""
     for v in range(3):
         pw.ws_write(root, TID, "shared/versioned.md", f"版本{v}", actor="worker")
 
@@ -158,8 +157,7 @@ def main() -> int:
     chain_links = len(ver_records) - 1
     chain_verified_links = sum(1 for i in range(1, len(ver_records))
                                if ver_records[i]["prev_sha256"] == ver_records[i - 1]["sha256"])
-    # 普通写入：零台账
-    plain_manifest = task_dir / "manifest.jsonl"  # 受控侧才有；普通写入侧无独立台账
+    # 普通写入：零台账（受控侧才有 manifest.jsonl）
     # 单独造一个纯普通写入目录证明零归因
     plain_root = Path(tempfile.mkdtemp(prefix="ablation-plain-"))
     for i in range(5):

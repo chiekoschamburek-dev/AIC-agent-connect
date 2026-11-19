@@ -48,13 +48,13 @@ TOP_REQUIRED = [
 ]
 
 INVISIBLE = {
-    "​": "零宽空格 ZWSP",
-    "‌": "零宽不连字 ZWNJ",
-    "‍": "零宽连字 ZWJ",
-    "﻿": "BOM/零宽无破块 ZWNBSP",
-    " ": "不换行空格 NBSP",
-    "⁠": "词连接符 FSWP",
-    "ㅤ": "Hangul 填充符",
+    "\u200b": "零宽空格 ZWSP",
+    "\u200c": "零宽不连字 ZWNJ",
+    "\u200d": "零宽连字 ZWJ",
+    "\ufeff": "BOM/零宽无破块 ZWNBSP",
+    "\xa0": "不换行空格 NBSP",
+    "\u2060": "词连接符 FSWP",
+    "\u3164": "Hangul 填充符",
 }
 
 

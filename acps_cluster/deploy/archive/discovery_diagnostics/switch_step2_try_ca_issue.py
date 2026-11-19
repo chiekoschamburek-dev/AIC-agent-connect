@@ -9,11 +9,9 @@ import asyncio
 import json
 import os
 import shutil
-import ssl
 import sys
 from pathlib import Path
 
-import httpx
 
 CLUSTER = Path("/opt/wit/my-project/acps_cluster")
 

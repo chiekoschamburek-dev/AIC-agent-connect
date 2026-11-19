@@ -47,7 +47,6 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
-import sys
 from pathlib import Path
 
 CLUSTER = Path(__file__).resolve().parents[1]
@@ -153,7 +152,6 @@ def _add_amp_hooks(text: str) -> tuple[str, bool]:
 
 def patch_module(path: Path, dry_run: bool) -> str:
     text = path.read_text(encoding="utf-8")
-    orig = text
     notes = []
 
     if _has_amp_hooks(text):

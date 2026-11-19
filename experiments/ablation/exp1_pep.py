@@ -32,7 +32,6 @@ from acps_cluster.delegation.pep import (  # noqa: E402
     PepConfig,
     pep_decide,
 )
-from wit.hooks.acps.admission import AipPartnerAdmissionDecision  # noqa: E402
 
 LEADER = "leader.aic"        # 白名单签发者（supervisor 角色）
 DELEGATE = "delegate.aic"    # 受托方（critic 角色）
@@ -92,7 +91,6 @@ def main() -> int:
     (HERE / "out").mkdir(exist_ok=True)
     forge = Forge()
     leader = forge.leaf("leader", aic=LEADER)
-    delegate = forge.leaf("delegate", aic=DELEGATE)
     third = forge.leaf("third", aic=THIRD)
     cfg_off, cfg_on = build_configs(forge.trust_bundle)
 

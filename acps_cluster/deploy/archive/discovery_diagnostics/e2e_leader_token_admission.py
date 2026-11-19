@@ -21,8 +21,6 @@ sys.path.insert(0, str(CL))
 
 from acps_cluster.delegation.pep import PepConfig, evaluate  # noqa: E402
 from acps_cluster.delegation.token import (  # noqa: E402
-    ROLE_DELEGATION_TOKEN,
-    TOKEN_DATA_KEY,
     issue_token,
     load_signing_context,
     token_data_item,

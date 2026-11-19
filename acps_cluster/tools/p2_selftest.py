@@ -21,7 +21,6 @@ import argparse
 import asyncio
 import re
 import json
-import os
 import socket
 import sys
 import time

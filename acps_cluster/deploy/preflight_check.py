@@ -357,7 +357,7 @@ def check_kafka() -> None:
     try:
         import kafka  # noqa: F401, PLC0415
 
-        record("OK", "Kafka 客户端", f"kafka-python 可用")
+        record("OK", "Kafka 客户端", "kafka-python 可用")
     except ImportError:
         record("FAIL", "Kafka 客户端", "缺 kafka-python：access 转发器无法投递",
                "python -m pip install kafka-python")

@@ -22,7 +22,6 @@ import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from types import SimpleNamespace
 from unittest import mock
 
 HERE = Path(__file__).resolve().parent

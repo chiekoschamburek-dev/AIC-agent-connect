@@ -230,10 +230,3 @@ def verify_report(
             f"报表缺少签名方: {sorted(missing)}（双向认账要求双方都签）",
         )
     return body, frozenset(signers)
-
-
-def read_audit(audit_path: Path | str) -> list[str]:
-    path = Path(audit_path)
-    if not path.is_file():
-        return []
-    return path.read_text(encoding="utf-8").splitlines()

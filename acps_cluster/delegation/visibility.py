@@ -87,11 +87,6 @@ def cached_policies(directory: Path | str | None = None) -> dict[str, dict[str, 
     return policies
 
 
-def reload_policy_cache() -> None:
-    """章程投影分发后调用（演示/测试）。"""
-    _POLICY_CACHE.clear()
-
-
 def _skill_entry(acs: Mapping[str, Any] | None, skill_id: str) -> Mapping[str, Any] | None:
     skills = (acs or {}).get("skills")
     if not isinstance(skills, list):

@@ -175,7 +175,6 @@ def fetch_arxiv(query: str, limit: int, *, holder: str = "?") -> list[dict]:
         published = entry.findtext(f"{_ATOM}published") or ""
         year = int(published[:4]) if published[:4].isdigit() else None
         cats = [c.get("term") for c in entry.findall(f"{_ATOM}category") if c.get("term")]
-        primary = entry.find(f"{_ARXIV_NS}primary_category")
         records.append({
             "id": f"ARXIV:{arxiv_id.split('v')[0]}",
             "kind": "paper",

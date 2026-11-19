@@ -50,7 +50,6 @@ from .token import (
     ROLE_DELEGATION_TOKEN,
     TOKEN_DATA_KEY,
     TokenError,
-    extract_token_from_data_items,
     extract_tokens_from_data_items,
     normalize_audience,
     peek_claims,
@@ -429,11 +428,6 @@ def set_current_task(task_id: str | None, session_id: str | None = None) -> None
 
 def current_task_id() -> str | None:
     return _CURRENT_TASK.get()[0]
-
-
-def current_session_id() -> str | None:
-    """本任务所属会话（与 current_task_id 同源；未在 AIP 任务上下文时为 None）。"""
-    return _CURRENT_TASK.get()[1]
 
 
 def _task_token_path(directory: Path, task_id: str) -> Path:

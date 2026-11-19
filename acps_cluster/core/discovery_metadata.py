@@ -264,85 +264,6 @@ AGENT_FACADES: dict[str, AgentFacade] = {
 # ── 能力级门面（写进 ACS 的 skills[]：description / tags / examples）──
 CAPABILITY_FACADES: dict[str, CapabilityFacade] = {
 
-        'gpu.env': CapabilityFacade(
-            description=('查询 GPU 计算节点环境：显卡型号/显存/驱动、可用镜像白名单、沙盒资源限制。公开只读。'),
-            tags=('gpu', 'compute', 'status', '环境查询', '显卡', 'GPU 环境'),
-            examples=(
-            '看看 GPU 节点有什么卡',
-            'GPU 沙盒的资源限制是多少',
-            '查一下显卡型号和驱动版本'
-            ),
-        ),
-        'gpu.status': CapabilityFacade(
-            description=('查询最近的 GPU 实验任务（状态/时长/退出码/产物清单，不含任务内容）。公开只读。'),
-            tags=('gpu', 'compute', 'status', '任务状态'),
-            examples=(
-            '最近的 GPU 实验跑得怎么样',
-            '查一下上一个实验任务的退出码'
-            ),
-        ),
-        'gpu.data.list': CapabilityFacade(
-            description=('列出本 GPU 节点已托管的数据集（名称/文件数/大小/容器内挂载路径）。公开只读。'),
-            tags=('gpu', 'dataset', '数据集', '数据列表'),
-            examples=(
-            'GPU 节点上有哪些现成数据集',
-            '看看已托管数据集的大小'
-            ),
-        ),
-        'gpu.data.fetch': CapabilityFacade(
-            description=('把一个数据集从 URL 代下到本节点（宿主侧下载，沙盒外执行），之后实验代码可用 /data/<name> 只读访问。仅 https；可选 sha256 强校验；上限 2GB；zip/tar 自动安全解压。数据集托管属高成本操作，凭委派令牌调用。'),
-            tags=('gpu', 'dataset', '下载', '数据集代下', 'fetch'),
-            examples=(
-            '帮我把这个 URL 的数据集下载到沙盒',
-            '从 OpenML 拉一个数据集进 GPU 节点'
-            ),
-        ),
-        'gpu.run': CapabilityFacade(
-            description=('在 GPU 沙盒容器（pytorch:cu128，断网，内存 7G/CPU 4 核/GPU device=0）中运行实验：files 提供 {文件名: 内容}（至少含 main.py），产物写入 output 目录随结果回传。高成本资源，凭委派令牌调用。'),
-            tags=('gpu', 'experiment', '沙盒', '训练', '复现'),
-            examples=(
-            '在沙盒里跑一个最小实验验证收敛',
-            '用 GPU 沙盒复现论文里的训练脚本',
-            '跑一段 PyTorch 训练代码给我指标'
-            ),
-        ),
-        'cpu.env': CapabilityFacade(
-            description=('查询 CPU 计算节点环境：核数/内存/Python 版本、镜像白名单、沙盒资源限制。公开只读。'),
-            tags=('cpu', 'compute', 'status', '环境查询'),
-            examples=(
-            'CPU 节点几核几 G',
-            '沙盒里的 Python 是什么版本'
-            ),
-        ),
-        'cpu.status': CapabilityFacade(
-            description=('查询最近的 CPU 节点任务（状态/时长/退出码/产物清单，不含任务内容）。公开只读。'),
-            tags=('cpu', 'compute', 'status', '任务状态'),
-            examples=(
-            '最',
-            '近',
-            '的',
-            ' ',
-            'C',
-            'P',
-            'U',
-            ' ',
-            '任',
-            '务',
-            '跑',
-            '得',
-            '怎',
-            '么',
-            '样'
-            ),
-        ),
-        'cpu.run': CapabilityFacade(
-            description=('在 CPU 沙盒容器（pytorch:cu128 镜像但不透传 GPU，断网，内存 7G/CPU 4 核）中运行任务：files 提供 {文件名: 内容}（至少含 main.py），产物写入 output 目录随结果回传。适合纯计算/数据处理/脚本类任务；高成本资源，凭委派令牌调用。'),
-            tags=('cpu', 'compute', 'task', '脚本', '数据处理'),
-            examples=(
-            '在沙盒里跑这个数据清洗脚本',
-            '验证一段纯计算代码的输出'
-            ),
-        ),
         "ws.create": CapabilityFacade(
             description=("按 task_id 开辟服务器端任务工作区目录，返回绝对路径与配额（默认 512MB）。已存在则直接复用并报当前用量。任务级隔离，互不干扰。"),
             tags=("workspace", "storage", "task"),
@@ -602,7 +523,7 @@ CAPABILITY_FACADES: dict[str, CapabilityFacade] = {
             "show paper memory stats",
         ),
     ),
-    # gpu / cpu / eval / model / kb / hpc
+    # gpu / cpu / kb / hpc
     "gpu.run": CapabilityFacade(
         description=(
             "GPU 任务提交：在断网加固的容器沙盒中执行 GPU 任务（资源与超时受代码强制），"
@@ -729,21 +650,6 @@ CAPABILITY_FACADES: dict[str, CapabilityFacade] = {
         description="GPU 节点数据集获取：按名称取回托管数据集的元信息与挂载方式，让沙盒任务能直接读该数据，不必把数据正文上传。",
         tags=("GPU算力", "数据集", "gpu-dataset"),
         examples=("帮我取用节点上的那个数据集",),
-    ),
-    "eval.benchmark_info": CapabilityFacade(
-        description="评测基准信息：可用基准、指标、样本数与提交规则（标签由评测方持有，不随特征下发）。",
-        tags=("模型评测", "基准信息", "benchmark"),
-        examples=("有哪些评测基准可以用", "这个基准的指标和提交规则是什么"),
-    ),
-    "eval.leaderboard": CapabilityFacade(
-        description="评测榜单：Top-N 提交者、分数与提交时间（不含任何预测内容），用于对比方案效果与查看自己的名次。",
-        tags=("模型评测", "榜单", "leaderboard"),
-        examples=("看看评测榜单现在谁在前列",),
-    ),
-    "model.info": CapabilityFacade(
-        description="模型卡：架构、版本、许可证、输入输出规格与基准表现（公开橱窗；权重不出域，只暴露推理接口）。",
-        tags=("模型推理", "模型卡", "model-card"),
-        examples=("这个模型是什么架构、输入输出是什么",),
     ),
     "kb.schema": CapabilityFacade(
         description=("知识库结构卡：字段与类型、档位（open 目录 / members 摘要 / curator 全文）、"

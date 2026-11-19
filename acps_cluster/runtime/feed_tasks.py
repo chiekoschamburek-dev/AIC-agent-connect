@@ -634,19 +634,6 @@ def _fetch_chain(host: str, port: int) -> str:
     return "\n".join(blocks[1:]) + "\n"
 
 
-def _ssl_for(key: str):
-    """构造目标端点用的 SSL context（带 peer AIC 校验由 SDK 负责）。"""
-    import ssl
-
-    bundle = trust_bundle_for(key)
-    if bundle is None:
-        return None
-    ctx = ssl.create_default_context(cafile=str(bundle))
-    ctx.check_hostname = False      # 用 IP 直连；身份由 SDK 的 CN==AIC 校验兜底
-    ctx.verify_mode = ssl.CERT_REQUIRED
-    return ctx
-
-
 def build_command(*, sender_aic: str, text: str, skill: str,
                   session_id: str, task_id: str) -> dict:
     """AIP v2 的 TaskCommand。skillId 走 dataItems[].metadata（协议没有专门字段）。"""

@@ -64,11 +64,6 @@ def current_peer_aic() -> str | None:
     return _PEER_AIC.get()
 
 
-def set_peer_for_direct_call(peer: str | None) -> None:
-    """本机直调/演示用：显式扮演某个已认证对端（wire 路径由 PeerIdentityHooks 写）。"""
-    _PEER_AIC.set(str(peer) if peer else None)
-
-
 def resolve_submitter(claimed: str | None) -> tuple[str, bool]:
     """榜单/溯源归属：有已验证对端就用它；没有（本机直调、离线演示）才用自报名并标记。"""
     peer = _PEER_AIC.get()

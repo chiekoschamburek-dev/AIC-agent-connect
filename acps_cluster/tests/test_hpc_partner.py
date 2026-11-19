@@ -27,7 +27,6 @@ def _with_tmp_jobs(fn):
     """
 
     def wrapper(self):
-        import tempfile
 
         with tempfile.TemporaryDirectory() as td:
             jobs = Path(td) / "jobs"

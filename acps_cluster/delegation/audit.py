@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,12 @@ from typing import Any
 PEP_VERSION = "yanshu.pep.v1"
 
 AUDIT_FILENAME = "pep-audit.jsonl"
+
+# 审计写失败是 best-effort（不能因为磁盘满就拒服务），但**不能完全无声**：
+# 2026-11-19 代码审查发现这里原本是 `except OSError: pass`，一旦审计目录不可写，
+# 所有裁决记录会静默消失而没有人知道——对一个"裁决可审计"的机制来说是自相矛盾。
+# 折中：仍然放行，但每个进程至少往 stderr 报一次，运维能看见。
+_WARNED_WRITE_FAILURE = False
 
 # 审计行的"归属"维度一律落齐（2026-10-15 审查：此前只有 domain-grant 路径才写
 # domain/skillHint，现网 88 条 allow 全都没有这两个字段 → 对账报表按域过滤后恒为 0）。
@@ -56,6 +63,7 @@ def audit_log(
     extra: dict[str, Any] | None = None,
 ) -> None:
     """追加一条 PEP/委托审计记录（不阻塞主流程）。"""
+    global _WARNED_WRITE_FAILURE  # noqa: PLW0603 - 进程级只报一次的开关
     record: dict[str, Any] = {
         "ts": _utc_now(),
         "decision": decision,
@@ -78,5 +86,11 @@ def audit_log(
         target.parent.mkdir(parents=True, exist_ok=True)
         with target.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
-    except OSError:
-        pass
+    except OSError as exc:
+        if not _WARNED_WRITE_FAILURE:
+            _WARNED_WRITE_FAILURE = True
+            print(
+                f"[pep] 警告: 审计写入失败（{path}: {exc}）——裁决继续，但审计记录正在丢失；"
+                "请检查目录权限与磁盘余量",
+                file=sys.stderr, flush=True,
+            )

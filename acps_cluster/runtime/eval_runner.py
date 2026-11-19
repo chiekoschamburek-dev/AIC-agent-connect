@@ -51,27 +51,6 @@ def list_benchmarks() -> list[dict]:
     return items
 
 
-def ensure_demo_benchmark(*, rows: int = 60, seed: int = 42) -> Path:
-    """生成确定性演示基准 demo-cls：两维特征、二分类标签（规则可学的噪声数据）。"""
-    import random
-
-    bench = benchmark_dir("demo-cls")
-    bench.mkdir(parents=True, exist_ok=True)
-    rng = random.Random(seed)
-    lines_in = ["x0,x1"]
-    lines_label = ["label"]
-    for _ in range(rows):
-        x0 = rng.uniform(-2, 2)
-        x1 = rng.uniform(-2, 2)
-        flip = rng.random() < 0.08  # 8% 标签噪声：满分不可能是 100%，预测必须真学
-        label = 1 if (x0 + x1 > 0) != flip else 0
-        lines_in.append(f"{x0:.4f},{x1:.4f}")
-        lines_label.append(str(label))
-    (bench / "input.csv").write_text("\n".join(lines_in) + "\n", encoding="utf-8")
-    (bench / "labels.csv").write_text("\n".join(lines_label) + "\n", encoding="utf-8")
-    return bench
-
-
 def _labels_of(bench_id: str) -> list[int]:
     path = benchmark_dir(bench_id) / "labels.csv"
     rows = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]

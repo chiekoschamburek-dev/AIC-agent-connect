@@ -46,12 +46,11 @@ import json
 import logging
 import os
 import sqlite3
-import sys
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 from acps_cluster.guard import covert_event_guard as guard
 

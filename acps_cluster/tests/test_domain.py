@@ -252,7 +252,6 @@ class PepDomainPathTest(unittest.TestCase):
         self.assertEqual((outcome.decision, outcome.rule), ("deny", "grant-role-not-allowed"))
 
     def test_D4_冻结在验签前拒绝grant(self):
-        frozen = dict(self.cfg.domains)
         from dataclasses import replace
 
         frozen_policy = replace(self.policy, status="frozen")

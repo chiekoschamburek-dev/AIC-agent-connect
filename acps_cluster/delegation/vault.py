@@ -77,7 +77,6 @@ class TokenVault:
 
     def hold_grant(self, issued) -> HeldToken:
         """存入一枚域级 grant（delegation.grant.IssuedGrant），统一成 HeldToken。"""
-        claims: Mapping[str, Any] = issued.claims
         held = HeldToken(
             token=issued.token,
             jti=issued.jti,

@@ -11,7 +11,7 @@ import os
 
 import uvicorn
 
-from guard_api import DEFAULT_HOST, DEFAULT_PORT, report
+from guard_api import DEFAULT_HOST, DEFAULT_PORT
 from guard_api.app import create_app
 
 

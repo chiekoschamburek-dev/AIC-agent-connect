@@ -19,7 +19,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from wit.kernel.messages import Message, ModelRequest, ModelResponse, ToolCall
+from wit.kernel.messages import ModelRequest, ModelResponse, ToolCall
 from wit.providers.base import ProviderCapabilities
 from wit.kernel.content import ContentKind
 

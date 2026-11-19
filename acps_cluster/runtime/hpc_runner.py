@@ -177,7 +177,6 @@ async def worker_tick() -> int:
         job["state"] = "running"
         job["startedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         _write_job(job)
-        started = time.monotonic()
         runs_root = JOBS_DIR.parent / "runs"
         result = await gpu_runner.run_sandbox(
             {"files": job["files"], "timeout_seconds": job["walltimeMinutes"] * 60},

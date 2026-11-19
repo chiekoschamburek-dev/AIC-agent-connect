@@ -17,7 +17,7 @@ import sys
 import tempfile
 import time
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -73,9 +73,6 @@ def main() -> int:
     forge = Forge()
     leader = forge.leaf("leader", aic=LEADER)
     gpu = forge.leaf("gpu", aic=GPU)
-    scout = forge.leaf("scout", aic=SCOUT)
-    experiment = forge.leaf("experiment", aic=EXPERIMENT)
-    critic = forge.leaf("critic", aic=CRITIC)
     bundle = forge.trust_bundle
 
     members_active = [

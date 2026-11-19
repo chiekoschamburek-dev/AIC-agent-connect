@@ -79,7 +79,7 @@ def main() -> int:
     # 3) ★ 关键：签发者授权不受影响（leader 仍在白名单 → 令牌可被接受）
     c = cfg(direct_open=False)
     print(f"  [3] direct=False 时 leader_aics 仍含 leader: {LEADER in c.leader_aics}")
-    print(f"      → allowed_issuers 仍承认它，令牌不会被判 issuer-not-authorized")
+    print("      → allowed_issuers 仍承认它，令牌不会被判 issuer-not-authorized")
     if LEADER not in c.leader_aics:
         failures.append("[3] 签发者资格被误删")
 

@@ -772,7 +772,7 @@ async def run_a(tmp: Path) -> dict:
         grant = issue_grant(leader_signing(), domain="lab-x-y", domain_revision=1, subject_aic=LEADER_AIC,
                             assets=[{"providerAic": GPU_AIC, "skill": GPU_SKILL}], max_uses=3, ttl_seconds=3600)
         rec.add({"type": "token", "kind": "grant", "issuer": "sup", "holder": "sup", "domain": "lab-x-y", "maxUses": 3, "label": "域级 Grant（双签章程 · 配额 3）"})
-        dt = issue_token(leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
+        issue_token(leader_signing(), delegate_aic=EXP_AIC, target_aic=GPU_AIC, skill_id=GPU_SKILL,
                          ttl_seconds=600, not_after=grant.expires_at,
                          extra_claims=derive_delegation_claims(
                              grant.claims, skill_id=GPU_SKILL, parent_token=grant.token))
@@ -861,7 +861,6 @@ async def run_a(tmp: Path) -> dict:
             if m_acc:
                 v = m_acc.group(1)
                 report["metrics"]["accuracy"] = f"{float(v):.2%}" if "." in v else v
-        rule = (audit_tail(gpu_audit) or [{}])[0]
         pep_from_audit(rec, gpu_audit, "exp", "gpu", GPU_SKILL, domain="lab-x-y", note="act≡对端 · 域资产许可")
         rec.add({"type": "state", "agent": "gpu", "taskId": "t3", "state": "working", "note": "沙盒内真实执行"})
         await rec.beat()

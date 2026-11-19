@@ -300,7 +300,8 @@ class RootStore:
             if row is not None:
                 con.execute("COMMIT")
                 existing = self._row(row)
-                assert existing is not None
+                if existing is None:
+                    raise RuntimeError("根任务行刚写入却读不回来（记录丢失）")
                 # 只比对新请求**实际带了**的字段：调用方用同一个 request_id 重试时
                 # 可以省略 source_task_id/source_caller（旧行为只比 digest，不能因为
                 # 少带元数据就判冲突——2026-11-18 审查 P2）。
@@ -330,7 +331,8 @@ class RootStore:
             )
             con.execute("COMMIT")
             created = self.get(root_id)
-            assert created is not None
+            if created is None:
+                raise RuntimeError("根任务建账后读不回来（记录丢失）")
             return created, True
         except Exception:
             try:
@@ -372,7 +374,8 @@ class RootStore:
                 (value, _now_iso(), task.root_id),
             )
         updated = self.get(task.root_id)
-        assert updated is not None
+        if updated is None:
+            raise RuntimeError("根任务更新后读不回来（记录丢失）")
         return updated
 
     def set_state(
@@ -417,7 +420,8 @@ class RootStore:
         if not changed.rowcount:
             raise InvalidTransition(f"根任务 {root_id} 的状态已更新")
         updated = self.get(task.root_id)
-        assert updated is not None
+        if updated is None:
+            raise RuntimeError("根任务状态更新后读不回来（记录丢失）")
         return updated
 
     def list_recent(self, *, limit: int = 20, entry_aic: str = "") -> list[RootTask]:

@@ -123,7 +123,7 @@ def _parse_records(text: str) -> list[dict]:
     for chunk in (text or "").split("ScholarRecord(")[1:]:
         seg = chunk[:6000]
 
-        def _field(name: str, end_pat: str) -> str:
+        def _field(name: str, end_pat: str, seg: str = seg) -> str:
             fm = re.search(rf"{name}='(.*?)', {end_pat}", seg, re.S)
             return fm.group(1) if fm else ""
 

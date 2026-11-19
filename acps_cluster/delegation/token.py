@@ -489,7 +489,7 @@ def _verify_chain(
         raise TokenError("missing-x5c", "empty x5c")
     anchor_der = {a.public_bytes(serialization.Encoding.DER) for a in anchors}
 
-    for index, cert in enumerate(chain):
+    for cert in chain:
         not_before = cert.not_valid_before_utc.timestamp()
         not_after = cert.not_valid_after_utc.timestamp()
         if now < not_before or now > not_after:

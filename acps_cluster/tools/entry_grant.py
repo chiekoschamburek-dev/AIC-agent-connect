@@ -186,7 +186,8 @@ def cosign_manifest(
 ) -> tuple[dict[str, Any], frozenset[str]]:
     """用 `workspace` 的身份补一条签名；返回 (新章程, 签名者集合)。"""
     trust = trust_bundle(workspace)
-    signers = verify_signed_so_far(manifest, trust=trust)
+    # 先校验已有签名：坏签名/非成员签名在这里就炸，不要等到补完签才发现整份章程不可用
+    verify_signed_so_far(manifest, trust=trust)
     signing = signing_context(workspace)
     body = manifest_body(manifest)
     member_aics = {normalize_audience(str(m.get("aic") or "")) for m in body.get("members") or []}
