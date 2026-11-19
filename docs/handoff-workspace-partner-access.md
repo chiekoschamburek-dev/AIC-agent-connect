@@ -127,6 +127,10 @@ workspace DB 里也没有 `task-1026-e2e`。
 
 ### 2.2 supervisor 直接写 workspace，绕过 partner
 
+> **2026-11-19 回注**：`_mirror_products` 与本地产物镜像已按 §4.4 删除，现行
+> `agents/supervisor.py` 里没有这个入口。下面这段保留为当时的缺陷现场（审计记录）；
+> 现行归档路径以 `agents/partner_workspace.py` 的 `archive_products()` 为准。
+
 `acps_cluster/agents/supervisor.py:1841` 的 `_mirror_products()`：
 
 ```python

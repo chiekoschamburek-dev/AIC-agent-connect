@@ -1,7 +1,9 @@
 # 文档索引
 
-> 单一事实源：测试数字与运行状态以 `python run_all_tests.py` 的实时输出为准，
-> 本文只说明"哪篇文档讲什么、是否仍然有效"，不复制会漂移的计数。
+> 单一事实源：对外引用的数字（受控文件数、测试通过数、docstring 完整率、语言占比）
+> 以 [`verification.md`](verification.md) 为准，它由 `acps_cluster/tools/repo_facts.py`
+> 与 `run_all_tests.py` 复算得出；本文只说明"哪篇文档讲什么、是否仍然有效"，
+> 不复制会漂移的计数。
 
 ## 先读这三篇
 
@@ -10,6 +12,14 @@
 | [../README.md](../README.md) | 项目定位、目录结构、五部分导览、快速开始、安全约定 |
 | [architecture.md](architecture.md) | 架构、三项互联创新、模块职责、guard 适配层、整合接缝 |
 | [../NOTICE](../NOTICE) | 上游组件、外部组件、修改范围与许可证说明 |
+
+## 核验与实验
+
+| 文档 | 用途 |
+|---|---|
+| [verification.md](verification.md) | **可核验事实**：每个对外数字的定义、复跑命令、主张→代码→测试映射 |
+| [../experiments/ablation/实验报告-三机制对照-真实数字.md](../experiments/ablation/实验报告-三机制对照-真实数字.md) | 四组对照实验的方法、完整结果与复跑方式 |
+| [PEP-result.md](PEP-result.md) | PEP/域/配额逐轮实现记录与审查缺陷清单（含当时的用例数，历史口径） |
 
 ## 协议与互联机制
 
@@ -63,3 +73,18 @@
 |---|---|
 | [../acps_cluster/deploy/VIZ_DEPLOY.md](../acps_cluster/deploy/VIZ_DEPLOY.md) | cluster-viz 部署与静态托管 |
 | [../acps_cluster/deploy/workspace-rollout/README.md](../acps_cluster/deploy/workspace-rollout/README.md) | 工作区发布工具包（盘点/备份/重启/审计/E2E） |
+
+## 问题单与现场记录
+
+| 文档 | 用途 |
+|---|---|
+| [server-rollout-2026-10-26.md](server-rollout-2026-10-26.md) | 研究伙伴读写工作区的现网发布记录与四个实测缺陷 |
+| [incident-2026-10-09-code-sync-acs-guard.md](incident-2026-10-09-code-sync-acs-guard.md) | 代码同步误伤 ACS/guard 的复盘 |
+| [incident-2026-10-14-kb-endpoint-firewalld.md](incident-2026-10-14-kb-endpoint-firewalld.md) | KB 端点被 firewalld 拦截的定位 |
+| [incident-2026-10-15-platform-cert-expired.md](incident-2026-10-15-platform-cert-expired.md) | 平台证书到期的处置 |
+| [incident-2026-10-19-ranking-zero.md](incident-2026-10-19-ranking-zero.md) | 排行榜归零的口径排查 |
+| [incident-2026-10-23-amp-hooks-lost.md](incident-2026-10-23-amp-hooks-lost.md) | AMP hooks 丢失与恢复 |
+| [issue-wit-2.1.0-ip-endpoint-san.md](issue-wit-2.1.0-ip-endpoint-san.md) | 平台 ACS 缺 `certificate.altNames` 导致 IP 端点证书只有 URI SAN |
+| [issue-wit-2.1.0-discovery-filter-400.md](issue-wit-2.1.0-discovery-filter-400.md) | discovery 过滤条件 400：平台已废弃旧参数 |
+| [issue-wt-dingdang-cannot-discover-our-agents.md](issue-wt-dingdang-cannot-discover-our-agents.md) | 外部 agent 发现不到本集群成员的排查过程 |
+| [issue-dingdang-task-payload.md](issue-dingdang-task-payload.md) | 外部任务载荷不兼容（dataItem 结构）的定位与规避 |
