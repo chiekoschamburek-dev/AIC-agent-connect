@@ -883,7 +883,8 @@ revision/GT 画像/派生继承三则/冻结语义与传播延迟/成员角色�
   C1 陌生 agent 拒 / C1b 未付费拒发卡 / C2 付费放行 / **C2b 票换算力（真实沙盒 CUDA
   执行，PAID-GPU-OK）** / C3 第 4 次 quota-exhausted / C4 冻结停服→解冻 / C5 计费单双签
   （totalUses=3，用量即账单）/ C6 leader 无票拒。
-- 单测 +4（test_commerce.py：发卡/无计划拒/过期拒/模板往返）；全量 196/196。
+- 单测 +4（test_commerce.py：发卡/无计划拒/过期拒/模板往返）；**当时**全量 196/196
+  （历史上的用例总数；当前全量口径与复跑命令见 [`docs/verification.md`](verification.md)）。
 
 ---
 
