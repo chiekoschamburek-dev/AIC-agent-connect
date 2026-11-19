@@ -25,7 +25,7 @@ python experiments/ablation/run_all.py
 | 指标 | 数值 | 定义与口径 |
 |---|---|---|
 | 受控文件 | **678** | `git ls-files` 行数，即 `git clone` 后可见的文件；`ws-*` 运行时目录、私钥、数据集不入库、不计入 |
-| 全量测试 | **770 passed / 0 failed** | 干净克隆（无 `ws-*`）在 Windows 11 + Python 3.13 实测；181 项 skip 的原因是缺 dev CA 私钥、平台快照与 Linux symlink 语义，**均为环境依赖，不是失败** |
+| 全量测试 | **770 passed / 0 failed** | 干净克隆（无 `ws-*`）在 Windows 11 + Python 3.13 实测；181 项 skip 的原因是缺 dev CA 私钥、平台快照与 Linux symlink 语义，**均为环境依赖，不是失败**。换到 Linux 时 symlink 相关用例会从 skip 转为 pass（通过数略增、失败数仍为 0） |
 | 核心模块 docstring | **73 / 73** | `acps_cluster/{agents,core,runtime,delegation}` + `capabilities` 下的 `.py`（不含 `__pycache__`） |
 | 长公开函数 docstring | **203 / 203** | 同上范围内、不以 `_` 开头、跨行 ≥20 行的函数；短小访问器不计入 |
 | 代码语言占比 | Python **91.2%** | 按代码文件字节数（`.py/.sh/.ts/.tsx/.js/.vue/.css/.html` 等），不含 Markdown/JSON/图片/PDF/wheel。GitHub linguist 另会剔除 vendored 路径，故仓库首页显示值与之有 ±1pt 差异（截图时点为 91.6%） |
