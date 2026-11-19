@@ -51,6 +51,21 @@ def _policy(*, limit: float | None = 1800) -> DomainPolicy:
 class ManifestQuotaTest(unittest.TestCase):
     """章程字段的读写与校验：不写就不带、写了必须合法、解析只认约定的键。"""
 
+    def test_入口章程CLI可写资源配额(self):
+        """`entry_grant prepare --gpu-seconds-per-day` 是生产上的写入路径，必须是通的。"""
+        from acps_cluster.tools.entry_grant import build_entry_manifest
+
+        with_quota = build_entry_manifest(
+            domain="lab-x-y", supervisor_aic="1.2.156.3088.1.1.AAAA.PROV.RUN01.01",
+            peer_aic="1.2.156.3088.1.1.BBBB.CONS.RUN01.02", gpu_seconds_per_day=1800,
+        )
+        self.assertEqual(with_quota.get("resourceQuota"), {"gpuSecondsPerCallerPerDay": 1800.0})
+        without = build_entry_manifest(
+            domain="lab-x-y", supervisor_aic="1.2.156.3088.1.1.AAAA.PROV.RUN01.01",
+            peer_aic="1.2.156.3088.1.1.BBBB.CONS.RUN01.02",
+        )
+        self.assertNotIn("resourceQuota", without)
+
     def test_未声明配额时章程不带该字段(self):
         body = build_manifest(
             domain_id="d", members=[{"aic": "A", "role": "provider"}],

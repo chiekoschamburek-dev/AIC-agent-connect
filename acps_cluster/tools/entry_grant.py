@@ -117,11 +117,16 @@ def build_entry_manifest(
     max_grants_per_day: int = 50,
     previous: Mapping[str, Any] | None = None,
     extra_consumers: Sequence[str] = (),
+    gpu_seconds_per_day: int = 0,
 ) -> dict[str, Any]:
     """构造入口域章程正文：supervisor=provider、入口=consumer、资产=两项入口技能。
 
     `extra_consumers`：**预先列入**、但本次不需要签名的其他入口（consumer）。
     典型用法：同机自证用 kb 双签，同时把问迹 AIC 写进 r1——这样问迹的 grant 不用等 r2。
+
+    `gpu_seconds_per_day`：可选的资源量配额（每位调用方每 UTC 自然日的 GPU 卡时上限）。
+    >0 时写进章程 `resourceQuota`，资源节点据此在 `gpu.run` 开跑前查余量、跑完记账；
+    0（默认）则不写该字段，行为与历史章程完全一致。
     """
     if not supervisor_aic or not peer_aic:
         raise ValueError("supervisor_aic / peer_aic 都不能为空")
@@ -152,6 +157,10 @@ def build_entry_manifest(
         valid_until=_valid_until(valid_days),
         max_grants_per_day=max_grants_per_day,
         previous=previous,
+        resource_quota=(
+            {"gpuSecondsPerCallerPerDay": int(gpu_seconds_per_day)}
+            if int(gpu_seconds_per_day or 0) > 0 else None
+        ),
     )
 
 
@@ -341,6 +350,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
         max_grants_per_day=args.max_grants_per_day,
         previous=previous,
         extra_consumers=getattr(args, "extra_consumer", []) or [],
+        gpu_seconds_per_day=getattr(args, "gpu_seconds_per_day", 0) or 0,
     )
     signed = sign_manifest(manifest, signing)
     path = write_json(args.out, signed)
@@ -428,6 +438,7 @@ def cmd_mint(args: argparse.Namespace) -> int:
         max_grants_per_day=args.max_grants_per_day,
         previous=previous,
         extra_consumers=getattr(args, "extra_consumer", []) or [],
+        gpu_seconds_per_day=getattr(args, "gpu_seconds_per_day", 0) or 0,
     )
     signed = sign_manifest(manifest, supervisor)
     signed, signers = cosign_manifest(signed, workspace=args.peer_workspace)
@@ -489,6 +500,8 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--out", required=True)
     prepare.add_argument("--extra-consumer", action="append", default=[],
                          help="预先列入章程、但本次不签名的其他入口 AIC（可重复）")
+    prepare.add_argument("--gpu-seconds-per-day", type=int, default=0,
+                         help="可选资源量配额：每位调用方每 UTC 日的 GPU 卡时上限（秒，0=不设）")
     _common(prepare)
     prepare.set_defaults(func=cmd_prepare)
 
