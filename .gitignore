@@ -72,6 +72,9 @@ frontend-check*.png
 # ---- viz 运行时告警快照（由 guard_adapter 发布，属运行产物） -----------------
 cluster-viz/public/scenarios/guard-alerts.json
 
+# ---- 对照实验的派生审计流水（每次复跑重写，体积大；结果 JSON 仍入库） --------
+experiments/ablation/out/pep-audit.jsonl
+
 # ---- 二进制依赖：只声明依赖，不分发 wheel --------------------------------
 *.whl
 !vendor/acps_sdk-*.whl

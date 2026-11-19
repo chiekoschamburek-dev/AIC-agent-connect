@@ -1,0 +1,537 @@
+{
+  "experiment": "④b Guard 规模化评估（样本分布替代单点）",
+  "detector_entry": "guard_api.covert_event_guard（与红队同一入口，未改检测代码）",
+  "seed": 20261117,
+  "sample_sizes": {
+    "normal": 17,
+    "anomalous": 16
+  },
+  "normal": {
+    "level_distribution": {
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 17
+    },
+    "score_distribution": {
+      "min": 0,
+      "p50": 0,
+      "p95": 22,
+      "max": 22
+    },
+    "false_positive_any": 6,
+    "false_positive_rate_any_pct": 35.3,
+    "false_positive_low": 6,
+    "false_positive_rate_low_pct": 35.3,
+    "false_positive_medium_plus": 0,
+    "false_positive_rate_medium_plus_pct": 0.0,
+    "rule_frequency": {
+      "invalid_state_transition": 3,
+      "over_regular_intervals": 3
+    },
+    "false_positive_by_rule": {
+      "invalid_state_transition": 3,
+      "over_regular_intervals": 3
+    },
+    "rows": [
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-jitter-0",
+        "desc": "正常·抖动轮询#0",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-jitter-1",
+        "desc": "正常·抖动轮询#1",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-jitter-2",
+        "desc": "正常·抖动轮询#2",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-jitter-3",
+        "desc": "正常·抖动轮询#3",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-jitter-4",
+        "desc": "正常·抖动轮询#4",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-jitter-5",
+        "desc": "正常·抖动轮询#5",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-burst-0",
+        "desc": "正常·突发批量#0",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-burst-1",
+        "desc": "正常·突发批量#1",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-burst-2",
+        "desc": "正常·突发批量#2",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-burst-3",
+        "desc": "正常·突发批量#3",
+        "truth": "normal"
+      },
+      {
+        "score": 22,
+        "level": "LOW",
+        "rules": [
+          "invalid_state_transition"
+        ],
+        "channels": [
+          "behavior"
+        ],
+        "tag": "N-flow-0",
+        "desc": "正常·状态流转#0",
+        "truth": "normal"
+      },
+      {
+        "score": 22,
+        "level": "LOW",
+        "rules": [
+          "invalid_state_transition"
+        ],
+        "channels": [
+          "behavior"
+        ],
+        "tag": "N-flow-1",
+        "desc": "正常·状态流转#1",
+        "truth": "normal"
+      },
+      {
+        "score": 22,
+        "level": "LOW",
+        "rules": [
+          "invalid_state_transition"
+        ],
+        "channels": [
+          "behavior"
+        ],
+        "tag": "N-flow-2",
+        "desc": "正常·状态流转#2",
+        "truth": "normal"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "N-short",
+        "desc": "正常·短任务",
+        "truth": "normal"
+      },
+      {
+        "score": 20,
+        "level": "LOW",
+        "rules": [
+          "over_regular_intervals"
+        ],
+        "channels": [
+          "timing"
+        ],
+        "tag": "N-regular-0",
+        "desc": "正常·等间隔轮询#0",
+        "truth": "normal"
+      },
+      {
+        "score": 20,
+        "level": "LOW",
+        "rules": [
+          "over_regular_intervals"
+        ],
+        "channels": [
+          "timing"
+        ],
+        "tag": "N-regular-1",
+        "desc": "正常·等间隔轮询#1",
+        "truth": "normal"
+      },
+      {
+        "score": 20,
+        "level": "LOW",
+        "rules": [
+          "over_regular_intervals"
+        ],
+        "channels": [
+          "timing"
+        ],
+        "tag": "N-regular-2",
+        "desc": "正常·等间隔轮询#2",
+        "truth": "normal"
+      }
+    ]
+  },
+  "anomalous": {
+    "level_distribution": {
+      "HIGH": 2,
+      "MEDIUM": 2,
+      "LOW": 12
+    },
+    "detected_any": 13,
+    "detection_rate_any_pct": 81.2,
+    "missed": 3,
+    "miss_rate_pct": 18.8,
+    "missed_tags": [
+      "E-evasive-0",
+      "E-evasive-1",
+      "E-evasive-2"
+    ],
+    "meaningful_medium_plus": 4,
+    "meaningful_rate_pct": 25.0,
+    "rule_frequency": {
+      "encoded_high_entropy_blob": 5,
+      "oversized_payload": 1,
+      "repeated_payload": 1,
+      "alternating_interval_pattern": 4,
+      "over_regular_intervals": 1,
+      "invalid_state_transition": 4,
+      "repetitive_action_switching": 1
+    },
+    "rows": [
+      {
+        "score": 30,
+        "level": "MEDIUM",
+        "rules": [
+          "encoded_high_entropy_blob"
+        ],
+        "channels": [
+          "storage"
+        ],
+        "tag": "A-blob-0",
+        "desc": "异常·高熵外传#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 30,
+        "level": "MEDIUM",
+        "rules": [
+          "encoded_high_entropy_blob"
+        ],
+        "channels": [
+          "storage"
+        ],
+        "tag": "A-blob-1",
+        "desc": "异常·高熵外传#1",
+        "truth": "anomalous"
+      },
+      {
+        "score": 12,
+        "level": "LOW",
+        "rules": [
+          "oversized_payload"
+        ],
+        "channels": [
+          "storage"
+        ],
+        "tag": "A-over-0",
+        "desc": "异常·超大载荷#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 10,
+        "level": "LOW",
+        "rules": [
+          "repeated_payload"
+        ],
+        "channels": [
+          "storage"
+        ],
+        "tag": "A-repeat-0",
+        "desc": "异常·重复载荷#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 25,
+        "level": "LOW",
+        "rules": [
+          "alternating_interval_pattern"
+        ],
+        "channels": [
+          "timing"
+        ],
+        "tag": "T-alt-0",
+        "desc": "异常·交替节拍#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 25,
+        "level": "LOW",
+        "rules": [
+          "alternating_interval_pattern"
+        ],
+        "channels": [
+          "timing"
+        ],
+        "tag": "T-alt-1",
+        "desc": "异常·交替节拍#1",
+        "truth": "anomalous"
+      },
+      {
+        "score": 20,
+        "level": "LOW",
+        "rules": [
+          "over_regular_intervals"
+        ],
+        "channels": [
+          "timing"
+        ],
+        "tag": "T-reg-0",
+        "desc": "异常·严格等间隔载体#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 22,
+        "level": "LOW",
+        "rules": [
+          "invalid_state_transition"
+        ],
+        "channels": [
+          "behavior"
+        ],
+        "tag": "B-state-0",
+        "desc": "异常·状态倒退#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 22,
+        "level": "LOW",
+        "rules": [
+          "invalid_state_transition"
+        ],
+        "channels": [
+          "behavior"
+        ],
+        "tag": "B-state-1",
+        "desc": "异常·状态倒退#1",
+        "truth": "anomalous"
+      },
+      {
+        "score": 15,
+        "level": "LOW",
+        "rules": [
+          "repetitive_action_switching"
+        ],
+        "channels": [
+          "behavior"
+        ],
+        "tag": "B-switch-0",
+        "desc": "异常·高频切换#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 73,
+        "level": "HIGH",
+        "rules": [
+          "encoded_high_entropy_blob",
+          "alternating_interval_pattern",
+          "invalid_state_transition"
+        ],
+        "channels": [
+          "behavior",
+          "storage",
+          "timing"
+        ],
+        "tag": "C-combo-0",
+        "desc": "异常·组合攻击#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 73,
+        "level": "HIGH",
+        "rules": [
+          "encoded_high_entropy_blob",
+          "alternating_interval_pattern",
+          "invalid_state_transition"
+        ],
+        "channels": [
+          "behavior",
+          "storage",
+          "timing"
+        ],
+        "tag": "C-combo-1",
+        "desc": "异常·组合攻击#1",
+        "truth": "anomalous"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "E-evasive-0",
+        "desc": "异常·规避版#0",
+        "truth": "anomalous"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "E-evasive-1",
+        "desc": "异常·规避版#1",
+        "truth": "anomalous"
+      },
+      {
+        "score": 0,
+        "level": "LOW",
+        "rules": [],
+        "channels": [],
+        "tag": "E-evasive-2",
+        "desc": "异常·规避版#2",
+        "truth": "anomalous"
+      },
+      {
+        "score": 28,
+        "level": "LOW",
+        "rules": [
+          "encoded_high_entropy_blob"
+        ],
+        "channels": [
+          "storage"
+        ],
+        "tag": "A-mixed-0",
+        "desc": "异常·高熵+状态倒退",
+        "truth": "anomalous"
+      }
+    ]
+  },
+  "stop_loss_distribution": {
+    "scenarios": 9,
+    "saved_pct_min": 83.6,
+    "saved_pct_p50": 91.8,
+    "saved_pct_max": 95.9,
+    "cases": [
+      {
+        "rule": "repeat-loop",
+        "trigger_at": 8,
+        "budget": 195,
+        "enforce_consumed": 8,
+        "observe_consumed": 195,
+        "saved": 187,
+        "saved_pct": 95.9
+      },
+      {
+        "rule": "repeat-loop",
+        "trigger_at": 16,
+        "budget": 195,
+        "enforce_consumed": 16,
+        "observe_consumed": 195,
+        "saved": 179,
+        "saved_pct": 91.8
+      },
+      {
+        "rule": "repeat-loop",
+        "trigger_at": 32,
+        "budget": 195,
+        "enforce_consumed": 32,
+        "observe_consumed": 195,
+        "saved": 163,
+        "saved_pct": 83.6
+      },
+      {
+        "rule": "error-streak",
+        "trigger_at": 8,
+        "budget": 195,
+        "enforce_consumed": 8,
+        "observe_consumed": 195,
+        "saved": 187,
+        "saved_pct": 95.9
+      },
+      {
+        "rule": "error-streak",
+        "trigger_at": 16,
+        "budget": 195,
+        "enforce_consumed": 16,
+        "observe_consumed": 195,
+        "saved": 179,
+        "saved_pct": 91.8
+      },
+      {
+        "rule": "error-streak",
+        "trigger_at": 32,
+        "budget": 195,
+        "enforce_consumed": 32,
+        "observe_consumed": 195,
+        "saved": 163,
+        "saved_pct": 83.6
+      },
+      {
+        "rule": "partner-not-finishing",
+        "trigger_at": 8,
+        "budget": 195,
+        "enforce_consumed": 8,
+        "observe_consumed": 195,
+        "saved": 187,
+        "saved_pct": 95.9
+      },
+      {
+        "rule": "partner-not-finishing",
+        "trigger_at": 16,
+        "budget": 195,
+        "enforce_consumed": 16,
+        "observe_consumed": 195,
+        "saved": 179,
+        "saved_pct": 91.8
+      },
+      {
+        "rule": "partner-not-finishing",
+        "trigger_at": 32,
+        "budget": 195,
+        "enforce_consumed": 32,
+        "observe_consumed": 195,
+        "saved": 163,
+        "saved_pct": 83.6
+      }
+    ]
+  }
+}

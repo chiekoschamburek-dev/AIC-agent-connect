@@ -1,0 +1,126 @@
+{
+  "experiment": "① PEP 任务级准入对照",
+  "control_variable": "cfg.enabled（off=官方默认 accept / on=研枢 PEP 裁决）",
+  "illegal": {
+    "total": 12,
+    "off_blocked": 0,
+    "on_blocked": 12,
+    "off_block_rate": 0.0,
+    "on_block_rate": 100.0,
+    "cases": [
+      {
+        "name": "无令牌直连非公开 skill",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "伪造签名 token",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "篡改 payload",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "过期 token",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "重放已消费 token",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "act 与调用方不符",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "aud 指向错误目标",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "token skill 与请求不符",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "会话绑定不符",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "签发者不在白名单(自签)",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "签名可信但 claims 越界",
+        "off_allowed": true,
+        "on_allowed": false
+      },
+      {
+        "name": "传输层身份未验证",
+        "off_allowed": true,
+        "on_allowed": false
+      }
+    ]
+  },
+  "legal": {
+    "total": 3,
+    "off_passed": 3,
+    "on_passed": 3,
+    "off_pass_rate": 100.0,
+    "on_pass_rate": 100.0,
+    "cases": [
+      {
+        "name": "公开 skill 免令牌(L0)",
+        "off_allowed": true,
+        "on_allowed": true
+      },
+      {
+        "name": "持有效委托 token(L2)",
+        "off_allowed": true,
+        "on_allowed": true
+      },
+      {
+        "name": "白名单 leader 直调(L1)",
+        "off_allowed": true,
+        "on_allowed": true
+      }
+    ]
+  },
+  "latency_ms": {
+    "illegal_decision_on": {
+      "n": 12,
+      "min": 3.1194,
+      "p50": 5.2884,
+      "p95": 13.1059,
+      "p99": 13.1958,
+      "max": 13.2183,
+      "mean": 5.9181
+    },
+    "legal_decision_on": {
+      "n": 3,
+      "min": 2.3415,
+      "p50": 2.6622,
+      "p95": 4.2093,
+      "p99": 4.3468,
+      "max": 4.3812,
+      "mean": 3.1283
+    },
+    "valid_token_decision_on": {
+      "n": 200,
+      "min": 1.9625,
+      "p50": 5.1047,
+      "p95": 9.8473,
+      "p99": 10.9945,
+      "max": 12.2097,
+      "mean": 5.4807
+    }
+  }
+}

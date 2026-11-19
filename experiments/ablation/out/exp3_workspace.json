@@ -1,0 +1,63 @@
+{
+  "experiment": "③ Workspace 四分区受控工作区对照",
+  "control": "普通业务写入（裸 Path.write_text，无分区/身份/台账）",
+  "treatment": "受控工作区（四分区 + 令牌派生身份 + sha256 台账）",
+  "boundary": {
+    "total": 4,
+    "plain_blocked": 0,
+    "governed_blocked": 4,
+    "plain_block_rate_pct": 0.0,
+    "governed_block_rate_pct": 100.0,
+    "cases": [
+      {
+        "name": "repo 只读区写入",
+        "plain": "成功写入",
+        "governed": "拒绝(zone-readonly)",
+        "plain_blocked": false,
+        "governed_blocked": true
+      },
+      {
+        "name": "非四分区路径",
+        "plain": "成功写入",
+        "governed": "拒绝(zone-required)",
+        "plain_blocked": false,
+        "governed_blocked": true
+      },
+      {
+        "name": ".. 走廊越出 shared 分区",
+        "plain": "成功写入",
+        "governed": "拒绝(zone-escape)",
+        "plain_blocked": false,
+        "governed_blocked": true
+      },
+      {
+        "name": "products 覆盖写(if_match)",
+        "plain": "成功写入",
+        "governed": "拒绝(products-append-only)",
+        "plain_blocked": false,
+        "governed_blocked": true
+      }
+    ]
+  },
+  "identity_forgery": {
+    "total": 4,
+    "blocked": 4,
+    "block_rate_pct": 100.0,
+    "plain_forgery_success": true,
+    "governed_relocated_to_worker": true
+  },
+  "attribution": {
+    "writes": 8,
+    "records_with_all_fields": 8,
+    "field_completeness_rate_pct": 100.0,
+    "records_hash_matches_file": 6,
+    "hash_match_rate_pct": 75.0,
+    "prev_sha256_chain": {
+      "versioned_writes": 3,
+      "links": 2,
+      "links_verified": 2,
+      "chain_intact": true
+    },
+    "plain_has_manifest": false
+  }
+}

@@ -22,8 +22,8 @@ yanshu-AIC/
 │   ├── agents/                   # supervisor 编排器、partner_*（研究/资源）、workspace 客户端
 │   ├── core/                     # bootstrap、名册、发现元数据、模型路由、扩展点、viz_live
 │   ├── runtime/                  # GPU/HPC/评测执行、知识库、作业台账、任务派发
-│   ├── tools/                    # 复现/冒烟脚本（非常驻服务）
-│   ├── delegation/               # ★ 互联机制：PEP 准入、委托令牌、协作域、工作区令牌
+│   ├── tools/                    # 复现/冒烟脚本与仓库事实核验（repo_facts.py，非常驻服务）
+│   ├── delegation/               # ★ 互联机制：PEP 准入、委托令牌、协作域、资源配额、工作区令牌
 │   ├── guard/                    # ★ 事件通信风险检测器（纯拷贝，剥 .git）
 │   ├── guard_adapter.py          # ★ 新代码：guard → supervisor 旁路适配层
 │   ├── covert_event_guard.py     # 兼容 shim（保留原模块路径）
@@ -36,7 +36,8 @@ yanshu-AIC/
 │   └── wenji/                    # 问迹（团队自研问数/问答智能体，含其自有 frontend/）
 ├── cluster-viz/                  # 集群总览前端（React + Vite + ReactFlow）
 ├── guard-api/                    # guard 的 HTTP 接口层（FastAPI；独立进程或挂载 supervisor）
-├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、部署/运行手册
+├── docs/                         # 架构、PEP/RFC、工作区、AMP、名册、部署/运行手册、可核验事实
+├── experiments/ablation/         # 四组对照实验（PEP/域/Workspace/Guard）：自包含、离线可复跑
 ├── deploy.sh                     # 一键部署入口（preflight/init/build/install-units/start/stop/status/logs）
 ├── project.md                    # 项目总览、实验与量化证据
 ├── requirements.txt / pyproject.toml
@@ -100,9 +101,13 @@ yanshu-AIC/
   Ed25519 JWS 委托令牌（iss/sub/aud/act/jti），策略缺失时 fail-closed。
 - **周期级（域级授权与对账）**：域章程授权的周期内复用 + 使用量对账
   （`reconciliation.py`、`quota.py`），把"一次一授权"的成本摊到域周期上。
+- **资源量配额（GPU 卡时）**：章程 `resourceQuota` 写"每位调用方每 UTC 日的资源量上限"，
+  PEP 在域授权放行时把额度交进请求上下文，资源节点开跑前查余量、跑完按实测时长记账
+  （`resource_budget.py` + `quota.py` 的 `resource_uses` 表）。
+  只数调用次数不够——一次合法调用可以跑满 600 秒。
 
 实现：`acps_cluster/delegation/pep.py`、`token.py`、`client.py`、`bridge.py`、
-`reconciliation.py`、`quota.py`、`vault.py`。设计见
+`reconciliation.py`、`quota.py`、`resource_budget.py`、`vault.py`。设计见
 [docs/PEP_design.md](docs/PEP_design.md)、[docs/RFC_delegation_domain_draft.md](docs/RFC_delegation_domain_draft.md)。
 
 **③ workspace** —— 双重身份：
@@ -338,30 +343,41 @@ python -m pip install -r requirements.txt      # 需要 wit_framework 时先从�
 
 # 2) 全量测试（干净克隆：签名/数据集/平台快照相关用例会 skip，不是 fail）
 python run_all_tests.py
-# 或：python -m pytest acps_cluster/tests acps_cluster/guard/tests -q
+# 或：python -m pytest acps_cluster/tests acps_cluster/guard/tests guard-api/tests -q
 ```
 
-当前干净克隆的实测结果见 [docs/architecture.md](docs/architecture.md) 的"验证"一节。
+当前干净克隆的实测结果见 [docs/verification.md](docs/verification.md)（含通过数、跳过原因与复跑命令）。
+网络受限环境（如 fake-ip 代理把域名解析到保留段）只会让个别 DNS 用例 **skip**，不会 fail。
 
 ```bash
-# 3) guard 适配层最小链路（读任务库 → 检测 → 风险报告 + viz 告警）
+# 3) 四组对照实验（PEP 准入 / 协作域 / Workspace / 双层 Guard）：自包含、离线、可复跑
+python experiments/ablation/run_all.py
+#   原始数据落在 experiments/ablation/out/*.json，结论表见
+#   experiments/ablation/实验报告-三机制对照-真实数字.md
+
+# 4) 仓库事实核验（受控文件数 / 代码规模 / docstring 完整率 / 语言占比）
+python acps_cluster/tools/repo_facts.py
+```
+
+```bash
+# 5) guard 适配层最小链路（读任务库 → 检测 → 风险报告 + viz 告警）
 python -m acps_cluster.guard_adapter --db /path/to/aip-tasks.sqlite3
 # 周期模式（常驻，类似 systemd）：
 python -m acps_cluster.guard_adapter --db /path/to/aip-tasks.sqlite3 --interval 300
 
-# 4) guard HTTP API（可选依赖：pip install -r guard-api/requirements.txt）
+# 6) guard HTTP API（可选依赖：pip install -r guard-api/requirements.txt）
 python -m guard_api --db /path/to/aip-tasks.sqlite3 --port 8778
 #   挂载进 supervisor（默认关闭，设了才启用；与宿主同生共死）：
 #   export ACPS_GUARD_API_PORT=8778
 #   export ACPS_GUARD_DB=acps_cluster/ws-supervisor/acps/aip-tasks.sqlite3
 
-# 5) 扩展组件自带测试
+# 7) 扩展组件自带测试
 python -m pytest acps_cluster/guard/tests -q          # 12 项
 python -m pytest guard-api/tests -q                   # 20 项（FastAPI/挂载/鉴权）
 ```
 
 ```bash
-# 6) 前端 viz
+# 8) 前端 viz
 cd cluster-viz
 npm ci && npm run dev        # http://localhost:5178
 ```
@@ -382,6 +398,8 @@ cat partners/designer/SUBMISSION_README.md
 
 | 文档 | 内容 |
 |---|---|
+| [docs/verification.md](docs/verification.md) | **可核验事实**：受控文件数、测试通过数、docstring 完整率、四组对照实验结果、主张→代码→测试映射 |
+| [experiments/ablation/实验报告-三机制对照-真实数字.md](experiments/ablation/实验报告-三机制对照-真实数字.md) | 四组对照实验的方法、完整结果与复跑方式 |
 | [docs/architecture.md](docs/architecture.md) | 架构、创新点映射、模块职责、适配层设计、验证结果 |
 | [docs/deployment.md](docs/deployment.md) | 一键部署：前置条件、子命令、systemd 单元、guard/viz、边界与排障 |
 | [docs/PEP_design.md](docs/PEP_design.md) | PEP 准入设计（任务级 + 周期级） |

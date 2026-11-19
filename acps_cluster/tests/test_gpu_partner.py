@@ -6,6 +6,8 @@ Docker/GPU 相关的沙盒真实执行需要 Docker Desktop，不在离线单测
     python -m unittest acps_cluster.tests.test_gpu_partner -v
 """
 
+import ipaddress
+import socket
 import sys
 import unittest
 from pathlib import Path
@@ -24,6 +26,25 @@ from deploy.mint_gpu_identity import aic_checksum, base36_4, crc16_ccitt_false  
 GPU_ACS = CLUSTER_DIR / "ws-gpu" / "acps" / "acs.final.json"
 GPU_ENROLLMENT = CLUSTER_DIR / "ws-gpu" / "acps" / "enrollment.json"
 NO_GPU_DEV = "ws-gpu 未铸造（dev 工作区不入库）；干净克隆跳过"
+
+
+def _resolves_public(host: str) -> bool:
+    """本机解析该主机得到的**全部**地址是否都是公网地址。
+
+    代理/加速器的 fake-ip 模式会把任意域名解析进保留段（如 198.18.0.0/15），
+    此时"域名 → 公网"的用例没有评估意义，应显式跳过而不是判失败。
+    """
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return False
+    addresses = []
+    for info in infos:
+        try:
+            addresses.append(ipaddress.ip_address(info[4][0]))
+        except ValueError:
+            continue
+    return bool(addresses) and all(addr.is_global for addr in addresses)
 
 
 class AicChecksumTest(unittest.TestCase):
@@ -220,8 +241,16 @@ class DatasetFetchTest(unittest.TestCase):
             self.assertIsNotNone(error, f"数据集名 {bad!r} 应被拒绝")
 
     def test_URL策略(self):
-        # https 放行
-        self.assertIsNone(gpu_runner.validate_fetch(self.CLEANUP_PREFIX + "a", "https://example.com/d.zip"))
+        # https 放行：用公网 IP 字面量，避免依赖本机 DNS —— 代理/加速器的 fake-ip 会把
+        # example.com 解析到 198.18.0.0/15 之类的保留段，SSRF 防线会（正确地）拒绝它，
+        # 但这与"https 公网主机放行"的语义无关。
+        self.assertIsNone(gpu_runner.validate_fetch(self.CLEANUP_PREFIX + "a", "https://1.1.1.1/d.zip"))
+        if not _resolves_public("example.com"):
+            self.skipTest(
+                "本机 DNS 把 example.com 解析到非公网地址（常见于 fake-ip 代理），"
+                "域名解析分支无法在此环境评估；IP 字面量分支已覆盖"
+            )
+        self.assertIsNone(gpu_runner.validate_fetch(self.CLEANUP_PREFIX + "a2", "https://example.com/d.zip"))
         # 非回环 http 拒绝；回环 http 放行（本地演示/自托管数据源）
         self.assertIsNotNone(gpu_runner.validate_fetch(self.CLEANUP_PREFIX + "b", "http://example.com/d"))
         self.assertIsNone(gpu_runner.validate_fetch(self.CLEANUP_PREFIX + "c", "http://127.0.0.1:8000/d"))

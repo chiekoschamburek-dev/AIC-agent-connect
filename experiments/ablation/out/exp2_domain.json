@@ -1,0 +1,65 @@
+{
+  "experiment": "② 持续协作域热变更对照",
+  "control_variable": "域策略视图/章程状态（对照=关闭 PEP 治理层，官方默认 accept）",
+  "claim": "同一枚凭证，章程状态运行中改变后下一次裁决立即翻转——证明非静态配置",
+  "total": 8,
+  "matched": 8,
+  "cases": [
+    {
+      "item": "域内合法 grant（consumer 调 gpu.run）",
+      "change": "无（基线）",
+      "with_domain": "allow/domain-grant",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "allow"
+    },
+    {
+      "item": "冻结协作域（章程 active→frozen）",
+      "change": "运行中改 status=frozen，token 不变",
+      "with_domain": "deny/domain-frozen",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "deny/domain-frozen"
+    },
+    {
+      "item": "撤销成员资格（r1→r2 移除 consumer）",
+      "change": "运行中升 revision 移除成员，token 不变",
+      "with_domain": "deny/grant-not-member",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "deny/grant-not-member"
+    },
+    {
+      "item": "配额用尽（max_uses=2，连调 3 次）",
+      "change": "配额计数器实时扣减",
+      "with_domain": "allow/domain-grant → allow/domain-grant → deny/quota-exhausted",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "allow, allow, deny/quota-exhausted"
+    },
+    {
+      "item": "grant 到期失效（TTL=60s，now+3600s）",
+      "change": "时间推进到有效期外",
+      "with_domain": "deny/invalid-token",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "deny/"
+    },
+    {
+      "item": "域外盗用（critic 持 experiment 的 grant）",
+      "change": "调用方换成非成员",
+      "with_domain": "deny/grant-subject-mismatch",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "deny/grant-subject-mismatch"
+    },
+    {
+      "item": "非授权签发者（gpu 签 grant，issuers 仅 leader）",
+      "change": "签发者换成域内 provider",
+      "with_domain": "deny/issuer-not-in-domain",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "deny/issuer-not-in-domain"
+    },
+    {
+      "item": "无域凭证直连受治理技能",
+      "change": "去掉 grant",
+      "with_domain": "deny/no-credential",
+      "without_domain": "accept（官方默认·实测 accepted）",
+      "expected": "deny/no-credential"
+    }
+  ]
+}
