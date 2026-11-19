@@ -306,6 +306,21 @@ class AutoForwardRequestHooks(AipPartnerTransformHooks):
         self._cluster_root = cluster_root
 
     async def on_partner_request(self, event) -> None:  # noqa: ANN001
+        """记录一次入站任务的来源与正文，供 run 结束后自动上报 supervisor。
+
+        只做**观察与登记**，不改请求内容、不转发、不阻塞业务：
+
+        - 每次入站先清空上一次的残留（`_INBOUND` 是 ContextVar，同一上下文可能复用）；
+        - 开关 `ACPS_AUTO_FORWARD_*` 关闭时直接返回（保持"未装配"行为一致）；
+        - 缺少 `peer_verified` / `leader_aic` / `task_id` / 目标 supervisor 身份时返回——
+          **没有已验证对端就不上报**，避免把自报身份写进编排链；
+        - 调用方就是 supervisor 自己（`leader == target`）时返回，防止自环；
+        - 默认只登记"外部调用方"的任务（`ACPS_AUTO_FORWARD_SCOPE=all` 可放开），
+          伙伴之间的内部互调不进入转发链，同样是为了防环；
+        - 正文取清洗后的可读文本并截断到 `_max_forward_question()`，空正文不登记。
+
+        真正的转发发生在 run 的 `wrap_run` 里——那时任务已执行完、有结果可回传。
+        """
         _INBOUND.set(None)
         if os.getenv(_ENV_AUTO, "1").strip().lower() in {"0", "false", "no", "off"}:
             return

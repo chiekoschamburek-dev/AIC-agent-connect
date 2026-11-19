@@ -383,6 +383,15 @@ class RootStore:
         error: str | None = None,
         result_ref: str | None = None,
     ) -> RootTask:
+        """把根任务推进到 `state`，并可选写入 `error` / `result_ref`。
+
+        状态机是**带条件更新的单语句 UPDATE**（`WHERE root_id=? AND state=?` 带上读到的旧状态）：
+        两个进程同时推进时，后到的那个 `rowcount` 为 0，直接抛 `InvalidTransition`
+        ——靠数据库比较并交换，而不是"先查后写"的竞态窗口。
+
+        非法状态（不在 `STATES`）、不存在的根任务、不被 `ALLOWED_TRANSITIONS`
+        允许的跳变都会抛异常：调用方必须显式处理，不允许静默丢事件。
+        """
         target = str(state or "").strip().lower()
         if target not in STATES:
             raise ValueError(f"未知状态：{state!r}")

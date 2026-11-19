@@ -3580,6 +3580,21 @@ def _make_resource_call_tool(roster: list[cluster_roster.RosterMember]) -> Tool:
     delegate = _make_authenticated_delegate_tool(roster)
 
     async def handler(arguments: dict | str) -> dict:
+        """把一次资源调用整理成静态路由认识的 JSON 再交给委派工具。
+
+        输入容错：`arguments` 可以是 dict，也可以是 JSON 字符串（模型两种都给过）。
+        随后逐层把"模型可能写错的地方"收窄成明确错误，而不是把坏请求发出去白烧一轮：
+
+        - 缺 `partner` / `skill` → `缺少必填参数`；
+        - `args_json` 不是合法 JSON 对象 → 报错（静态资源节点只吃结构化参数）；
+        - 不在名册 / 不是 cpu·gpu·kb·hpc → 拒绝（研究伙伴要用 `acps_delegate`）；
+        - skill 不在该成员声明的非公开能力里 → 拒绝并提示改用 `acps_delegate_public`。
+
+        放行前先 `aip_discover` 一次目标 AIC（资源节点换了新身份时本机发现缓存可能还是空的，
+        不先发现的话 `aip_delegate` 会直接报 "no discovered endpoint"）。
+        真正出站复用 `_make_authenticated_delegate_tool` 的令牌签发与传输逻辑，
+        `payload_mode=static-json` 只标记这次走的是静态路由。
+        """
         args = arguments if isinstance(arguments, dict) else {"args_json": str(arguments)}
         partner = str(args.get("partner") or args.get("partner_aic") or "").strip()
         skill = str(args.get("skill") or args.get("skill_id") or "").strip()

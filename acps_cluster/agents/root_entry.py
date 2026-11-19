@@ -165,6 +165,18 @@ async def submit_core(
     caller_aic: str | None = None,
     platform_task_id: str | None = None,
 ) -> dict[str, Any]:
+    """受理一次根任务（supervisor 的两个入口工具共用这一份实现）。
+
+    - **调用方身份只认 mTLS**：`caller_aic` 缺省取 `current_caller_aic()`
+      （准入阶段写入、来自已校验对端）；取不到即返回 `unverified-caller`，
+      不接受正文自报的 AIC——否则任何伙伴都能冒充别人建根任务；
+    - 归属固定为已验证调用方；`source_caller` / `source_session` 只是来源 metadata，
+      不能凭它改归属（否则任何伙伴都能伪造 owner）；原发起方查询按 `source_caller` 放行；
+    - 建账成功后把平台 taskId 回填进台账（`set_platform_task`），失败只吞掉——
+      账已建好，回填失败不该让调用方看到错误；
+    - `store` / `submit_fn` / `caller_aic` / `platform_task_id` 是测试与作业系统的
+      注入口，生产调用不传。
+    """
     caller = caller_aic if caller_aic is not None else current_caller_aic()
     if not caller:
         return {
@@ -207,6 +219,14 @@ async def status_core(
     caller_aic: str | None = None,
     platform_task_id: str | None = None,
 ) -> dict[str, Any]:
+    """查询根任务状态（supervisor 的 status 工具共用这一份实现）。
+
+    - 同样要求已验证调用方（`unverified-caller` 早于任何查账动作返回），
+      查询权限在 `root_service.status_root` 内按"入口本人 / 原发起方 / 白名单"判定；
+    - `root_id` / `job_id` / `source_task_id` 三种寻址方式并存：直接给根任务、
+      给派生作业、或按上游任务号反查（P1 的作业恢复就是靠反查找到根任务）；
+    - `jobs_root_path` 让测试指向临时目录；生产不传，用全局 `jobs_root()`。
+    """
     caller = caller_aic if caller_aic is not None else current_caller_aic()
     if not caller:
         return {
