@@ -14,13 +14,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: 语法编译（不导入依赖）
-        run: python -m compileall -q acps_cluster capabilities guard-api
+        run: python -m compileall -q acps_cluster capabilities guard-api experiments
       - name: shell 语法检查（一键部署入口）
         run: bash -n deploy.sh
       - name: ruff 致命规则
         run: |
           python -m pip install --quiet ruff
-          ruff check --select E9,F63,F7,F82 acps_cluster capabilities guard-api
+          ruff check --select E9,F63,F7,F82 acps_cluster capabilities guard-api experiments
 
   tests:
     name: 单元测试
